@@ -1,0 +1,378 @@
+% Preamble
+\documentclass[11pt]{article}
+
+% Packages
+% 1.5 facher Zeilenabstand
+
+\usepackage[utf8]{inputenc}
+% 1.5 facher Zeilenabstand
+\usepackage[onehalfspacing]{setspace}
+\usepackage{natbib}
+\bibliographystyle{agsm}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{minted}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+
+% CITE STYLE HARVARD: et al
+
+\title{MasterThesis}
+\author{Tim Ruhkopf}
+\date{January 2019}
+
+\begin{document}
+
+\begin{titlepage}
+
+	\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+	\center % Centre everything on the page
+
+	\HRule\\[0.4cm]
+
+	{\huge\bfseries Topic}\\[0.4cm]
+
+	\HRule\\[1.5cm]
+	\vfill\vfill
+
+	\textsc{\Large twenty week graduation work as part of the examination in the course of studies Applied Statistics at the
+        Georg August University G\"ottingen.}\\[1.5cm]
+
+	\vfill\vfill
+	\begin{minipage}{0.5\textwidth}
+		\begin{center}
+			\large
+			submitted on: {\large\today} \\
+		    author: Tim \textsc{Ruhkopf}\\
+            matr.no: 21218472 \\
+            email: tim.ruhkopf@outlook.de \\
+			from: \textsc{Gehrden}\\
+
+		\end{center}
+	\end{minipage}
+
+	\vfill\vfill
+
+	\begin{minipage}{0.5\textwidth}
+		\begin{center}
+			\large
+			\textit{Examinors}\\
+			Dr. Benjamin \textsc{S\"afken}\\
+			Prof. Dr. Thomas \textsc{Kneib}
+
+		\end{center}
+	\end{minipage}
+
+	\vfill\vfill\vfill\vfill
+
+\end{titlepage}
+
+    \tableofcontents
+    \thispagestyle{empty} % remove pagenumber
+
+    \clearpage
+    \listoftables
+    \listoffigures
+    \listofalgorithms
+    \addtocontents{loa}{\def\string\figurename{Algorithm}}
+
+    \clearpage
+    \setcounter{page}{1} % starte pagenumber with 1
+
+    \clearpage
+    \begin{abstract}
+        This is the abstract.
+    \end{abstract}
+
+    % CONTENT
+    \section{Introduction}
+
+    \section{Literature review}
+    A natural starting point into bayesian modeling is the comprehensive and partly practical guide \cite{gelman2013bayesian},
+
+    Bayesian GAM \& Splines
+    \cite{fahrmeir2013regression}
+
+    BNN
+
+    SAMPLING SCHEMES
+    A conceptual introduction into the use of Monte Carlo methods to approximate the unknown posterior's quantities as well as an didactically appealing progression from Importance, Rejection Sampling to Markov Chain Monte Carlo (MCMC) methods and Gibbs sampling to Hamiltonian Monte Carlo (HMC), regarding their methodology and suffocation in higher dimensional parameter spaces can be found with \cite{mackay2003information}. Considering the distribution's typical sets and their exploration in higher dimensions both \cite{mackay2003information} and \cite{betancourt2017conceptual} are good introductions to motivate efficient exploration of the typical set in the light of Monte Carlo integration.
+    The mathematical foundations of MCMC can be found with \cite{brooks2011handbook}. Particularly setting up an appropriate Markov chain and the requiries for MCMC methods to converge to the desired distribution are of special interest. \cite{neal2011mcmc}'s review on the efficient MCMC flavour HMC is a worthwhile read to grasp Hamiltonian dynamics and its properties of reversibility and preservation of volume in the context of MCMC as well as the discrete (modified) Euler and Leapfrog approximation preserving volume - provided some basic knowledge in differential equations. For the inclined reader, the line of thought on posterior inference presented in the above literature is paraphrased in chapter \ref{inference}.
+
+
+    \clearpage
+    \section{Theory}
+        \subsection{Generalized Additive Models}
+        On their own, bayesian gam can be estimated using MCMC(IWLS) \cite{}
+        \subsection{Neural Nets}
+        \subsection{Bayesian Neural Nets}
+        note: motivate the use of HMC as efficient MCMC, due to fast increase in dimension.
+
+        Also
+
+    \clearpage
+    \section{Experiment}
+        Even though more generally available, this analysis confines itself to
+        \begin{align}
+            \eta &= f_1(z_1) + f_2(z_2) + f_{12}(z_1 , z_2) \\
+                 &= Z_1 \gamma_1 + Z_2 \gamma_2 + Z_{12} \gamma_{12}
+        \end{align}
+        with Z being appropriate basis representations.
+        \subsection{Data generating process}
+            \subsubsection{Sampling main effects} \label{maineffect}
+            To sample arbitrarily complex, smooth functions $f(x)$, on a given support $x \in {\rm I\!R}$, Bayesian P-splines following their formulation in \cite{fahrmeir2013regression} can easily be employed:
+
+            The B-spline expansion at some continuous z
+            \begin{equation} \label{Bspline}
+                f(z) = z'\gamma = \sum_{j=1}^d B_j^l (z)\gamma_j
+            \end{equation}
+            with $l$, the basis degree and $d$ the
+            Assuming smoothness of $f$ in form of the conditional prior density
+            \begin{equation}
+                p(\gamma_j|\gamma_{j-1}, \dots, \gamma_1) \propto N(\gamma_{j-1}|\tau^2)
+            \end{equation}
+
+            abiding first order markov property and implying the joint Normal prior distribution is a Random Walk of order 1.
+            \begin{equation} \label{1dprior}
+                p(\gamma|\tau) = p(\gamma_1)\frac{1}{(2\pi\tau^2)^{(d-1)/2}}exp\left( -\frac{1}{2\tau^2} \gamma K \gamma \right)
+            \end{equation}
+
+            which, given some initial state distribution for $\gamma_1$ and precision Matrix $\frac{1}{\tau^2}K = D_1'D_1$ with $D_1$, the first order difference matrix.  Therefore, sampling $\gamma$ from its prior distribution given some fixed $\tau$, an initial state $\gamma_1$ and assuming evenly distributed placement of the basis functions, is exactly the vector of cumulatively added Gaussian noise given this particular $\tau$. Evaluating (\ref{Bspline}) given this draw of $\gamma$ for some $z$, is evaluating the random smooth function $f$.
+
+
+
+            \subsubsection{Sampling 2D interaction surfaces}
+
+            %NEW VERSION WITH APPROPRIATE GMRF:
+            note the role of a radius $\delta$ to define the discrete neighborhood structure - an implication on the correlation structure - a somewhat squared circle of influence: Consider a discrete grid of coordinates at which the GMRF is sampled. imposing the discrete neighborhood structure $s \sim r$ on the actual distance constrained by a radius $d(r,s)<\delta$ allows to easily introduce anisotropy by contracting the distance $d$
+
+
+
+%            The above procedure of sampling smooth functions can be generalised to a Random Walk in a second dimension in various ways. One way to do so is the generalisation via Tensorproduct  B-Splines (Te-Splines), whose coefficients $\gamma_{ij}$ location variables following a Gaussian Random Field (GRF)
+%
+%            \begin{equation} \label{tespline}
+%                f(z_1, z_2) = \sum_{j=1}^{d_1}\sum_{r=1}^{d_2} B_j^l (z_1) B_r^l (z_2) \gamma_{jr}
+%            \end{equation}
+%
+%            support $x \in {\rm I\!R^2}$
+%
+%
+%            Stationary process,
+%
+%            The Bayesian model interpretation of an GRF closely resembles \ref{1dprior} with an appropriate $K$
+%
+%            GRFs can be sampled following the algorithm based on \cite{pichot2016algorithms}.
+%
+%
+%        \begin{algorithm}
+%        \caption{General algorithm for random field generation}
+%        \label{sampleGMRF}
+%        \begin{algorithmic}[1]
+%        \Procedure{generate sample}{$X_{n  m}$} with $m \in \{1,2,3\}$ \label{dim}
+%            \State \label{corr} calculate $\{R\}_{jk} = Cov(|x_j - x_k|_2) = Cov(h)$
+%            \State \label{fac2} factorise $R=BB^T$
+%            \State draw $\theta \sim N_n(0, I_n)$
+%            \State obtain realisation $B^T\theta$
+%        \EndProcedure
+%        \end{algorithmic}
+%        \end{algorithm}
+%
+%        GAUSSIAN KERNEL: AUTOCOVARIANCE FUNCTIONS????
+%
+%           Line \ref{dim} of the above algorithm hints towards its applicability in one, two and three dimensions. This analysis confines itself to continous interaction effects of two covariates Further note, line \ref{fac2} considers euclidean distance in an isotropic setup and can readily be extended to anisotropy if instead the rotated and prolonged distance according to \cite{fahrmeir2013regression} is used:
+%
+%            \begin{align}
+%                h = \sqrt{(x_j -x_k)^T R(\psi)^T D(\delta) R(\psi) (x_j-x_k)}
+%            \end{align}
+%            \begin{align}
+%                R(\psi) = \begin{pmatrix}
+%                        \cos{(\psi)} & \sin{(\psi)} \\
+%                        -\sin{(\psi)} &  \cos{(\psi)}
+%                    \end{pmatrix} \qquad
+%               D(\delta) = \begin{pmatrix}
+%                        \delta^{-1} & 0 \\
+%                        0 & 1
+%                    \end{pmatrix}
+%            \end{align}
+%
+%            with $\psi \in [0,2\pi]$, $\delta \geq 1$. If $\psi=0$ and $\delta = 1$, the special case of isotropy is recovered. This extension allows for directed assumptions of smoothness, as the distance is contracted and twisted in space.
+%            Line \ref{fac2} requires special attention. Considering, the Te-Splines are placed on an equally spaced grid $X_{n2}$, $R$ is a structured matrix. Aside of choletzky and eigendecomposition, \cite{pichot2016algorithms} proposes a circulant embedding approach, heavily exploiting this structure for significant performance gains in fatorization of large grids. For the purpose of this analysis, despite the elegance of circulant embedding, the eigendecomposition is employed, as the surfaces complexity can be sufficiently altered using varying degrees of smoothness, rather than increasing the set of discrete points in GMRF and the increased domain of Te-Spline.
+        \subsection{Results}
+
+
+    \section{A note on MCMC posterior inference} \label{inference}
+        Bayesian models are generally of the form
+
+        \begin{equation}
+            p(\theta|y) = \frac{p(y|\theta)p(\theta)}{\int p(y|\theta)p(\theta)}
+        \end{equation}
+        with $p(y|\theta)$, the likelihood model of the data and $p(\theta)$ the prior model before seeing the data, most often suppressing the denominator's normalising constant with proportionality. Both the prior and likelihood model can be evaluated. However, the resulting posterior distribution $p(\theta|y)$ generally is not analytically available, preventing direct analytical inference on the quanities of interest. Instead, it is required to resort to numerical approximations of the posterior.
+
+        \subsection{Monte Carlo Integration}
+        As \cite{mackay2003information} states, the main goal of posterior inference on $p(x)= \frac{1}{Z} w(x)$ with unknown normalising constant $Z$ is to numerically approximate the expectation of a functional $f(x)$
+
+        \begin{equation}\label{montecarlo}
+            E(f(x)) = \int x f(x) p(x) dx
+        \end{equation}
+
+        particularly, the functionals allow to evaluate properties such as mean, mode, quantiles or variances based on i.i.d samples from the desired posterior distribution. Following \cite{brooks2011handbook} chp. 1.7, this heavily exploits the CLT on an estimator of the above integral, e.g. in the univariate case:
+
+        \begin{equation}
+            \hat{\mu} = \frac{1}{n}\sum_{i=1}^n f(x_i)
+        \end{equation}
+
+        \begin{equation} \label{clt}
+            \hat{\mu} \sim N\left(\mu, \frac{\sigma}{n}\right)
+        \end{equation}
+
+        with $\sigma = var(f(X))$, $\mu$ and $\hat{\mu}$ being the expectation in (\ref{montecarlo}) and the  estimator of the same respectively.
+        The major difficulties that arise are at least twofold: first, generally the posterior is not readily available for sampling, as the normalising constant is unknown. Secondly, the curse of dimensionality renders it infeasible to obtain independent representative samples in reasonable amounts of time, as could be obtained for instance by importance or rejection sampling. The latter is implied by the condensing typical set, i.e. an in dimension $d$ increasingly small area, in which most of the distribution's volume resides, thereby being most informative for the approximated integral in (\ref{montecarlo}) (see \cite{mackay2003information} chp. 4.4).
+
+        \subsection{Markov Chain Monte Carlo}
+        To overcome the problem of dimensionality, Markov Chain Monte Carlo Methods introduce dependence between the samples using a carefully constructed Markov chain, whose stationary distribution is in fact the posterior distribution in order to explore the typical set (compare \cite{betancourt2017conceptual} chp. 2.4). Thereby, once converged into this stationary distribution, highly informative but (potentially) strongly correlated samples are obtained from the posterior distribution.
+        Essentially, the MCMC's Markov Chain is designed to asymptotically spend the right amount of time - which is proportional to the volume of the area under the desired posterior to effectively reflect samples drawn from it. Given the CLT in (\ref{clt}) can be established despite the auto-correlation, $\sigma$ is expanded by this structure, motivating thinning on the obtained sample sequence in order to gain close to independent samples from the posteriors typical set. The length of auto-correlation drives the "effective sample size", and thereby the computational effort to obtain independent samples from the posterior.
+        The defacto random walk exploration of the sampling space contrasts importance and rejection sampling schemes in a distinct way: both employ some form of weighting and rejection schemes of uniform independent proposals respectively. Both essentially try to explore the entire space uniformly and adjust the samples for their relative importance in the sense of (\ref{montecarlo}) either with a weighting scheme or stochastically. However, with the curse of dimensionality it becomes increasingly infeasible to hit - and gain sufficiently many samples from the typical set (see \cite{mackay2003information} chp. 29.2 -29.3).
+        The random walk exploration driven by a Markov Chain's transition probability becomes apparent denoting the special MCMC case of Metropolis-Hastings \cite{} by the form of \cite{roberts1999note} chp. 2 with some abuse of notation.
+
+        \begin{equation}
+            P_{ij} = \begin{cases}
+                        q(i|j)\alpha(i,j) & \text{if } i \neq j \\
+                        \int q(i|k)[1-\alpha(i,k)] dk & \text{if } i = j
+                        % fehlt q(ii)?
+            \end{cases}
+        \end{equation}
+
+        with $q(i|j)$ being a proposal density and $\alpha(i,j) = min\left\{1, \frac{p(i)q(i|j)}{p(j)q(j|i)} \right\}$, the accepance probability. This perspective allows to establish CLT based on Markov chain theory under certain conditions (for an enriched discussion on Markov chain conditions and their rate of convergence for CLT consult e.g. \cite{jones2004markov}).
+
+        % DETAILED BALANCE
+        Even though not sufficient and not necessarily required for establishing CLT on its own, one condition, namely detailed balance for all states i,j i.e. reversibility\footnote{Reversibility of a Markov Chain is requiring the joint distribution of forward and backward pass of a sequence to be the same w.r.t the initial distribution. (see \cite{brooks2011handbook} chp.1.5)} of the Markov Chain stresses the chain's convergence to the desired stationary distribution which by construction is the intended posterior distribution. Note that reversibility implies stationarity.
+
+        QUELLE ANGEBEN:
+        %https://ermongroup.github.io/cs323-notes/probabilistic/mh/
+        \begin{align*}
+        \label{MHdetailed}
+            w(i)q(i,j)\frac{w(j)q(j,i)}{w(i)q(i,j)} &= w(j)q(j,i) 1 \\
+            w(i)q(i,j)\alpha(i,j) &=  w(j)q(j,i)\alpha(j,i)         \\
+            p(i)P_{ij} &= p(j)P_{ji}
+        \end{align*}
+
+        given $\alpha(i,j) \leq 1$  and consequently by definition, the reverse acceptance probability must be $\alpha(j,i) = 1$, since the the inverse of a fraction that was smaller or equal to one, is necessarily larger or equal to one and by definition of the acceptance probability in MH is cutoff at one.
+        The last step is obtained by multiplying both sides with $\frac{1}{Z}$ and applying the definition of the transition kernel.
+        Note however that the assessment of convergence is yet another unresolved issue.
+
+        % make sure to tune it right: Proposal covariance structure - dependence of the parameters -
+        % to small variance leads to high dependence in the transitions - reducing the effective sample size due to autocorrelation but ensuring to stay in the typical set.
+        % to large variance may lead to jumps out of the typical set with low density, yielding high rejection rates, requiring many draws to explore the typical set.
+
+        \cite{mackay2003information} Metropolis-Hastings' performance in high dimensions is dependent on step size $\epsilon$ (in reference to the proposals standard deviation in the particular dimension direction) which must be considered in the the lengthscale of the posterior,  % check this: p294, chp 29.4
+
+
+        % Harris recurrence, erdogedicity, independence of initial state distribution to converge to the posterior distribution
+
+
+        \subsection{Hamiltonian Monte Carlo}
+        Metropolis-Hastings and various extensions to it already provide algorithmic solutions to many bayesian model formulations.
+        To motivate and paraphrase HMC, follow  \cite{neal2011mcmc}'s comprehensive review of the method originally proposed by % Duane, Kennedy, Pendleton, and Roweth 1987 (hybrid monte carlo)
+        closely:
+
+        \begin{quote}
+            \it{"The Hamiltonian Monte Carlo method alternates simple updates for these momentum variables with Metropolis up-dates in which a new state is proposed by computing a trajectory according to Hamiltonian dynamics, implemented with the leapfrog method. A state proposed in this way can be distant from the current state but nevertheless have a high probability of acceptance. This bypasses the slow exploration of the state space that occurs when Metropolis updates are done using a simple random-walk proposal distribution."}   \normalfont     (\cite{neal2011mcmc}: 2)
+        \end{quote}
+
+        First and foremost, see that HMC in fact can be expressed as a particular Markov Chain constructed by Hamiltonian dynamics, rendering it a special case of MCMC and directing the discussion on its convergence properties to those of this particular Markov Chain.
+
+        \begin{equation}
+            P_{ij} =
+        \end{equation} % note that acceptance probability comes from bounded approximation error due to leapfrog
+
+        The Hamiltonian $H$ and its associated dynamics incorporate knowledge about the posterior. The Hamiltonian dynamics describe a system of constant energy $H(q,p) = U(q) + K(p)$ consisting of potential energy $U(q)$, representing the log posterior and kinetic energy $K(p)$, usually a Gaussian kernel. The differential equations relate both energies to fullfill energy conservation (i.e. conservation of the Hamiltonian) during the evolution in time:
+
+        \begin{align}
+            \frac{dq_i}{dt} &= \frac{\partial H}{\partial p_i} =  \frac{\partial K}{\partial p_i} \label{hamiltoneq1} \\
+            \frac{dp_i}{dt} &= -\frac{\partial H}{\partial q_i} = -\frac{\partial U}{\partial q_i}  \label{hamiltoneq2}
+        \end{align}
+
+        with $i = 1, \dots, d$, where $d$ is the number of dimensions of the parameter space.
+
+        Borrowed from physical applications, the canonical distribution for the Hamiltonian as energy function is used to describe the joint distribution of potential energy and momentum:
+
+        \begin{equation}\label{canonical}
+            P(q,p) = \frac{1}{Z}exp(-H(q,p)/T) = \frac{1}{Z}exp(-U(q)/T)exp(-K(p)/T)
+        \end{equation}
+
+        with temperature $T=1$ of the system, $Z$ a normalising constant. Note that the resulting canonical distributions of $U$ and $K$ are independent. In consequence, $K$ can be chosen arbitrarily, often assuming $K(p) = p^TM^{-1}p$ i.e. to be of Gaussian form with diagonal covariance.
+
+        HMC is a two step algorithm, first sampling a new momentum independently from the implied Gaussian distribution in (\ref{canonical}), such that $H(q, p^{new})$ is a new energy level. Given this new energy level, following a trajectory in the system of (\ref{hamiltoneq1}) \& (\ref{hamiltoneq2}) and constant energy $H$, effectively follows the bound of the levelset of the underlying posterior distribution to the next proposal $(q', p')$. In this sense, sampling a new momentum is a move between levelsets. % and or determines the (random) length of the trajectory ??
+
+        % properties of this transition: leaving the canonical distribution invariant, meaning: ...
+
+        The discrete leapfrog approximation of the trajectory is a refined and more stable version of Euler's method, following the implied gradient by (\ref{hamiltoneq1}) \& (\ref{hamiltoneq2}) for some small distance $\epsilon$ starting in a point $(q,p)$ to some intermediate $(q^*, p^*)$. The procedure is repeated $L$ times to arrive at the proposal  $(q', p')$ with close to constant $H$. In contrast to Euler's method, leapfrog splits the update of $(q,p)$ and distributing the step length $\epsilon$ across these steps:
+        %leapfrog steps both $$\epsilon$ and $L$ are drawn random to avoid exact periodicity
+
+        \begin{align} \label{leapfrog}
+            p(t + \epsilon/2) &= p_i(t) -\frac{\partial U}{\partial q_i} (q(t)) \\
+           q_i(t+\epsilon) &= q_i(t) + \epsilon\frac{p_i(t+ \epsilon/2)}{m_i} \label{leapQupdate} \\
+           p_i(t+\epsilon) &= p_i(t+ \epsilon/2) - (\epsilon/2) \frac{\partial U}{\partial q_i} (q(t +\epsilon))
+        \end{align}
+
+        i.e. starting at $(q,p)$, the partial derivative of $U$ at $q$ is evaluated to update the momentum to the extent $(\epsilon/2)$, before the new state of $q$ is determined under this partially updated $p$ for the full length of $\epsilon$. At last, to arrive at the final proposal $(q', p')$, $p$ must be updated by the remaining part of the step, to get to an approximately preserved state of $H$.
+        To account for the small approximation error, an acceptance rate is introduced in order to leave the properties of the original transition almost unchanged and correct for the bias.
+
+        \begin{equation} \label{hmcaccept}
+            \alpha((q,p),(q', p')) = min\left[1, exp(-H(q',p') + H(q,p))\right]
+        \end{equation}
+
+        this eq. makes the approximation error in terms of energy apparent and incorporates it into the Markov Chain.
+        Noteworthy, leapfrog avoids divergence  and spiralling into the origin for the trajectory for non pathologic structures (see \cite{betancourt2017conceptual} chp. 6), which put themselves forward for diagnostics. Betancourt notes further, that this correction scheme also scales very well in higher dimensions, as leapfrog ocilitates near the exact energy level set such that the acceptance probability will deteriorate only negligibly %- which may become a major problem in MCMC in higher dimensions SOURCE??
+
+
+      %  The detailed balance condition in \cite{neal2011mcmc} chp. 3.2 sheds light on the connection of HMC to HM:
+
+       % \begin{equation}
+       %    \frac{V}{Z}exp(-H_{A_k})min\left[1,exp(-H_{B_k} + H_{A_k})\right] = \frac{V}{Z}exp(-H_{B_k})min\left[1,exp(-H_{A_k} + H_{B_k})\right]
+        %\end{equation}
+
+        %Particularly $min[ . ]$ corresponds to the acceptance probability and $\frac{V}{Z}exp(-H_{A_k})$ corresponds to the probability of state $A_k$ under the canonical distribution
+
+        \cite{neal2011mcmc} shows that Hamiltonian dynamics are reversible, easing the proof of MCMC updates using Hamiltonian dynamics leaving the desired distribution invariant. The proof requires the Markov chain transitions, which in case of HMC are generated by Hamiltonian dynamics, to be reversible.
+
+        % what is the role of volume for MCMC? - no adjustment of acceptance rate to keep it a proper transition?
+        % The detailed balance condition for HMC can be found with chp. Proof that HMC leaves the canonical distribution invariant (NEAL) Note that with the momentums distribution being independent of $U$, this is the proof for p(x) being the stationary distribtuion of the underlying process, ignoring p
+
+
+
+    \clearpage
+    \section{Conclusion}
+
+
+    % BIBLIOGRAPHY & APPENDIX
+    \clearpage
+    \bibliographystyle{plainnat}
+    \bibliography{sources}
+
+    \clearpage
+    \section{Appendix}
+        \begin{minted}[
+            frame=lines,
+            framesep=2mm,
+            baselinestretch=1.2,
+            bgcolor=lightgray,
+            fontsize=\footnotesize,
+            linenos
+        ]
+            {python}
+            import numpy as np
+        \end{minted}
+
+    \clearpage
+    \section{Statutory declaration}
+    Ich versichere, dass ich die Arbeit selbst\"andig und ohne Benutzung anderer als der angegebenen
+    Hilfmittel angefertigt habe. Alle Stellen, die w\"ortlich oder sinngem\"a\ss{} aus
+    Ver\"offentlichungen oder anderen Quellen entnommen sind, sind als solche kenntlich gemacht.
+    Die schriftliche und elektronische Form der Arbeit stimmen \"uberein.
+
+
+\end{document}
