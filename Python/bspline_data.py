@@ -6,9 +6,13 @@ Created on Mon Nov 6 2019
 
 import ndsplines
 from scipy.interpolate import BSpline  # FIXME: replace ndspline
+
 from scipy.spatial.distance import pdist, cdist, squareform
 from scipy.linalg import eigh
 import numpy as np
+import tensorflow as tf
+import tensorflow_probability as tfp
+tfd = tfp.distributions
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
@@ -62,7 +66,8 @@ class Effects1D():
         ax.plot(self.x, self.spl(self.x))
         pylab.show()
 
-class randomData():
+
+class Effects2D():
     """
     Possible extensions
     (1) consider random data distribution & building a grf upon it.
@@ -234,18 +239,39 @@ class randomData():
         print('shape of Q: ', self.Q.shape)
 
     def _sample_with_nullspace_pen(self, Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
-
+        # TENSORFLOW VERSION
         # trial on null space penalty
-
-        import tensorflow as tf
-        import tensorflow_probability as tfp
-        tfd = tfp.distributions
-
         self.Sigma = penalize_nullspace(Q, sig_Q, sig_Q0, threshold)
         rv_z = tfd.MultivariateNormalFullCovariance(
             covariance_matrix=self.Sigma,
             loc=0.)
         self.z = rv_z.sample().numpy()
+
+    def _sample_uncond_from_precisionB(self, Q, decomp=['eigenB', 'choleskyB'][0]):
+        # independent Normal variabels, upon which correlation will be imposed
+        theta = np.random.multivariate_normal(
+            mean=np.zeros(Q.shape[0]),
+            cov=np.eye(Q.shape[0]))
+
+        if decomp == 'eigenB':
+            # DEPREC imaginary part!! - FLOATING POINT PRECISION SEEMS TO BE THE ISSUE IN ITERATIVE ALGORITHMS
+            # compare: https://stackoverflow.com/questions/8765310/scipy-linalg-eig-return-complex-eigenvalues-for-covariance-matrix
+            # eigval, eigvec = np.linalg.eig(self.Q)
+            # self.B = eigvec.dot(np.diag(np.sqrt(eigval)))
+
+            eigval, eigvec = eigh(Q)
+            plt.scatter(np.arange(eigval.size), eigval)
+
+            self.B = eigvec.dot(np.diag(np.sqrt(eigval)))
+            self.z = self.B.dot(theta)
+
+        elif decomp == 'choleskyB':
+            # RUE 2005 / 99: for decomp look at sample_GMRF
+            self.B = np.linalg.cholesky(Q).T
+            self.z = backsolve(self.B, theta)
+
+        else:
+            raise ValueError('decomp is not propperly specified')
 
     def _sample_conditional_gmrf(self, corrfn='gaussian', lam=1, no_neighb=4, decomp=['draw_normal', 'cholesky'][0],
                                  radius=20, tau=0.1, seed=1337):
@@ -278,6 +304,7 @@ class randomData():
             'gaussian': lambda h: np.exp(-(h / lam) ** 2)
             # consider different kernels: exponential
         }[corrfn]
+
         Q_AA = squareform(corr(dist_AA))
         Q_AB = corr(dist_AB)
         Q_BB = squareform(corr(dist_BB))
