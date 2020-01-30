@@ -81,62 +81,13 @@ class Effects2D():
     # points out of their bounds.
     """
 
-    def __init__(self, xgrid=(0, 10, 1), ygrid=(0, 10, 1),
-                 bspline_param=None,
-                 uncond_grf_param=None,
-                 cond_grf_param=None,
-                 decomp=None,
-                 draw_nullspace=None,
-                 plt_it=True):
-
+    def __init__(self, xgrid, ygrid):
         self.xgrid = xgrid
         self.ygrid = ygrid
-        self.bspline_param = bspline_param
-        self.uncond_grf_param = uncond_grf_param
-        self.cond_grf_param = cond_grf_param
-        self.decomp = decomp
-        self.draw_nullspace = draw_nullspace
 
-        self.plt_it = plt_it
-
-        if bspline_param is not None:
-            self.generate_bspline(**bspline_param)
-
-            if plt_it:
-                self.plot_bspline()
-
-        if uncond_grf_param is not None or cond_grf_param is not None:
-            # spanning the grid
-            x, y = np.arange(xgrid[0], xgrid[1], xgrid[2]), \
-                   np.arange(ygrid[0], ygrid[1], ygrid[2])
-            self.grid = self.generate_grid(x, y)
-
-            if uncond_grf_param is not None:
-                self._generate_precision(**uncond_grf_param)
-
-                if uncond_grf_param['construct_precision'] == 'GMRF_VL':
-                    # precision is of full rank and invertible
-                    plt.imshow(self.SIGMA, cmap='hot', interpolation='nearest')
-                    self.z = np.random.multivariate_normal(mean=np.zeros(self.SIGMA.shape[0]), cov=self.Q)
-
-                elif uncond_grf_param['construct_precision'] == 'GMRF_K':
-
-                    self._sample_with_nullspace_pen(Q=self.Q, **draw_nullspace)
-                else:
-                    # choose how to sample based on the precision
-                    if decomp is not None:
-                        self._sample_uncond_from_precisionB(self.Q, self.decomp)
-                    elif self.draw_nullspace is not None:
-                        self._sample_with_nullspace_pen(Q=self.Q, **draw_nullspace)
-
-            elif cond_grf_param is not None:
-                self._sample_conditional_gmrf(**cond_grf_param)
-
-            # generate the interaction effect
-            self.generate_surface()
-
-            if plt_it:
-                self.plot_interaction()
+        x, y = np.arange(xgrid[0], xgrid[1], xgrid[2]), \
+               np.arange(ygrid[0], ygrid[1], ygrid[2])
+        self.grid = self.generate_grid(x, y)
 
     def generate_grid(self, x, y):
         xmesh, ymesh = np.meshgrid(x, y)
@@ -382,7 +333,10 @@ class Effects2D():
         # INTERPOLATION Function for Datapoints
         self.surface = a.__call__
 
-    def plot_interaction(self):  # , pred_error=None):
+    def log_prob(self):
+        pass
+
+    def plot_interaction(self, title):  # , pred_error=None):
         """
         # consider plotting both 3d graphics (grf & Tp-BSpline):
             # https://matplotlib.org/mpl_examples/mplot3d/subplot3d_demo.py
@@ -394,12 +348,8 @@ class Effects2D():
 
         fig = plt.figure()
 
-        if self.uncond_grf_param is not None:
-            constructtyp = 'unconditional, ' + self.uncond_grf_param['construct_precision']
-        elif self.cond_grf_param is not None:
-            constructtyp = 'conditional, '
 
-        plt.title('{} with {}'.format(constructtyp, self.decomp))
+        plt.title('{}'.format(title))
 
         # plot coefficents without TP-Splines
         ax1 = fig.add_subplot(221, projection='3d')
@@ -527,112 +477,5 @@ def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
 
 
 if __name__ == '__main__':
-    n = 10000
-    xgrid = (0, 10, 0.5)
-    ygrid = (0, 10, 0.5)
-
-    # fx = randomData(xgrid=xgrid,
-    #                 bspline_param={'n_basis': 7, 'coef_scale': 0.5, 'degree': 2},
-    #                 plt_it=False)
-    #
-    # fy = randomData(xgrid=ygrid,
-    #                 bspline_param={'n_basis': 7, 'coef_scale': 0.5, 'degree': 2},
-    #                 plt_it=False)
-
-    # # working Versions are 'eigenB' with 'GRF' or 'GMRF'
-
-    # fxy = randomData(xgrid=xgrid, ygrid=ygrid,
-    #                  uncond_grf_param={'lam': 1, 'phi': 0, 'delta': 1,
-    #                                    'construct_precision': ['GRF', 'GMRF', 'GMRF_VL', 'GMRF_K'][1],
-    #                                    'radius': 4,  # for index 1-3
-    #                                    'rho': 0.9, 'tau': 1,  # for index 2,3 only
-    #                                    'seed': 1337},
-    #                  decomp=['eigenB', 'choleskyB'][0],
-    #                  plt_it=True)
-    #
-    # fxy = randomData(xgrid=xgrid, ygrid=ygrid,
-    #                  uncond_grf_param={'lam': 1, 'phi': 0, 'delta': 1,
-    #                                    'construct_precision': ['GRF', 'GMRF', 'GMRF_VL', 'GMRF_K'][2],
-    #                                    'radius': 4,  # for index 1-3
-    #                                    'rho': 0.9, 'tau': 1,  # for index 2,3 only
-    #                                    'seed': 1337},
-    #                  decomp=['eigenB', 'choleskyB'][0],
-    #                  plt_it=True)
-
-    # working version GMRF_K with NUllspace penalty
-    fxy = randomData(xgrid=xgrid, ygrid=ygrid,
-                     uncond_grf_param={'lam': 10, 'phi': 0, 'delta': 1,
-                                       'construct_precision': ['GRF', 'GMRF', 'GMRF_VL', 'GMRF_K'][3],
-                                       'radius': 20,  # for index 1-3
-                                       'rho': 0.9, 'tau': 1,  # for index 2,3 only
-                                       'seed': 1337},
-                     draw_nullspace={'sig_Q': 1, 'sig_Q0': 1, 'threshold': 10 ** -3},
-                     plt_it=True)
-
-    # peculiar result with cholesky
-    fxy = randomData(xgrid=xgrid, ygrid=ygrid,
-                     uncond_grf_param={'lam': 1, 'phi': 0, 'delta': 1,
-                                       'construct_precision': ['GRF', 'GMRF', 'GMRF_VL', 'GMRF_K'][1],
-                                       'radius': 4,  # for index 1-3
-                                       'rho': 0.9, 'tau': 1,  # for index 2,3 only
-                                       'seed': 1337},
-                     decomp=['eigenB', 'choleskyB'][1],
-                     plt_it=True)
-
-
-
-
-    fxy_null = randomData(xgrid=xgrid, ygrid=ygrid,
-                     uncond_grf_param={'lam': 1, 'phi': 0, 'delta': 1,
-                                       'construct_precision': ['GRF', 'GMRF', 'GMRF_VL'][2],
-                                       'radius': 4,  # for index 1-3
-                                       'rho': 0.7, 'tau': 1,  # for index 2,3 only
-                                       'seed': 1337},
-                     draw_nullspace={'sig_Q': 1, 'sig_Q0': 1, 'threshold': 10 ** -3},
-                     plt_it=True)
-
-    # working version!
-    fxy_cond = randomData(xgrid=xgrid, ygrid=ygrid,
-                          cond_grf_param={'corrfn': 'gaussian', 'lam': 1, 'no_neighb': 4,
-                                          'decomp': ['draw_normal', 'cholesky'][0],
-                                          'radius': 20, 'tau': 0.1, 'seed': 1337},
-                          plt_it=True)
-
-    # uniformly sample the coordinates
-    # CONSIDER: Bayesian advantage is to declare uncertainty on estimates -
-    # particmDatularly in sparse data regions. change sampling scheme to display this
-    # effect!
-
-    # sample coordinates
-    x, y = np.random.uniform(low=xgrid[0], high=xgrid[1], size=n), \
-           np.random.uniform(low=ygrid[0], high=ygrid[1], size=n)
-
-    # mu = fx.spl(x) + fy.spl(y) + fxy.surface(np.stack([x, y], axis=-1))
-
-    # Version: sample GMRF on small grid, plug in Coefficients in NDSpline
-    mu = fxy.surface(np.stack([x, y], axis=-1))
-    # Consider: the basis representation is calculated somewhere in einsum in
-    # ndspline.NDSpline.__call__
-
-    z = np.random.normal(loc=mu.real, scale=0.1, size=n)
-
-    # plot the data
-    fig = plt.figure()
-    ax = fig.add_subplot(122, projection='3d')
-    # ax.plot_wireframe(meshx, meshy, fxy.surface(gridxy))
-    ax.scatter(xs=x, ys=y, zs=z, alpha=0.3)
-    ax.set_title('N(f(x,y), ...) = z')
-
-    ax1 = fig.add_subplot(121, projection='3d')
-    ax1.scatter(xs=x, ys=y, zs=mu.real, alpha=0.3)
-    ax1.set_title('mu')
-
-    plt.show()
-
-    # check plot methods are available
-    # fx.plot_bspline()
-    # fy.plot_bspline()
-
-    fxy.plot_interaction()
 
     print('')
