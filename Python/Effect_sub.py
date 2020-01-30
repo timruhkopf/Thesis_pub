@@ -60,7 +60,7 @@
         B: used Decomposition of R to create z
         """
 import numpy as np
-from Python.bspline_data import Effects1D, Effects2D
+from Python.Effect import Effects1D, Effects2D
 from Python.bspline import diff_mat
 
 
@@ -73,7 +73,7 @@ class GRF(Effects2D):
         # generate grid
         super(GRF, self).__init__(xgrid, ygrid)
 
-        self.grid_distances(corrfn, lam, phi, delta)
+        self.grid_distances(corrfn, lam, phi, delta, gridvec=self.grid[1])
         self.construct_precision_GRF(tau)
 
         self._sample_uncond_from_precisionB(self.Q, decomp)
@@ -82,7 +82,7 @@ class GRF(Effects2D):
         self.plot()
 
     def plot(self):
-        self.plot_interaction(title='GMRF_VL with {}'.format(self.decomp))
+        self.plot_interaction(title='GRF with {}'.format(self.decomp))
 
 
 class GMRF(Effects2D):
@@ -93,7 +93,7 @@ class GMRF(Effects2D):
         # generate grid
         super(GMRF, self).__init__(xgrid, ygrid)
 
-        self.grid_distances(corrfn, lam, phi, delta)
+        self.grid_distances(corrfn, lam, phi, delta, gridvec=self.grid[1])
         self.construct_precision_GMRF(radius, tau)
 
         self._sample_uncond_from_precisionB(self.Q, decomp)
@@ -102,7 +102,7 @@ class GMRF(Effects2D):
         self.plot()
 
     def plot(self):
-        self.plot_interaction(title='GMRF_VL with {}'.format(self.decomp))
+        self.plot_interaction(title='GMRF with {}'.format(self.decomp))
 
 
 class GMRF_K(Effects2D):
@@ -131,7 +131,7 @@ class GMRF_VL(Effects2D):
         # generate grid
         super(GMRF_VL, self).__init__(xgrid, ygrid)
 
-        self.grid_distances(corrfn, lam, phi, delta)
+        self.grid_distances(corrfn, lam, phi, delta, gridvec=self.grid[1])
         self.construct_precision_GMRF_VL(radius, rho, tau)
 
         self._sample_uncond_from_precisionB(self.Q, decomp)
@@ -145,10 +145,16 @@ class GMRF_VL(Effects2D):
 
 class Cond_GMRF(Effects2D):
     # original function needs refactoring, but works
-    def __init__(self, xgrid, ygrid, decomp):
+    def __init__(self, xgrid, ygrid,  corrfn='gaussian', lam=1, phi=0, delta=1,
+                 radius=4, tau=1, no_neighb=4, decomp=['draw_normal', 'cholesky'][0], seed=1337):
         self.decomp = decomp
         super(Cond_GMRF, self).__init__(xgrid, ygrid)
-        pass
+
+        self.grid_distances(corrfn, lam, phi, delta, gridvec=self.grid[1])
+        self._sample_conditional_gmrf(corrfn, lam, no_neighb, decomp, radius, tau, seed)
+        self.generate_surface()
+
+        self.plot()
 
     def plot(self):
         self.plot_interaction(title='Cond_GMRF with {}'.format(self.decomp))
@@ -210,9 +216,11 @@ if __name__ == '__main__':
     # gmrf = GMRF(xgrid, ygrid, radius=4, tau=1, decomp='choleskyB')
     gmrf_k = GMRF_K(xgrid, ygrid, order=2, tau=1, sig_Q=0.01, sig_Q0=0.01)
     gmrf_vl = GMRF_VL(xgrid, ygrid)
-    cond_gmrf = Cond_GMRF(xgrid, ygrid)
 
-    bspline = Bspline_cum(xgrid)
+    # FIXME: conditional effekt's edges are 'edgy'
+    cond_gmrf = Cond_GMRF(xgrid, ygrid, radius=4, tau=1, no_neighb=4)
+
+    bspline_cum = Bspline_cum(xgrid)
     bspline_k = Bspline_K(xgrid)
 
     # sample coordinates
@@ -220,7 +228,7 @@ if __name__ == '__main__':
     x, y = np.random.uniform(low=xgrid[0], high=xgrid[1], size=n), \
            np.random.uniform(low=ygrid[0], high=ygrid[1], size=n)
 
-    mu = bspline_k.spl(x) + bspline.spl(y) + gmrf_k.surface(np.stack([x, y], axis=-1))
+    mu = bspline_k.spl(x) + bspline_cum.spl(y) + gmrf_k.surface(np.stack([x, y], axis=-1))
     # mu = gmrf_k.surface(np.stack([x, y], axis=-1))
 
     z = np.random.normal(loc=mu, scale=0.1, size=n)

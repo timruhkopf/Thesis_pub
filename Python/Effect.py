@@ -12,6 +12,7 @@ from scipy.linalg import eigh
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
+
 tfd = tfp.distributions
 
 import matplotlib.pyplot as plt
@@ -21,11 +22,12 @@ from itertools import product as prd
 
 from Python.bspline import diff_mat
 
+
 class Effects1D():
     def __init__(self, xgrid):
-        self.xgrid=xgrid
+        self.xgrid = xgrid
         self.x = np.linspace(start=self.xgrid[0], stop=self.xgrid[1],
-                        num=100, endpoint=True)
+                             num=100, endpoint=True)
 
     def generate_bspline(self, degree):
         """
@@ -59,7 +61,7 @@ class Effects1D():
 
     def plot_bspline(self):
         """plotting the bspline resulting from bspline_param"""
-        import pylab # FIXME remove this for plt.scatter!
+        import pylab  # FIXME remove this for plt.scatter!
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -99,9 +101,7 @@ class Effects2D():
 
         return (xmesh, ymesh), gridvec
 
-    def grid_distances(self, corrfn, lam, phi, delta):
-        # (1) Calculate distances & generate R from it
-        _, gridvec = self.grid
+    def grid_distances(self, corrfn, lam, phi, delta, gridvec):
 
         if phi != 0 or delta != 1:
             # anisotropy  # FIXME make this available for conditional
@@ -135,11 +135,7 @@ class Effects2D():
         self.Q = tau * self.Q
 
     def construct_precision_GMRF(self, radius, tau):
-        neighbor = squareform(self.dist) <= radius
-        self.Q = np.where(neighbor == False, 0, self.kernel_distance)
-        np.fill_diagonal(self.Q, 1)
-
-        self.Q = tau * self.Q
+        self.Q= tau* self.keep_neighbour(self.kernel_distance, radius, fill_diagonal=True)
 
     def construct_precision_GMRF_K(self, order, tau):
         (meshx, _), _ = self.grid
@@ -158,8 +154,11 @@ class Effects2D():
         # w_sr \propto exp(-d(s,r)) where d euclidean dist
         # NOTE: d(s,r) is already in self.kernel_distance & all d(s,r)<= radius define s~r neighborhood!
         # 0.5 or 0.25 are radii that define the neighborhood structure on a grid
-        neighbor = squareform(self.dist) <= radius
-        w_sr = np.where(neighbor == False, 0, self.kernel_distance)
+        # neighbor = squareform(self.dist) <= radius
+        # w_sr = np.where(neighbor == False, 0, self.kernel_distance)
+        #
+        # note that self.Q is not yet finished!
+        w_sr = self.keep_neighbour(self.kernel_distance, radius, fill_diagonal=False)
 
         # np.fill_diagonal(w_sr, 0)
 
@@ -224,6 +223,15 @@ class Effects2D():
         else:
             raise ValueError('decomp is not propperly specified')
 
+    def keep_neighbour(self, Q, radius, fill_diagonal=True):
+        """keep neighbours radius based and optionally fill Q's diagonal"""
+        neighbor = squareform(self.dist) <= radius
+        Q = np.where(neighbor == False, 0, Q)
+        if fill_diagonal:
+            np.fill_diagonal(Q, 1)
+
+        return Q
+
     def _sample_conditional_gmrf(self, corrfn='gaussian', lam=1, no_neighb=4, decomp=['draw_normal', 'cholesky'][0],
                                  radius=20, tau=0.1, seed=1337):
         """conditional sampling of grf (compare Rue / Held slides p.59, eq (10)) """
@@ -245,10 +253,13 @@ class Effects2D():
         Q_AAdata = gridvec[mask]
         Q_ABdata = gridvec[~mask]
 
-        # generate the distance between points
-        dist_AA = pdist(X=Q_AAdata, metric='euclidean')
-        dist_AB = cdist(XA=Q_AAdata, XB=Q_ABdata, metric='euclidean')
-        dist_BB = pdist(Q_ABdata, metric='euclidean')
+        # generate Qs and deselect neighbours for GMRF
+        # order of function calls important, as grid_distance tampers with distance
+        self.grid_distances('gaussian', lam=1, phi=0, delta=1, gridvec=Q_AAdata)
+        Q_AA = self.keep_neighbour(self.kernel_distance, radius, fill_diagonal=True)
+
+        self.grid_distances('gaussian', lam=1, phi=0, delta=1, gridvec=Q_ABdata)
+        Q_BB = self.keep_neighbour(self.kernel_distance, radius, fill_diagonal=True)
 
         # euclidean kernel comparison: GRF Qs
         corr = {
@@ -256,20 +267,10 @@ class Effects2D():
             # consider different kernels: exponential
         }[corrfn]
 
-        Q_AA = squareform(corr(dist_AA))
+        dist_AB = cdist(XA=Q_AAdata, XB=Q_ABdata, metric='euclidean')
         Q_AB = corr(dist_AB)
-        Q_BB = squareform(corr(dist_BB))
 
-        # deselect neighbours for GMRF Qs
-        neighbor = squareform(dist_AA) <= radius
-        Q_AA = np.where(neighbor == False, 0, Q_AA)
-        np.fill_diagonal(Q_AA, 1)
-
-        # deselect neighbours for GMRF Qs
-        neighbor = squareform(dist_BB) <= radius
-        Q_BB = np.where(neighbor == False, 0, Q_BB)
-        np.fill_diagonal(Q_BB, 1)
-
+        # deselect neighbours (dist_AB not in self!)
         neighbor = dist_AB <= radius
         Q_AB = np.where(neighbor == False, 0, Q_AB)
 
@@ -348,7 +349,6 @@ class Effects2D():
 
         fig = plt.figure()
 
-
         plt.title('{}'.format(title))
 
         # plot coefficents without TP-Splines
@@ -359,11 +359,8 @@ class Effects2D():
         # plot TP-splines with plugged in coeff
         ax2 = fig.add_subplot((222), projection='3d')
         ax2.set_title('TE-Spline with plugged-in gmrf-coef.')
-        if False:
-            # FIXME: CUTTING AWAY THE EXTREME EDGES IN CHOLESKY!
-            ax2.plot_wireframe(meshx[2:20, 2:20], meshy[2:20, 2:20], a(gridxy)[2:20, 2:20], color='C1')
-        else:
-            ax2.plot_wireframe(meshx, meshy, self.surface(gridxy), color='C1')
+
+        ax2.plot_wireframe(meshx, meshy, self.surface(gridxy), color='C1')
 
         ax3 = fig.add_subplot(223)
         # plotting the correlation matrix used for sampling effects:
@@ -411,6 +408,7 @@ class Effects2D():
         #     ax1.set_title('B-spline estimate')
         #
         #     plt.show()
+
 
 def backsolve(L, z, mu=0):
     """
@@ -477,5 +475,4 @@ def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
 
 
 if __name__ == '__main__':
-
     print('')
