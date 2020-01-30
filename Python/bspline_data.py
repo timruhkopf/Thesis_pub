@@ -143,74 +143,7 @@ class randomData():
 
         return (xmesh, ymesh), gridvec
 
-    # (multivariate) -----------------------------------------------------------
-    def _generate_precision(self, corrfn='gaussian', lam=1,
-                            construct_precision=['GRF', 'GMRF', 'GMRF_VL'][1],
-                            radius=20, rho=0.7, tau=1, phi=0,
-                            delta=1,
-                            seed=1337):
-        """
-        # FIXME doc
-        Sampling a 2d Gaussian Random Field:
-        https://hal.inria.fr/hal-01414707v2/document
-        Note on correlation length \lambda:
-        "Roughly speaking, the correlation length should be a measure of the
-        constraint between height displacements of neighboring points of the
-        surface: this constraint is expected to be significant if the points
-        are well inside the correlation length and negligible outside it."
-        - Giorgio Franceschetti, Daniele Riccio,
-            in Scattering, Natural Surfaces, and Fractals, 2007
-        https://www.sciencedirect.com/topics/mathematics/correlation-length
-
-        meaning, it is a parameter influencing the "range" of the correlation
-
-        1. generating R_NxN, the covariance structure, solely dependent on the distance
-        between the points and are isotropic (Default: phi=0, delta=1):
-        c(h) = E(Z_i Z_j) = E(Z_0, Z_k) = c(|x_i - x_j|), with x vectorvalued
-
-        Thereby various distance functions are available
-
-        1.2 anisotropic distance
-        anisotropy in grf: simply exchange Euclidean dist
-        with a rotation & prolongation matrix (see Fahrmeir Kneib & lang p.516):
-        sqrt((u-v)' R(phi)' D(\delta) R(phi) (u-v))
-
-        Note, that anisotropy is basically a directed smoothness constrained on
-        the interaction surface
-
-        2. decomposing R = BB' with either
-            a) eigendecomposition (U \sqrt(Lambda)) (U \sqrt(Lambda))'
-            b) choletzky LL'
-            c) circulant embedding, the most performant version,
-                R implementation: https://www.jstatsoft.org/article/view/v055i09/v55i09.pdf
-
-        3. sampling a multivariate normal vector \theta of size N,
-        with mu=0, cov=I_N (indep)
-
-        4. realization of grf: Z = B\theta
-
-        :param lam: lambda parameter: is covariance length (autocovariance influence)
-        :param decomp: choice of decomposition: available are 'eigen' & 'cholesky'
-        :param seed:
-
-        # ANISOTROPY RELATED
-        :param phi: angle of rotation matrix, influencing the distance matrix
-        :param delta: anisotropy ratio influencing the distance matrix via a
-                    prolongation matrix.
-
-        # NEIGHBORHOOD STRUCTURE RELATED
-        :param radius=0.25,
-
-        # PRECISION MATRIX RELATED
-        :param rho=0.2:
-        :param tau=0.1:
-
-        :return:
-        z: grf sample vector.
-        R: precisionmatrix, which induced z.
-        B: used Decomposition of R to create z
-        """
-
+    def grid_distances(self, corrfn, lam, phi, delta):
         # (1) Calculate distances & generate R from it
         _, gridvec = self.grid
 
@@ -227,112 +160,78 @@ class randomData():
             d = prolongation(delta)
             anisotropy = r.T.dot(d).dot(r)
 
-            dist = pdist(X=gridvec, metric=lambda u, v: np.sqrt(((u - v).T.dot(anisotropy).dot((u - v)))))
+            self.dist = pdist(X=gridvec, metric=lambda u, v: np.sqrt(((u - v).T.dot(anisotropy).dot((u - v)))))
 
         else:
             # isotropy
-            dist = pdist(X=gridvec, metric='euclidean')
+            self.dist = pdist(X=gridvec, metric='euclidean')
 
         corr = {
             'gaussian': lambda h: np.exp(-(h / lam) ** 2)
             # consider different kernels: exponential
         }[corrfn]
-        corrmat = squareform(corr(dist))
+        self.kernel_distance = squareform(corr(self.dist))
 
-        #  generating & decomposing precision matrix Q = BB'
-        if construct_precision == 'GRF':
-            # no param
-            self.Q = corrmat
-            np.fill_diagonal(self.Q, 1)  # FIXME: Fact checkk if not e.g. rowsum?
+    def construct_precision_GRF(self, tau):
+        self.Q = self.kernel_distance
+        np.fill_diagonal(self.Q, 1)  # FIXME: Fact checkk if not e.g. rowsum?
 
-            self.Q = tau * self.Q
+        self.Q = tau * self.Q
 
-        elif construct_precision == 'GMRF':
-            # param: radius  NOT LAM!
-            neighbor = squareform(dist) <= radius
-            self.Q = np.where(neighbor == False, 0, corrmat)
-            np.fill_diagonal(self.Q, 1)
+    def construct_precision_GMRF(self, radius, tau):
+        neighbor = squareform(self.dist) <= radius
+        self.Q = np.where(neighbor == False, 0, self.kernel_distance)
+        np.fill_diagonal(self.Q, 1)
 
-            self.Q = tau * self.Q
+        self.Q = tau * self.Q
 
-        elif construct_precision == 'GMRF_VL':
-            # ATTEMPT ON GMRF formulation as in LECTURE SLIDES ON GMRF
-            # param:
-            # radius : determining the discrete neighborhood structure
-            # rho: correlation coefficient, determining how strong the neighbour affects this coef.
-            # tau: global variance - how strong
-            # mu = 0
+    def construct_precision_GMRF_K(self, order, tau):
+        (meshx, _), _ = self.grid
+        no_coef = meshx.shape[0]
 
-            # w_sr \propto exp(-d(s,r)) where d euclidean dist
-            # NOTE: d(s,r) is already in corrmat & all d(s,r)<= radius define s~r neighborhood!
-            # 0.5 or 0.25 are radii that define the neighborhood structure on a grid
-            neighbor = squareform(dist) <= radius
-            w_sr = np.where(neighbor == False, 0, corrmat)
+        d, K = diff_mat(dim=no_coef, order=order)  # FIXME: dimensions appropriate determine by grid
+        self.Q = tau * np.kron(np.eye(K.shape[0]), K) + np.kron(K, np.eye(K.shape[0]))
 
-            # np.fill_diagonal(w_sr, 0)
+    def construct_precision_GMRF_VL(self, radius, rho, tau):
+        # ATTEMPT ON GMRF formulation as in LECTURE SLIDES ON GMRF
+        # radius : determining the discrete neighborhood structure
+        # rho: correlation coefficient, determining how strong the neighbour affects this coef.
+        # tau: global variance - how strong
+        # mu = 0
 
-            # w_s+ = sum_r w_sr for all s~r
-            # NOTE: each rowsum of squareform(corrmat) , whose d(s,r) <= radius are w_s+,
-            # excluding the point under evaluation
-            w_s = w_sr.sum(axis=0)
+        # w_sr \propto exp(-d(s,r)) where d euclidean dist
+        # NOTE: d(s,r) is already in self.kernel_distance & all d(s,r)<= radius define s~r neighborhood!
+        # 0.5 or 0.25 are radii that define the neighborhood structure on a grid
+        neighbor = squareform(self.dist) <= radius
+        w_sr = np.where(neighbor == False, 0, self.kernel_distance)
 
-            # B[s,r] = \beta_sr if s ~ r else 0
-            # \beta_sr = \rho * w_sr/ w_s+
-            # \rho element [0,1]
-            # BS = rho * w_sr.dot(np.diag(w_s ** (-1)))
+        # np.fill_diagonal(w_sr, 0)
 
-            BS = rho * np.diag(1 / w_s).dot(w_sr)
+        # w_s+ = sum_r w_sr for all s~r
+        # NOTE: each rowsum of squareform(self.kernel_distance) , whose d(s,r) <= radius are w_s+,
+        # excluding the point under evaluation
+        w_s = w_sr.sum(axis=0)
 
-            # where SIGMA = diag(tau1, ..., tauS)
-            # tau_s = \tau / w_s+
-            Sigma_inv = np.diag(w_s / tau)
+        # B[s,r] = \beta_sr if s ~ r else 0
+        # \beta_sr = \rho * w_sr/ w_s+
+        # \rho element [0,1]
+        # BS = rho * w_sr.dot(np.diag(w_s ** (-1)))
 
-            self.SIGMA = np.diag(tau / w_s).dot(np.linalg.inv(np.eye(BS.shape[0]) - BS))
-            plt.imshow(self.SIGMA, cmap='hot', interpolation='nearest')
+        BS = rho * np.diag(1 / w_s).dot(w_sr)
 
-            # Q =(I_S - B) SIGMA⁻1
-            self.Q = (np.eye(BS.shape[0]) - BS).dot(Sigma_inv)
-            plt.imshow(self.Q, cmap='hot', interpolation='nearest')
+        # where SIGMA = diag(tau1, ..., tauS)
+        # tau_s = \tau / w_s+
+        Sigma_inv = np.diag(w_s / tau)
 
-        elif construct_precision == 'GMRF_K':
-            # param: order & tau
-            (meshx, _), _ = self.grid
-            no_coef = meshx.shape[0]
+        self.SIGMA = np.diag(tau / w_s).dot(np.linalg.inv(np.eye(BS.shape[0]) - BS))
+        plt.imshow(self.SIGMA, cmap='hot', interpolation='nearest')
 
-            d, K = diff_mat(dim=no_coef, order=3)  # FIXME: dimensions appropriate determine by grid
-            self.Q = tau * np.kron(np.eye(K.shape[0]), K) + np.kron(K, np.eye(K.shape[0]))
-
-        else:
-            raise ValueError('construct_precison is not propperly specified')
+        # Q =(I_S - B) SIGMA⁻1
+        self.Q = (np.eye(BS.shape[0]) - BS).dot(Sigma_inv)
+        plt.imshow(self.Q, cmap='hot', interpolation='nearest')
 
         print('rank of Q: ', np.linalg.matrix_rank(self.Q))
         print('shape of Q: ', self.Q.shape)
-
-    def _sample_uncond_from_precisionB(self, Q, decomp=['eigenB', 'choleskyB'][0]):
-        # independent Normal variabels, upon which correlation will be imposed
-        theta = np.random.multivariate_normal(
-            mean=np.zeros(Q.shape[0]),
-            cov=np.eye(Q.shape[0]))
-
-        if decomp == 'eigenB':
-            # DEPREC imaginary part!! - FLOATING POINT PRECISION SEEMS TO BE THE ISSUE IN ITERATIVE ALGORITHMS
-            # compare: https://stackoverflow.com/questions/8765310/scipy-linalg-eig-return-complex-eigenvalues-for-covariance-matrix
-            # eigval, eigvec = np.linalg.eig(self.Q)
-            # self.B = eigvec.dot(np.diag(np.sqrt(eigval)))
-
-            eigval, eigvec = eigh(Q)
-            plt.scatter(np.arange(eigval.size), eigval)
-
-            self.B = eigvec.dot(np.diag(np.sqrt(eigval)))
-            self.z = self.B.dot(theta)
-
-        elif decomp == 'choleskyB':
-            # RUE 2005 / 99: for decomp look at sample_GMRF
-            self.B = np.linalg.cholesky(Q).T
-            self.z = backsolve(self.B, theta)
-
-        else:
-            raise ValueError('decomp is not propperly specified')
 
     def _sample_with_nullspace_pen(self, Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
 
