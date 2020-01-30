@@ -17,6 +17,50 @@ from itertools import product as prd
 
 from Python.bspline import diff_mat
 
+class Effects1D():
+    def __init__(self, xgrid):
+        self.xgrid=xgrid
+        self.x = np.linspace(start=self.xgrid[0], stop=self.xgrid[1],
+                        num=100, endpoint=True)
+
+    def generate_bspline(self, degree):
+        """
+        mean value of data distribution is the b-spline value f(x)
+        f(x) = \gamma B(degree), with \gamma_j | gamma_(i<J) [ ~ N(0, coef_scale)
+        i.e. gamma is a random walk
+        y = N(f(x), data_scale)
+
+        :param xgrid: tuple: (start, end) of linspace.
+        :param n_basis: number of basis functions
+        :param degree: basis degree
+        :param coef_scale: variance for random walk on basis' coefficents
+        :return:
+        (1) vector of size n, that is normally distributed with mean f(x)
+        (2) self.spl: spline function; return of BSpline. allows evaluating any x
+        (3) self.z: \gamma vector, produced by random walk
+        """
+
+        # random b-spline function parametrization
+        n_knots = degree + self.z.size + 1
+
+        # function generator for one regressor
+        self.spl = BSpline(t=np.linspace(start=self.xgrid[0], stop=self.xgrid[1],
+                                         num=n_knots, endpoint=True),
+                           c=self.z,
+                           k=degree,
+                           extrapolate=True)
+
+    def log_prob(self):
+        pass
+
+    def plot_bspline(self):
+        """plotting the bspline resulting from bspline_param"""
+        import pylab # FIXME remove this for plt.scatter!
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(self.x, self.spl(self.x))
+        pylab.show()
 
 class randomData():
     """
@@ -491,68 +535,6 @@ class randomData():
         #     ax1.set_title('B-spline estimate')
         #
         #     plt.show()
-
-    # (univariate function) ------------------------------------------------------------
-
-    def _random_coef(self, size, seed=None, **kwargs):
-        """
-        Frist parameter is drawn with uniform(0,1). Afterwards Normal random
-        walk on parameters; Bayesian: normal prior on consecutive
-        parameter difference. Frequentist: splines with difference penalty
-
-        :param seed:
-        :param size: length of random walk vector
-        :param kwargs: parameters of normal distribution
-        :return: random walk vector
-        """
-        if seed is not None:
-            np.random.seed(seed=seed)
-        coef = np.concatenate([np.random.uniform(0, 1, size=1),
-                               np.random.normal(size=size - 1, **kwargs)], axis=0)
-
-        return coef.cumsum()
-
-    def generate_bspline(self, n_basis=7, coef_scale=2,
-                         degree=2, seed=None):
-        """
-        mean value of data distribution is the b-spline value f(x)
-        f(x) = \gamma B(degree), with \gamma_j | gamma_(i<J) [ ~ N(0, coef_scale)
-        i.e. gamma is a random walk
-        y = N(f(x), data_scale)
-
-        :param xgrid: tuple: (start, end) of linspace.
-        :param n_basis: number of basis functions
-        :param degree: basis degree
-        :param coef_scale: variance for random walk on basis' coefficents
-        :return:
-        (1) vector of size n, that is normally distributed with mean f(x)
-        (2) self.spl: spline function; return of BSpline. allows evaluating any x
-        (3) self.coef1d: \gamma vector, produced by random walk
-        """
-
-        # random b-spline function parametrization
-        self.coef1d = self._random_coef(size=n_basis, loc=0, scale=coef_scale, seed=seed)
-        n_knots = degree + self.coef1d.size + 1
-
-        # function generator for one regressor
-        self.spl = BSpline(t=np.linspace(start=self.xgrid[0], stop=self.xgrid[1],
-                                         num=n_knots, endpoint=True),
-                           c=self.coef1d,
-                           k=degree,
-                           extrapolate=True)
-
-    def plot_bspline(self):
-        """plotting the bspline resulting from bspline_param"""
-        import pylab
-
-        x = np.linspace(start=self.xgrid[0], stop=self.xgrid[1],
-                        num=100, endpoint=True)
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.plot(x, self.spl(x))
-        pylab.show()
-
 
 def backsolve(L, z, mu=0):
     """
