@@ -227,7 +227,6 @@ class GMRF_VL(Effects2D):
         print('rank of Q: ', np.linalg.matrix_rank(self.Q))
         print('shape of Q: ', self.Q.shape)
 
-
     def plot(self):
         self.plot_interaction(title='GMRF_VL with {}'.format(self.decomp))
 
@@ -302,11 +301,11 @@ class Cond_GMRF(Effects2D):
             # xa = np.zeros((Q_AA.shape[0],))  # Consider remove this control
         elif decomp == 'cholesky':
             xb = self._sample_backsolve(L=np.linalg.cholesky(tau * Q_BB),
-                           z=np.random.normal(loc=0, scale=1, size=Q_BB.shape[0]),
-                           mu=np.zeros(Q_BB.shape[0]))
+                                        z=np.random.normal(loc=0, scale=1, size=Q_BB.shape[0]),
+                                        mu=np.zeros(Q_BB.shape[0]))
             xa = self._sample_backsolve(L=np.linalg.cholesky(tau * Q_AA),
-                           z=np.random.normal(loc=0, scale=1, size=Q_AA.shape[0]),
-                           mu=-Q_AB.dot(xb - 0))
+                                        z=np.random.normal(loc=0, scale=1, size=Q_AA.shape[0]),
+                                        mu=-Q_AB.dot(xb - 0))
 
         # join coefficients of xa, xb in to sorted gridvector
         # (which in generate_surface will be destacked appropriately
@@ -385,7 +384,7 @@ if __name__ == '__main__':
     # FIXME: check that seeds actually make it reproducible
     grf = GRF(xgrid, ygrid, tau=1, decomp='eigenB')
     gmrf = GMRF(xgrid, ygrid, lam=1, phi=70, delta=1, radius=10, tau=1, tau1=20, decomp='eigenB')
-    gmrf = GMRF(xgrid, ygrid, radius=6, tau=1, tau1 = 1, decomp='choleskyB')
+    gmrf = GMRF(xgrid, ygrid, radius=6, tau=1, tau1=1, decomp='choleskyB')
     gmrf_k = GMRF_K(xgrid, ygrid, order=2, tau=1, sig_Q=1, sig_Q0=0.01)
     gmrf_vl = GMRF_VL(xgrid, ygrid)
     #

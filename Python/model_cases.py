@@ -6,9 +6,9 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 
 from Python.bspline import get_design, diff_mat
-from Python.Effect_sub import *
+from Python.Effect_cases import *
 
-class HMC():
+class adaptiveHMC():
     def __init__(self, num_burnin_steps=int(1e3), num_leapfrog_steps=3):
 
         bijected_hmc = tfp.mcmc.TransformedTransitionKernel(
@@ -41,7 +41,7 @@ class HMC():
     def plot_residuals(self):
         pass
 
-class Xbeta(HMC, Effects1D):
+class Xbeta(adaptiveHMC, Effects1D):
 
     def __init__(self, ):
         # data generation
