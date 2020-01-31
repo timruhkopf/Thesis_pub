@@ -1,6 +1,10 @@
 import numpy as np
 from scipy.interpolate import BSpline
 from collections import deque
+from scipy.linalg import eigh
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
 
 
 # CONSIDER: def fnc: Recursive Bspline Definiton, returning a callable,
@@ -88,7 +92,7 @@ def diff_mat(dim, order=1):
     d1 = np.diag(np.repeat(-1, dim), k=0) + np.diag(np.repeat(1, dim - 1), k=1)
     d1 = d1[:-1, :]
 
-     # d1.shape == (dim - 1, dim)
+    # d1.shape == (dim - 1, dim)
 
     # higher order difference matrices
     r = 1
@@ -102,12 +106,55 @@ def diff_mat(dim, order=1):
     return dr, K
 
 
+def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
+    """
+    Nullspace penalty for rank deficient Precision matrix, to get rank sufficent Covariance matrix
+
+    :param Q: Precision Matrix
+    :param sig_Q: inverse variance factor (sig_Q * Q)
+    :param sig_Q0: penalty factor
+    :param threshold: numerical value, determining which eigenvals are numerical zero
+
+    :return: Covariance : inverse of the resulting penalized precision matrix:
+    (sig_Q * Q + sig_Q0 * S0)**-1 with S0 = U0 @ U0.T, where U0 corresponds
+    to the matrix of Eigenvectors corresponding to those Eigenvalues < threshold
+    """
+    eigval, eigvec = eigh(Q)
+
+    # (numeric precision) null space eigenvectors
+    U0 = eigvec[:, eigval < threshold]
+    S0 = U0.dot(U0.T)
+    penQ = sig_Q * Q + sig_Q0 * S0
+    penSIGMA = np.linalg.inv(penQ)
+
+    print('Eigenvalues: ', eigval, '\n')
+    print('Nullspace Matrix: ', U0)
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(221)
+    ax1.scatter(np.arange(eigval.size), eigval)
+    ax1.set_title('eigenvalues of Q')
+
+    ax2 = fig.add_subplot(222)
+    ax2.imshow(penSIGMA, cmap='hot', interpolation='nearest')
+    ax2.set_title('penSIGMA')
+
+    ax3 = fig.add_subplot(223)
+    ax3.imshow(Q, cmap='hot', interpolation='nearest')
+    ax3.set_title('Q')
+    plt.show()
+
+    return penSIGMA
+
+
 if __name__ == '__main__':
 
+    # ( ) Check the diff_mat for different values -----------------------------
     for order in [1, 2, 3, 4, 5]:
         d, K = diff_mat(dim=5, order=order)
         print('order {order}\n, D{order}: \n {d}, \n K{order} \n{K}, \n'.format(order=order, d=d, K=K))
 
+    # analoge version
     # dim = 5
     # d1 = np.diag(np.repeat(-1, dim), k=0) + np.diag(np.repeat(1, dim - 1), k=1)
     # d1 = d1[:-1, :]
@@ -115,8 +162,6 @@ if __name__ == '__main__':
     # d2 = d1[:-1,:-1].dot(d1)
     # d3 = d1[:-2,:-2].dot(d2)
     # d4 = d1[:-3, :-3].dot(d3)
-
-
 
     # (0) Check eval_basis ----------------------------------------------------
     # carefull to get the boundary regions right! Through in extra kappas, such that the
