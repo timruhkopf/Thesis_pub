@@ -8,9 +8,6 @@ Created on Mon Nov 4 2019
 #     appropriate penalty for joint estimation of both f(x), f(x,y), f(y) in
 #     GAM case.
 
-import numpy as np
-import pandas as pd
-import tensorflow as tf
 from time import gmtime, strftime
 
 import os
