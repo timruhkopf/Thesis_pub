@@ -37,41 +37,54 @@ class Grid():
 
         self.model = model
         self.configs = configs
+        self.result_table = pd.DataFrame(columns=['hash', 'config', 'success'],
+                                         index=range(len(configs)))
 
-        self.failures = list()
-        self.failure_messages = list()
-
-        self.git_hash = self._get_git_revision_hash()
-
+        # preallocate failure cache
+        self.failures = dict()
+        self.logs = dict()
 
     def run_model(self):
 
-        for config in self.configs:
+        for i, config in enumerate(self.configs):
             # parallelize? threads / processes?
+
+            hash = self._create_hash(model=self.model.__name__)
+            print('trying {}\n'.format(hash))
+
             try:
                 # ToDo intercept stdout
                 stdout = 'some file'
 
                 # run object config
                 instance = self.model(**config)
+                self._store_instance(instance)
 
+            except:
+                self.result_table.loc[i] = [hash, str(config), False]
+
+                self.failures[hash] = config
+                with open(self.pathlogs + hash + '.log', 'w') as logfile:
+                    logfile.write(str(config) + '\n')
+
+                traceback.print_exc(file=open(self.pathlogs + hash + '.log', 'a'))
+
+
+            else:  # passed try
                 # ToDo get metrics
-                metric = instance.metric_fn()
-                self.result_table.rowappend(metric)
+                # metric = instance.metric_fn()
+                # self.result_table.append(metric)
 
                 # ToDo get & store plots
 
                 # ToDo be more verbose
-                instance.metric = metric
-                instance.stdout = stdout
-                self._store_instance(instance)
+                # instance.metric = metric
+                # instance.stdout = stdout
 
-            except:
-                self.failures.append(config)
-                self.failure_messages.append(stdout)
+                self.result_table.loc[i] = [hash, str(config), True]
 
-                # print the intercepted stdout to normal stdout anyways
-                print(stdout)
+        # print(stdout)
+        # ToDo print result_table to Grid.log
 
         print(self.failures)
         self._store_grid()
