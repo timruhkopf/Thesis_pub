@@ -3,11 +3,12 @@ import pandas as pd
 from time import gmtime, strftime
 from subprocess import check_output
 
-# ToDo put this stuff into __init__ ensure relative paths on both server & local
-pathroot = os.getcwd()
-pathdata = pathroot + '/data'
-pathresults = pathroot + '/results'
-pathlogs = pathresults + '/logs'
+# storing results / logs / pip
+import shelve
+import os
+import sys
+import traceback
+from pip._internal.operations import freeze
 
 print(pathroot)
 
@@ -78,9 +79,21 @@ class Grid():
     def _get_git_revision_hash(self):
         return check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
 
-    def _create_hash(self):
-        return '{hash}_{timestamp}'.format(hash=self.githash(),
-                                           timestamp=strftime("%Y%m%d_%H%M%S", gmtime()))
+    def _create_hash(self, model):
+        return '{hash}_{model}{timestamp}'.format(
+            hash=self.git_hash,
+            model=model,
+            timestamp=strftime("%Y%m%d_%H%M%S", gmtime())
+        )
+
+    def _pip_freeze(self):
+        # write pip to file
+        self.pipfreeze = freeze.freeze()
+        with open(self.pathroot + 'pip_freeze.txt', 'w') as file:
+            file.write('Python ' + sys.version + '\n')
+            for line in self.pipfreeze:
+                file.write(line + '\n')
+            file.close()
 
     def _store_instance(self, model_object):
         """
