@@ -42,26 +42,29 @@ class AdaptiveHMC():
 
 class Xbeta(AdaptiveHMC, Effects1D):
 
-class Xbeta(adaptiveHMC, Effects1D):
+    def __init__(self, xgrid):
+        Effects1D.__init__(self, xgrid=xgrid)
 
-    def __init__(self, ):
         # data generation
-        self.X = None
-        self.Bspline = Bspline_K(self.xgrid)
-        self.mu = self.Bspline.spl(self.X)
-        self.y
+        # FIXME MAKE SURE, all of the below is TF Ready
+        self.X = tfd.Uniform(0, 10).sample((100,))  # FIXME
+        # self.Bspline = Bspline_K(self.xgrid)
+        # self.mu = self.Bspline.spl(self.X)
+        self.y = None  # FIXME
 
-        # bijectors
+        # attributes for sampler
         self.initial = None
         self.bijectors = None
 
-        self.unnormalized_log_prob =self.unnorm_log_prob() # FIXME
+        AdaptiveHMC.__init__(self, initial=self.initial, bijectors=self.bijectors)
 
-    def unnorm_log_prob(self, beta):
-        def xbeta_log_prob(beta, X=self.X, y=self.y):
+    def unnormalized_log_prob(self, beta):
+        def xbeta_log_prob(beta=beta, X=self.X, y=self.y):
+            value = beta
+            return value
 
-            return
         return xbeta_log_prob(beta)
+
 
 if __name__ == '__main__':
     xbeta = Xbeta(xgrid=(0,10,0.5))
