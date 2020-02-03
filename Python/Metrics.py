@@ -1,3 +1,6 @@
+class Metrics():
+    def plot_residuals(self):
+        pass
 # Deprec: Now only data generation not prediction evaluation
 # adding a heatmap contour of the prediction error below it
 # if pred_error is not None:

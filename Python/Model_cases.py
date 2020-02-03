@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import random
 import tensorflow as tf
 import tensorflow_probability as tfp
 
@@ -8,9 +9,12 @@ tfd = tfp.distributions
 from Python.bspline import get_design, diff_mat
 from Python.Effect_cases import *
 
-class adaptiveHMC():
-    def __init__(self, num_burnin_steps=int(1e3), num_leapfrog_steps=3):
 
+class AdaptiveHMC():
+    """intended to hold the adaptive HMC sampler and to be inherited by a model class
+    object, that has unnormalized_log_prob, bijectors and initial self attributes"""
+
+    def __init__(self, initial, bijectors, num_burnin_steps=int(1e3), num_leapfrog_steps=3):
         bijected_hmc = tfp.mcmc.TransformedTransitionKernel(
             inner_kernel=tfp.mcmc.HamiltonianMonteCarlo(
                 target_log_prob_fn=self.unnormalized_log_prob,
@@ -26,7 +30,7 @@ class adaptiveHMC():
         parameters, is_accepted = tfp.mcmc.sample_chain(
             num_results=num_results,
             num_burnin_steps=num_burnin_steps,
-            current_state=self.initial, # initial_chain_state,
+            current_state=self.initial,
             kernel=self.adaptive_hmc,
             trace_fn=None,
             parallel_iterations=1
@@ -35,11 +39,8 @@ class adaptiveHMC():
         self.is_accepted = is_accepted
         return self.parameters, self.is_accepted
 
-    def store(self):
-        pass
 
-    def plot_residuals(self):
-        pass
+class Xbeta(AdaptiveHMC, Effects1D):
 
 class Xbeta(adaptiveHMC, Effects1D):
 
@@ -63,5 +64,9 @@ class Xbeta(adaptiveHMC, Effects1D):
         return xbeta_log_prob(beta)
 
 if __name__ == '__main__':
-    xbeta = Xbeta()
-    xbeta.sample_chain()
+    xbeta = Xbeta(xgrid=(0,10,0.5))
+    #xbeta.sample_chain()
+
+
+
+

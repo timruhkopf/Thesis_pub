@@ -144,7 +144,7 @@ class Grid():
 
 
 if __name__ == '__main__':
-    from Python.model_cases import Xbeta
+    from Python.Model_cases import Xbeta
     import os
 
     pathroot = os.getcwd()
