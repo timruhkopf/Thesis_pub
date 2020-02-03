@@ -13,13 +13,27 @@ print(pathroot)
 
 
 class Grid():
-    def __init__(self, model, configs):
+    def __init__(self, root, model, configs):
         """
         Grid Object, taking care
         :param model: model object, must have
         :param configs: list of dicts of parameters to run on model
         """
-        self.result_table = pd.DataFrame()
+
+        # file structure (redundant, but easily accessible on server)
+        self.pathroot = root
+        self.pathresults = self.pathroot + 'results/'  # consider only for plots
+        self.pathlogs = self.pathroot + 'logs/'
+        self.pathtf = self.pathroot + 'tf/'
+        os.mkdir(self.pathroot)
+        os.mkdir(self.pathresults)
+        os.mkdir(self.pathlogs)
+        os.mkdir(self.pathtf)
+
+        # current configuration
+        self._pip_freeze()
+        self.git_hash = self._get_git_revision_hash()
+
         self.model = model
         self.configs = configs
 
