@@ -1,5 +1,6 @@
-import os
 import pandas as pd
+
+# hash
 from time import gmtime, strftime
 from subprocess import check_output
 
@@ -9,8 +10,6 @@ import os
 import sys
 import traceback
 from pip._internal.operations import freeze
-
-print(pathroot)
 
 
 class Grid():
@@ -112,33 +111,66 @@ class Grid():
         """
         shelving the instance, such that all objects are available
         :param model_object: an executed model instance
-        :param stdout
+        :param
         """
+        hash = self._create_hash(model=model_object.__class__.__name__)
 
-        # ToDo shelve instance with git hash
-        hash = self._create_hash()
-
+        # HMC does not want to get sampled:
+        # (1) FIXME: HMC.model_save()
         # ToDo store tensorflow models also elsewhere -
         # so TB can access all instances from one dir
+        self.pathtf
 
-        pass
+        # (2) remove hmc & shelve
+        model_object.__delattr__('adaptive_hmc')
+
+        with shelve.open(pathroot + '/shelve') as db:
+            db[hash] = model_object
+
+    def _recover_instance(self, hash):
+
+        # (1) recover shelved without TF
+        with shelve.open(self.pathroot + '/shelve' + hash, flag='r') as db:
+            model_object = db[hash]
+
+        # (2) ToDo restore TF model (saved adaptive HMC)
+        model_object.adaptive_HMC = None
+
+        return model_object
 
     def _store_grid(self):
-
-        # Todo make pip freeze & append it to grid
-
-        # Todo shelve grid
-
-        pass
-
-    def load(self):
-        pass
+        with shelve.open(pathroot + '/shelve') as db:
+            db['GRID'] = self
 
 
 if __name__ == '__main__':
     from Python.model_cases import Xbeta
-    G = Grid(model=Xbeta, configs=[{}, {}])
+    import os
+
+    pathroot = os.getcwd()
+
+    # (MINIMAL SHELVE TF EXAMPLE) ----------------------------------------------
+    import shelve
+
+    # import tensorflow as tf
+    #
+    # one = tf.ones(shape=(100,))
+    #
+    # with shelve.open(filename=pathroot + '/shelve_tf', flag='c') as db:
+    #     db['one'] = one
+    #
+    # with shelve.open(filename=pathroot + '/shelve_tf', flag='r') as db:
+    #     print(db['one'])
+
+    xgrid = (0, 10, 0.5)
+    G = Grid(root='{root}/Grid/'.format(root=os.getcwd()),
+             model=Xbeta, configs=[{'xgrid': xgrid}, {'some_non_existing': 1}])
+
+    print(G.__dict__, '\n')
 
     G.run_model()
 
+    # check recovery system
+    G._store_instance(model_object=Xbeta(xgrid))
+    xbeta = G._recover_instance(hash='commit_model_timestamp')
 print('')
