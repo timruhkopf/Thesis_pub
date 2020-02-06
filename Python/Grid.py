@@ -1,7 +1,7 @@
 import pandas as pd
 
 # hash
-from time import gmtime, strftime
+from datetime import datetime
 from subprocess import check_output
 
 # storing results / logs / pip
@@ -12,21 +12,22 @@ import traceback
 from pip._internal.operations import freeze
 
 
-class Grid():
+class Grid:
     def __init__(self, root, model, configs):
         """
-        Grid Object, taking care
+        Grid Object, taking care of all the OS ops and tracking the Configs
+        respective stdout & Tracebacks, printing them into correct files,
+        shelving the instances (which did not raise errors).
         :param model: model object, must have
         :param configs: list of dicts of parameters to run on model
         """
 
         # file structure (redundant, but easily accessible on server)
         self.pathroot = root
-        self.pathresults = self.pathroot + 'results/'  # consider only for plots
+        self.pathresults = self.pathroot + 'results'  # consider only for plots
         self.pathlogs = self.pathroot + 'logs/'
         self.pathtf = self.pathroot + 'tf/'
         os.mkdir(self.pathroot)
-        os.mkdir(self.pathresults)
         os.mkdir(self.pathlogs)
         os.mkdir(self.pathtf)
 
@@ -39,37 +40,44 @@ class Grid():
         self.result_table = pd.DataFrame(columns=['hash', 'config', 'success'],
                                          index=range(len(configs)))
 
-        # preallocate failure cache
-        self.failures = dict()
-        self.logs = dict()
+        self.run_model()
+        self.result_table.to_csv(self.pathresults)
+
+        for attr in self.__dict__:
+            print(attr, self.__dict__[attr] , '\n')
 
     def run_model(self):
-
+        # TODO parallel?
         for i, config in enumerate(self.configs):
-            # parallelize? threads / processes?
 
-            hash = self._create_hash(model=self.model.__name__)
+            hash = self._create_hash(model_name=self.model.__name__)
             print('trying {}\n'.format(hash))
 
-            try:
-                # ToDo intercept stdout
-                stdout = 'some file'
+            # cache all stdout print statements of an instance
+            temp = sys.stdout
+            sys.stdout = open(self.pathlogs + hash + '.log', 'a+')
 
+            try:
                 # run object config
                 instance = self.model(**config)
-                self._store_instance(instance)
+                # FIXME instance.sample_chain
+                instance.hash = hash
 
             except:
+
+                with open(self.pathlogs + hash + '.log', 'a') as logfile:
+                    logfile.write('Config ' + str(config) + ' failed\n')
+
                 self.result_table.loc[i] = [hash, str(config), False]
 
-                self.failures[hash] = config
-                with open(self.pathlogs + hash + '.log', 'w') as logfile:
-                    logfile.write(str(config) + '\n')
+                # FLUSH & restore standard output stream
+                sys.stdout.close()
+                sys.stdout = temp
 
                 traceback.print_exc(file=open(self.pathlogs + hash + '.log', 'a'))
 
-
             else:  # passed try
+
                 # ToDo get metrics
                 # metric = instance.metric_fn()
                 # self.result_table.append(metric)
@@ -80,22 +88,23 @@ class Grid():
                 # instance.metric = metric
                 # instance.stdout = stdout
 
+                self._store_instance(instance)
+
+                # FLUSH & restore standard output stream
+                sys.stdout.close()
+                sys.stdout = temp
+
                 self.result_table.loc[i] = [hash, str(config), True]
-
-        # print(stdout)
-        # ToDo print result_table to Grid.log
-
-        print(self.failures)
-        self._store_grid()
 
     def _get_git_revision_hash(self):
         return check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
 
-    def _create_hash(self, model):
+    def _create_hash(self, model_name):
         return '{hash}_{model}{timestamp}'.format(
             hash=self.git_hash,
-            model=model,
-            timestamp=strftime("%Y%m%d_%H%M%S", gmtime())
+            model=model_name,
+            timestamp=  # strftime("%Y%m%d_%H%M%S%", gmtime())
+            datetime.now().strftime("%H:%M:%S.%f")
         )
 
     def _pip_freeze(self):
@@ -113,7 +122,7 @@ class Grid():
         :param model_object: an executed model instance
         :param
         """
-        hash = self._create_hash(model=model_object.__class__.__name__)
+        hash = model_object.hash  # model_object.__class__.__name__
 
         # HMC does not want to get sampled:
         # (1) FIXME: HMC.model_save()
@@ -123,14 +132,14 @@ class Grid():
 
         # (2) remove hmc & shelve
         model_object.__delattr__('adaptive_hmc')
-
-        with shelve.open(pathroot + '/shelve') as db:
+        print(self.pathroot)
+        with shelve.open(self.pathroot + 'shelve', flag='c') as db:
             db[hash] = model_object
 
-    def _recover_instance(self, hash):
+    def recover_instance(self, hash, filepath):
 
         # (1) recover shelved without TF
-        with shelve.open(self.pathroot + '/shelve' + hash, flag='r') as db:
+        with shelve.open(filepath + 'shelve', flag='c') as db:
             model_object = db[hash]
 
         # (2) ToDo restore TF model (saved adaptive HMC)
@@ -138,39 +147,15 @@ class Grid():
 
         return model_object
 
-    def _store_grid(self):
-        with shelve.open(pathroot + '/shelve') as db:
-            db['GRID'] = self
-
 
 if __name__ == '__main__':
     from Python.Model_cases import Xbeta
-    import os
-
     pathroot = os.getcwd()
 
     # (MINIMAL SHELVE TF EXAMPLE) ----------------------------------------------
-    import shelve
-
-    # import tensorflow as tf
-    #
-    # one = tf.ones(shape=(100,))
-    #
-    # with shelve.open(filename=pathroot + '/shelve_tf', flag='c') as db:
-    #     db['one'] = one
-    #
-    # with shelve.open(filename=pathroot + '/shelve_tf', flag='r') as db:
-    #     print(db['one'])
-
     xgrid = (0, 10, 0.5)
     G = Grid(root='{root}/Grid/'.format(root=os.getcwd()),
-             model=Xbeta, configs=[{'xgrid': xgrid}, {'some_non_existing': 1}])
+             model=Xbeta, configs=[{'xgrid': xgrid}, {'xgrid': xgrid, 'Fail': True}])
 
-    print(G.__dict__, '\n')
-
-    G.run_model()
-
-    # check recovery system
-    G._store_instance(model_object=Xbeta(xgrid))
-    xbeta = G._recover_instance(hash='commit_model_timestamp')
+    xbeta = G.recover_instance(hash='d2e6849_Xbeta13:28:26.883481', filepath=G.pathroot)
 print('')
