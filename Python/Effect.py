@@ -103,7 +103,40 @@ class Effects2D():
         return (xmesh, ymesh), gridvec
 
     def _grid_distances(self, corrfn, lam, phi, delta, gridvec):
+        """
+        Sampling a 2d Gaussian Random Field:
+        https://hal.inria.fr/hal-01414707v2/document
 
+        1. generating R_NxN, the covariance structure, solely dependent on the distance
+        between the points and are isotropic (Default: phi=0, delta=1):
+        c(h) = E(Z_i Z_j) = E(Z_0, Z_k) = c(|x_i - x_j|), with x vectorvalued
+
+        Thereby various distance functions are available
+
+        1.2 (optionally) anisotropic distance
+        anisotropy in grf: simply exchange Euclidean dist
+        with a rotation & prolongation matrix (see Fahrmeir Kneib & lang p.516):
+        sqrt((u-v)' R(phi)' D(\delta) R(phi) (u-v))
+
+        Note, that anisotropy is basically a directed smoothness constrained on
+        the interaction surface
+
+        :param corrfn:
+        :param lam: correlation length \lambda:
+        "Roughly speaking, the correlation length should be a measure of the
+        constraint between height displacements of neighboring points of the
+        surface: this constraint is expected to be significant if the points
+        are well inside the correlation length and negligible outside it."
+        - Giorgio Franceschetti, Daniele Riccio,
+            in Scattering, Natural Surfaces, and Fractals, 2007
+        https://www.sciencedirect.com/topics/mathematics/correlation-length
+        meaning, it is a parameter influencing the "range" of the correlation
+        :param phi: angle of rotation matrix, influencing the distance matrix
+        :param delta: anisotropy ratio influencing the distance matrix via a
+                    prolongation matrix.
+        :param gridvec: array of Vectors, storing all points of the grid (nxdim)
+        :return:
+        """
         if phi != 0 or delta != 1:
             # anisotropy  # FIXME make this available for conditional
             def rotation(phi):
@@ -130,7 +163,16 @@ class Effects2D():
         self.kernel_distance = squareform(corr(self.dist))
 
     def _keep_neighbour(self, Q, radius, fill_diagonal=True):
-        """keep neighbours radius based and optionally fill Q's diagonal"""
+        """
+        keep neighbours radius based and optionally fill Q's diagonal:
+        to introduce Markov property (of local dependence only)
+
+        :param Q: Precision Matrix
+        :param radius: defining which values of the precision to keep;
+        keep if d <= radius
+        :param fill_diagonal:
+        :return: Precision Matrix Q
+        """
         neighbor = squareform(self.dist) <= radius
         Q = np.where(neighbor == False, 0, Q)
         if fill_diagonal:
@@ -149,6 +191,25 @@ class Effects2D():
         self.z = rv_z.sample().numpy()
 
     def _sample_uncond_from_precisionB(self, Q, tau, decomp=['eigenB', 'choleskyB'][0]):
+        """
+        1. decomposing R = BB' with either
+            a) eigendecomposition (U \sqrt(Lambda)) (U \sqrt(Lambda))'
+            b) choletzky LL'
+            c) circulant embedding, the most performant version,
+                R implementation: https://www.jstatsoft.org/article/view/v055i09/v55i09.pdf
+
+        2. sampling a multivariate normal vector \theta of size N,
+        with mu=0, cov=tau*I_N (indep)
+
+        3. realization of g(m)rf: Z = B\theta
+
+        :param Q: Precision
+        :param tau: variance of MVN vector
+        :param decomp: a) or b)
+        :stores:
+        self.B, the decomposition of Q.
+        self.z, the g(m)rf Vector.
+        """
         # independent Normal variabels, upon which correlation will be imposed
         theta = np.random.multivariate_normal(
             mean=np.zeros(Q.shape[0]),
@@ -206,11 +267,11 @@ class Effects2D():
         """
 
         # fahrmeir : d = l + m - 1
-        # ndsplien package : l : degree, m: number of kappas
+        # ndspline package : l : degree, m: number of kappas
         # v = m - l - 1
-
         # v is the number of coefficients derived from degree l and number of knots m
-        # NOTE: given some shape of coef (v,v) and a spline degree, derive what m is:
+
+        # given some shape of coef (v,v) and a spline degree, derive what m is:
         l = 2
         v = int(np.sqrt(self.z.shape))
         m = v + l + 1
@@ -303,8 +364,6 @@ class Effects2D():
         #     ax1.set_title('B-spline estimate')
         #
         #     plt.show()
-
-
 
 
 if __name__ == '__main__':

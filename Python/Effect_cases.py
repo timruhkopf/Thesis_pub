@@ -1,52 +1,4 @@
 """
-        # FIXME doc
-        Sampling a 2d Gaussian Random Field:
-        https://hal.inria.fr/hal-01414707v2/document
-        Note on correlation length \lambda:
-        "Roughly speaking, the correlation length should be a measure of the
-        constraint between height displacements of neighboring points of the
-        surface: this constraint is expected to be significant if the points
-        are well inside the correlation length and negligible outside it."
-        - Giorgio Franceschetti, Daniele Riccio,
-            in Scattering, Natural Surfaces, and Fractals, 2007
-        https://www.sciencedirect.com/topics/mathematics/correlation-length
-
-        meaning, it is a parameter influencing the "range" of the correlation
-
-        1. generating R_NxN, the covariance structure, solely dependent on the distance
-        between the points and are isotropic (Default: phi=0, delta=1):
-        c(h) = E(Z_i Z_j) = E(Z_0, Z_k) = c(|x_i - x_j|), with x vectorvalued
-
-        Thereby various distance functions are available
-
-        1.2 anisotropic distance
-        anisotropy in grf: simply exchange Euclidean dist
-        with a rotation & prolongation matrix (see Fahrmeir Kneib & lang p.516):
-        sqrt((u-v)' R(phi)' D(\delta) R(phi) (u-v))
-
-        Note, that anisotropy is basically a directed smoothness constrained on
-        the interaction surface
-
-        2. decomposing R = BB' with either
-            a) eigendecomposition (U \sqrt(Lambda)) (U \sqrt(Lambda))'
-            b) choletzky LL'
-            c) circulant embedding, the most performant version,
-                R implementation: https://www.jstatsoft.org/article/view/v055i09/v55i09.pdf
-
-        3. sampling a multivariate normal vector \theta of size N,
-        with mu=0, cov=I_N (indep)
-
-        4. realization of grf: Z = B\theta
-
-        :param lam: lambda parameter: is covariance length (autocovariance influence)
-        :param decomp: choice of decomposition: available are 'eigen' & 'cholesky'
-        :param seed:
-
-        # ANISOTROPY RELATED
-        :param phi: angle of rotation matrix, influencing the distance matrix
-        :param delta: anisotropy ratio influencing the distance matrix via a
-                    prolongation matrix.
-
         # NEIGHBORHOOD STRUCTURE RELATED
         :param radius=0.25,
 
@@ -322,7 +274,7 @@ class Cond_GMRF(Effects2D):
 class Bspline_cum(Effects1D):
     """Bspline generator based on cumulative sum of Normaldistrib"""
 
-    def __init__(self, xgrid, seed=None, n_basis=7, coef_scale=2,
+    def __init__(self, xgrid, seed=None, n_basis=7, coef_scale=2.,
                  degree=2, **kwargs):
         super(Bspline_cum, self).__init__(xgrid)
         self._random_coef(size=n_basis, loc=0, scale=coef_scale, seed=seed, **kwargs)
@@ -387,8 +339,8 @@ if __name__ == '__main__':
     gmrf = GMRF(xgrid, ygrid, radius=6, tau=1, tau1=1, decomp='choleskyB')
     gmrf_k = GMRF_K(xgrid, ygrid, order=2, tau=1, sig_Q=1, sig_Q0=0.01)
     gmrf_vl = GMRF_VL(xgrid, ygrid)
-    #
-    # # FIXME: conditional effekt's edges are 'edgy'
+
+    # FIXME: conditional effekt's edges are 'edgy'
     cond_gmrf = Cond_GMRF(xgrid, ygrid, radius=4, tau=1, no_neighb=4)
 
     bspline_cum = Bspline_cum(xgrid, coef_scale=0.3)
