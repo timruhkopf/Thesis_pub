@@ -13,7 +13,7 @@
         """
 import numpy as np
 from Python.Effect import Effects1D, Effects2D
-from Python.bspline import diff_mat
+from Python.bspline import diff_mat, penalize_nullspace
 from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
@@ -114,6 +114,49 @@ class GMRF_K(Effects2D):
 
         d, K = diff_mat(dim=no_coef, order=order)  # FIXME: dimensions appropriate determine by grid
         self.Q = tau * np.kron(np.eye(K.shape[0]), K) + np.kron(K, np.eye(K.shape[0]))
+
+    def plot(self):
+        self.plot_interaction(title='GMRF_K with Nullspace penalty to MVN')
+
+
+class GMRF_K2(Effects2D):
+    """Construct GMRF from K_order=D_order @ D_order with nullspace penalty on K.
+    coef are drawn from the resulting MVN(0, penK)
+
+    different approach: try nullspace penalty & Cholesky afterwards"""
+
+    def __init__(self, xgrid, ygrid, order=2, tau=1, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
+        """
+        # FOLLOWING FAHRMEIR KNEIB LANG
+        :param xgrid:
+        :param ygrid:
+        :param order:
+        :param tau:
+        :param sig_Q:
+        :param sig_Q0:
+        :param threshold:
+        """
+        # generate grid
+        Effects2D.__init__(self, xgrid=xgrid, ygrid=ygrid)
+
+        self._construct_precision_GMRF_K(order, tau)
+        Sigma, penQ = penalize_nullspace(self.Q, sig_Q, sig_Q0, threshold)
+        self.Sigma = Sigma
+        self.penQ = penQ
+        self._sample_uncond_from_precisionB(penQ, tau, decomp='choleskyB')
+        self._generate_surface()
+
+        self.plot()
+
+    def _construct_precision_GMRF_K(self, order, tau):
+        (meshx, _), _ = self.grid
+        no_coef = meshx.shape[0]
+
+        d, K = diff_mat(dim=no_coef, order=order)  # FIXME: dimensions appropriate determine by grid
+        self.Q = tau * np.kron(np.eye(K.shape[0]), K) + np.kron(K, np.eye(K.shape[0]))
+
+        print('rank of Q: ', np.linalg.matrix_rank(self.Q))
+        print('shape of Q: ', self.Q.shape)
 
     def plot(self):
         self.plot_interaction(title='GMRF_K with Nullspace penalty to MVN')
@@ -338,6 +381,7 @@ if __name__ == '__main__':
     gmrf = GMRF(xgrid, ygrid, lam=1, phi=70, delta=1, radius=10, tau=1, tau1=20, decomp='eigenB')
     gmrf = GMRF(xgrid, ygrid, radius=6, tau=1, tau1=1, decomp='choleskyB')
     gmrf_k = GMRF_K(xgrid, ygrid, order=2, tau=1, sig_Q=1, sig_Q0=0.01)
+    gmrf_k2 = GMRF_K2(xgrid, ygrid, order=2, tau=1, sig_Q=1, sig_Q0=0.01)
     gmrf_vl = GMRF_VL(xgrid, ygrid)
 
     # FIXME: conditional effekt's edges are 'edgy'

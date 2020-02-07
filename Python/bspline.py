@@ -110,6 +110,11 @@ def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
     """
     Nullspace penalty for rank deficient Precision matrix, to get rank sufficent Covariance matrix
 
+    SIMON WOOD comments in [WOOD (on general)] SmoothModels:
+    Adding such a penalty to all the smooth terms in the model
+    allows smoothing parameter selection to remove terms from the
+    model altogether.
+
     :param Q: Precision Matrix
     :param sig_Q: inverse variance factor (sig_Q * Q)
     :param sig_Q0: penalty factor
@@ -144,7 +149,7 @@ def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
     ax3.set_title('Q')
     plt.show()
 
-    return penSIGMA
+    return penSIGMA, penQ
 
 
 if __name__ == '__main__':

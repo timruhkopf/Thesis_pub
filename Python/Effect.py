@@ -184,7 +184,9 @@ class Effects2D():
     def _sample_with_nullspace_pen(self, Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
         # TENSORFLOW VERSION
         # trial on null space penalty
-        self.Sigma = penalize_nullspace(Q, sig_Q, sig_Q0, threshold)
+        Sigma, penQ = penalize_nullspace(Q, sig_Q, sig_Q0, threshold)
+        self.Sigma = Sigma
+        self.penQ = penQ
         rv_z = tfd.MultivariateNormalFullCovariance(
             covariance_matrix=self.Sigma,
             loc=0.)
@@ -237,6 +239,7 @@ class Effects2D():
 
     def _sample_backsolve(self, L, z, mu=0):
         """
+        Following RUE HELD 2005 slide 52 ff. explicitly slide 56
         Solve eq. system L @ x = z for x.
         if z ~ MVN(0,I) and Q = LL^T from cholesky, this allows to generate
         x ~ MVN(0, Q^(-1)
