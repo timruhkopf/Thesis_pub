@@ -459,10 +459,4 @@ class Effects2D():
 
 
 if __name__ == '__main__':
-    from Python.Effect_cases import GMRF
-    xgrid = (0, 10, 0.5)
-    ygrid = (0, 10, 0.5)
-    gmrf = GMRF(xgrid, ygrid, lam=1, phi=40, delta=10, radius=10, tau=1, tau1=20, decomp='eigenB')
-    gmrf.sample_from_surface_density(n=10000, q=(0.05, 0.95), factor=2)
-    gmrf.plot_rejected_contour()
-    print('')
+    pass

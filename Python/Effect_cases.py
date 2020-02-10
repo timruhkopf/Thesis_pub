@@ -394,6 +394,8 @@ if __name__ == '__main__':
     xgrid = (0, 10, 0.5)
     ygrid = (0, 10, 0.5)
 
+    # (EFFECT SUBCLASSES: GMRF / BSPLINE) --------------------------------------
+    # 2D Cases
     # FIXME: check that seeds actually make it reproducible
     grf = GRF(xgrid, ygrid, tau=1, decomp='eigenB')
     gmrf = GMRF(xgrid, ygrid, lam=1, phi=40, delta=10, radius=10, tau=1, tau1=20, decomp='eigenB')
@@ -406,9 +408,16 @@ if __name__ == '__main__':
     # FIXME: conditional effekt's edges are 'edgy'
     cond_gmrf = Cond_GMRF(xgrid, ygrid, radius=4, tau=1, no_neighb=4)
 
+    # 1D Cases
     bspline_cum = Bspline_cum(xgrid, coef_scale=0.3)
     bspline_k = Bspline_K(xgrid)
 
+    # (sparse X sampling) ------------------------------------------------------
+    gmrf = GMRF(xgrid, ygrid, lam=1, phi=40, delta=10, radius=10, tau=1, tau1=20, decomp='eigenB')
+    gmrf.sample_from_surface_density(n=10000, q=(0.05, 0.95), factor=2)
+    gmrf.plot_rejected_contour()
+
+    # (Draw y example) ---------------------------------------------------------
     # sample coordinates
     n = 1000
     x, y = np.random.uniform(low=xgrid[0], high=xgrid[1], size=n), \
@@ -419,7 +428,7 @@ if __name__ == '__main__':
 
     z = np.random.normal(loc=mu, scale=0.1, size=n)
 
-    # # heteroscedasticity
+    # (draw y with heteroscedasticity) -----------------------------------------
     # bspline_k1 = Bspline_K(xgrid, order=2, sig_Q=0.1, sig_Q0=0.1)
     # mu_sigma = bspline_k1.spl(x)  # FIXME: ensure positive values for variance
     # mu_sigma += 1
@@ -429,6 +438,7 @@ if __name__ == '__main__':
     # mu_sigma = 2 + x * 3
     # z = np.random.normal(loc=mu, scale=mu_sigma)
 
+    # (plot y) -----------------------------------------------------------------
     import matplotlib.pyplot as plt
 
     fig = plt.figure()
