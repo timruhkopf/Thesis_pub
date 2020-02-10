@@ -260,10 +260,12 @@ class Effects2D():
 
         return x + mu
 
-    def _generate_surface(self):
+    def _generate_surface(self, l=2):
         """
-        Generate a 2d Surface from TE-Splines whose coefficients originated from a Random field
+        Generate a 2d Surface on a square grid from TE-Splines whose
+        coefficients originated from a Random field.
 
+        :param l: The ND-splines degreee
         :return: ndsplines.NDSpline.__call__ object, allows to evaluate the
         exact surface value: fxy.surface(np.stack([x, y], axis=-1))
 
@@ -275,16 +277,15 @@ class Effects2D():
         # v is the number of coefficients derived from degree l and number of knots m
 
         # given some shape of coef (v,v) and a spline degree, derive what m is:
-        l = 2
         v = int(np.sqrt(self.z.shape))
         m = v + l + 1
 
         # spanning the knots
-        x = np.linspace(0, 10, m)
-        y = np.linspace(0, 10, m)
+        x = np.linspace(self.xgrid[0], self.xgrid[1], m)
+        y = np.linspace(self.ygrid[0], self.ygrid[1], m)
 
         # Tensorproduct Splines with plugged in coefficents
-        coeff = self.z.reshape((v, v))
+        coeff = self.z.reshape((v, v))  # FIXME: this assumes a square grid!
         a = ndsplines.NDSpline(knots=[x, y], degrees=[l, l],
                                coefficients=coeff)
 

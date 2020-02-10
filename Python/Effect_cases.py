@@ -15,8 +15,7 @@ import numpy as np
 from Python.Effect import Effects1D, Effects2D
 from Python.bspline import diff_mat, penalize_nullspace
 from scipy.spatial.distance import cdist
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import axes3d
+
 
 
 class GRF(Effects2D):
@@ -391,8 +390,8 @@ class Bspline_K(Effects1D):
 
 
 if __name__ == '__main__':
-    xgrid = (0, 10, 0.5)
-    ygrid = (0, 10, 0.5)
+    xgrid = (-3,3, 0.4) # FIXME: due to _generate_surface, these must span an square grid!
+    ygrid = (-3, 3, 0.4)
 
     # (EFFECT SUBCLASSES: GMRF / BSPLINE) --------------------------------------
     # 2D Cases
