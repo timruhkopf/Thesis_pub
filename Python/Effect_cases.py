@@ -24,7 +24,8 @@ class GRF(Effects2D):
     def __init__(self, xgrid, ygrid, corrfn='gaussian', lam=1, phi=0, delta=1, tau=1, tau1=1,
                  decomp=['eigenB', 'choleskyB'][0]):
         """
-
+        FOLLOWING THE PAPER OF PICHOT (Algorithms for GRF Construction:
+        EIGEN, CHOLESKY [& CIRCULANT EMBEDDING]
         :param xgrid:
         :param ygrid:
         :param corrfn:
@@ -63,7 +64,7 @@ class GMRF(Effects2D):
     def __init__(self, xgrid, ygrid, corrfn='gaussian', lam=1, phi=0, delta=1, radius=4, tau=1, tau1=1,
                  decomp=['eigenB', 'choleskyB'][0]):
         """
-
+        FOLLOWING PAPER OF PICHOT, BUT INTRODUCING NEIGHBOURHOOD
         :param xgrid:
         :param ygrid:
         :param corrfn:
@@ -99,6 +100,16 @@ class GMRF_K(Effects2D):
     coef are drawn from the resulting MVN(0, penK)"""
 
     def __init__(self, xgrid, ygrid, order=2, tau=1, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
+        """
+        # FOLLOWING FAHRMEIR KNEIB LANG
+        :param xgrid:
+        :param ygrid:
+        :param order:
+        :param tau:
+        :param sig_Q:
+        :param sig_Q0:
+        :param threshold:
+        """
         # generate grid
         super(GMRF_K, self).__init__(xgrid, ygrid)
 
@@ -115,11 +126,14 @@ class GMRF_K(Effects2D):
         d, K = diff_mat(dim=no_coef, order=order)  # FIXME: dimensions appropriate determine by grid
         self.Q = tau * np.kron(np.eye(K.shape[0]), K) + np.kron(K, np.eye(K.shape[0]))
 
+        print('rank of Q: ', np.linalg.matrix_rank(self.Q))
+        print('shape of Q: ', self.Q.shape)
+
     def plot(self):
         self.plot_interaction(title='GMRF_K with Nullspace penalty to MVN')
 
 
-class GMRF_K2(Effects2D):
+class GMRF_K2(GMRF_K):
     """Construct GMRF from K_order=D_order @ D_order with nullspace penalty on K.
     coef are drawn from the resulting MVN(0, penK)
 
@@ -148,19 +162,6 @@ class GMRF_K2(Effects2D):
 
         self.plot()
 
-    def _construct_precision_GMRF_K(self, order, tau):
-        (meshx, _), _ = self.grid
-        no_coef = meshx.shape[0]
-
-        d, K = diff_mat(dim=no_coef, order=order)  # FIXME: dimensions appropriate determine by grid
-        self.Q = tau * np.kron(np.eye(K.shape[0]), K) + np.kron(K, np.eye(K.shape[0]))
-
-        print('rank of Q: ', np.linalg.matrix_rank(self.Q))
-        print('shape of Q: ', self.Q.shape)
-
-    def plot(self):
-        self.plot_interaction(title='GMRF_K with Nullspace penalty to MVN')
-
 
 class GMRF_VL(Effects2D):
     # NOT WORKING
@@ -179,6 +180,13 @@ class GMRF_VL(Effects2D):
         self.plot()
 
     def _construct_precision_GMRF_VL(self, radius, rho, tau):
+        """
+        FOLLOWING FAHRMEIR KNEIB LANG
+        :param radius:
+        :param rho:
+        :param tau:
+        :return:
+        """
         # ATTEMPT ON GMRF formulation as in LECTURE SLIDES ON GMRF
         # radius : determining the discrete neighborhood structure
         # rho: correlation coefficient, determining how strong the neighbour affects this coef.
@@ -241,7 +249,17 @@ class Cond_GMRF(Effects2D):
 
     def _sample_conditional_gmrf(self, corrfn='gaussian', lam=1, no_neighb=4, decomp=['draw_normal', 'cholesky'][0],
                                  radius=20, tau=0.1, seed=1337):
-        """conditional sampling of grf (compare Rue / Held slides p.59, eq (10)) """
+        """
+        conditional sampling of grf (compare Rue / Held slides p.59, eq (10))
+        :param corrfn:
+        :param lam:
+        :param no_neighb:
+        :param decomp:
+        :param radius:
+        :param tau:
+        :param seed:
+        :return:
+        """
         (meshx, meshy), gridvec = self.grid
 
         # Identify the index positions of points corresponding to
@@ -378,7 +396,8 @@ if __name__ == '__main__':
 
     # FIXME: check that seeds actually make it reproducible
     grf = GRF(xgrid, ygrid, tau=1, decomp='eigenB')
-    gmrf = GMRF(xgrid, ygrid, lam=1, phi=70, delta=1, radius=10, tau=1, tau1=20, decomp='eigenB')
+    gmrf = GMRF(xgrid, ygrid, lam=1, phi=40, delta=10, radius=10, tau=1, tau1=20, decomp='eigenB')
+    gmrf = GMRF(xgrid, ygrid, lam=1, phi=70, delta=1, radius=10, tau=1, tau1=20, decomp='choleskyB')
     gmrf = GMRF(xgrid, ygrid, radius=6, tau=1, tau1=1, decomp='choleskyB')
     gmrf_k = GMRF_K(xgrid, ygrid, order=2, tau=1, sig_Q=1, sig_Q0=0.01)
     gmrf_k2 = GMRF_K2(xgrid, ygrid, order=2, tau=1, sig_Q=1, sig_Q0=0.01)
