@@ -4,23 +4,23 @@ Created on Mon Nov 6 2019
 @email:  tim.ruhkopf@outlook.de
 """
 
-import ndsplines
-from scipy.interpolate import BSpline  # FIXME: replace ndspline
-
-from scipy.spatial.distance import pdist, cdist, squareform
-from scipy.linalg import eigh
+from itertools import product as prd
 import numpy as np
-import tensorflow as tf
-import tensorflow_probability as tfp
-
-tfd = tfp.distributions
-
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 
-from itertools import product as prd
-
+# Surface generation
+from scipy.spatial.distance import pdist, cdist, squareform
+from scipy.linalg import eigh
+import ndsplines
+from scipy.interpolate import BSpline  # FIXME: replace ndspline
 from Python.bspline import penalize_nullspace
+import tensorflow as tf
+import tensorflow_probability as tfp
+tfd = tfp.distributions
+
+# rejection sampling
+from scipy.stats import kde
 
 
 class Effects1D():
@@ -180,7 +180,7 @@ class Effects2D():
 
         return Q
 
-    # (sampling) ---------------------------------------------------------------
+    # (sampling GMRF) ----------------------------------------------------------
     def _sample_with_nullspace_pen(self, Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
         # TENSORFLOW VERSION
         # trial on null space penalty
@@ -295,6 +295,95 @@ class Effects2D():
     def log_prob(self):
         pass
 
+    # (Rejection Sampling gmrf density) ----------------------------------------
+    def sample_from_surface_density(self, n, q=(0.05, 0.95), factor=2):
+        """
+        With rejection sampling, the Effect2D Surface can be interpreted as an
+        unnormalized density function, of which we can draw samples.
+        This functionality allows to draw sparse data (X) regions.
+
+        THEORY: (McKay Rejection Sampling chp.29. p 364)
+        P*(x) is some GMRF childclass from Effects2d
+
+        cQ*(x) > P*(x) for all x,
+
+        draw x from proposal actual Q(x), (note that c is a constant factor ensuring to surpass
+        reject x if u > P*(x) with u ~ U[0, cQ*(x)]. otherwise accept it and append it to
+        {x^(r)}
+
+        note that if i choose cQ*, such that cQ*(x) > P*(x) does not strictly hold for all x,
+        this means, that there are some regions, in which the data will always be accepted!
+        this is the case, if a peak is cutoff, as no u can be drawn to surpass P*(x).
+
+        On the otherhand, regions with negative values will always be rejected, punching holes
+        in the domain
+
+        ENSURE, that the resulting sample size is n!
+        :param n: number of observations to be generated
+        :param q: tuple of length 2, empirical quantiles on the depth & hight of the surface (evaluated at gridxy).
+        Proposals in regions, whose surface value is below the lower quantile value will always be rejected.
+        Proposals in regions, whose surface value is above the upper quantile value will always be accepted.
+        :param factor: int: greater than zero, influences the speed of sampling.
+        :return: A design matrix of 2D points, drawn from the unnormalized (surface) density
+        """
+        (meshx, meshy), _ = self.grid
+        gridxy = np.stack((meshx, meshy), axis=-1)
+        P = self.surface(gridxy)
+
+        # correct for the values to be positive mostly
+        quant = np.quantile(P, q=q)
+
+        # taking Q to be a uniform, scaling the the proposal Q
+        zero, cQ = quant[0], quant[1]
+
+        m = factor * n
+        X = np.zeros((n, 2))
+        remainder = n
+        while remainder > 0:
+            # draw uniform proposals from Q(x) = Uniform and eval unnormalized density
+            X_full = np.random.uniform(0, 10, size=2 * m).reshape((m, 2))
+            P = self.surface(X_full)
+
+            u = np.random.uniform(zero, cQ, size=m)
+            keep = u < P
+            no_proposals = sum(keep)
+
+            if no_proposals <= remainder:
+                X[n - remainder: no_proposals] = X_full[keep, :]
+            else:
+                X[n - remainder:, :] = X_full[keep, :][:remainder, :]
+                break
+
+            remainder = remainder - no_proposals
+            m = factor * remainder
+
+        self.X = X
+
+    def plot_rejected_contour(self):
+        """Method to plot the result from sample_from_surface_density.
+        Plotting Gaussian Kernel Density Estimate"""
+        x, y = self.X[:, 0], self.X[:, 1]
+
+        # Evaluate a gaussian kde on a regular grid of nbins x nbins over data extents
+        nbins = 300
+        k = kde.gaussian_kde([x, y])
+        xi, yi = np.mgrid[x.min():x.max():nbins * 1j, y.min():y.max():nbins * 1j]
+        zi = k(np.vstack([xi.flatten(), yi.flatten()]))
+
+        # # Make the plot
+        # plt.pcolormesh(xi, yi, zi.reshape(xi.shape))
+        # plt.show()
+        #
+        # # Change color palette
+        # plt.pcolormesh(xi, yi, zi.reshape(xi.shape), cmap=plt.cm.Greens_r)
+        # plt.show()
+
+        plt.contourf(xi, yi, zi.reshape(xi.shape), 20, cmap='RdGy')
+        plt.colorbar()
+        # plt.scatter(x, y, alpha=0.1)
+        plt.show()
+
+
     def plot_interaction(self, title):  # , pred_error=None):
         """
         # consider plotting both 3d graphics (grf & Tp-BSpline):
@@ -370,4 +459,10 @@ class Effects2D():
 
 
 if __name__ == '__main__':
+    from Python.Effect_cases import GMRF
+    xgrid = (0, 10, 0.5)
+    ygrid = (0, 10, 0.5)
+    gmrf = GMRF(xgrid, ygrid, lam=1, phi=40, delta=10, radius=10, tau=1, tau1=20, decomp='eigenB')
+    gmrf.sample_from_surface_density(n=10000, q=(0.05, 0.95), factor=2)
+    gmrf.plot_rejected_contour()
     print('')
