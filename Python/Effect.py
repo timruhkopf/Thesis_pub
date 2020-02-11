@@ -350,7 +350,7 @@ class Effects2D():
             no_proposals = sum(keep)
 
             if no_proposals <= remainder:
-                X[n - remainder: no_proposals] = X_full[keep, :]
+                X[n - remainder: n - remainder + no_proposals, :] = X_full[keep, :]
             else:
                 X[n - remainder:, :] = X_full[keep, :][:remainder, :]
                 break
@@ -360,13 +360,13 @@ class Effects2D():
 
         self.X = X
 
-    def plot_rejected_contour(self):
+    def plot_rejected_contour(self, nbins = 300):
         """Method to plot the result from sample_from_surface_density.
         Plotting Gaussian Kernel Density Estimate"""
         x, y = self.X[:, 0], self.X[:, 1]
 
         # Evaluate a gaussian kde on a regular grid of nbins x nbins over data extents
-        nbins = 300
+
         k = kde.gaussian_kde([x, y])
         xi, yi = np.mgrid[x.min():x.max():nbins * 1j, y.min():y.max():nbins * 1j]
         zi = k(np.vstack([xi.flatten(), yi.flatten()]))
@@ -381,7 +381,7 @@ class Effects2D():
 
         plt.contourf(xi, yi, zi.reshape(xi.shape), 20, cmap='RdGy')
         plt.colorbar()
-        # plt.scatter(x, y, alpha=0.1)
+        plt.scatter(x, y, alpha=0.1)
         plt.show()
 
 
