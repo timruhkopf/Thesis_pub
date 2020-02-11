@@ -13,9 +13,8 @@
         """
 import numpy as np
 from Python.Effect import Effects1D, Effects2D
-from Python.bspline import diff_mat, penalize_nullspace
+from Python.bspline import diff_mat1D, diff_mat2D, penalize_nullspace
 from scipy.spatial.distance import cdist
-
 
 
 class GRF(Effects2D):
@@ -98,7 +97,7 @@ class GMRF_K(Effects2D):
     """Construct GMRF from K_order=D_order @ D_order with nullspace penalty on K.
     coef are drawn from the resulting MVN(0, penK)"""
 
-    def __init__(self, xgrid, ygrid, order=2, tau=1, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
+    def __init__(self, xgrid, ygrid, order=1, tau=1, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
         """
         # FOLLOWING FAHRMEIR KNEIB LANG
         :param xgrid:
@@ -112,18 +111,24 @@ class GMRF_K(Effects2D):
         # generate grid
         super(GMRF_K, self).__init__(xgrid, ygrid)
 
-        self._construct_precision_GMRF_K(order, tau)
+        self._construct_precision_GMRF_K(tau)
         self._sample_with_nullspace_pen(Q=self.Q, sig_Q=sig_Q, sig_Q0=sig_Q0, threshold=threshold)
         self._generate_surface()
 
         self.plot()
 
-    def _construct_precision_GMRF_K(self, order, tau):
+    def _construct_precision_GMRF_K(self, tau):
         (meshx, _), _ = self.grid
         no_coef = meshx.shape[0]
 
-        d, K = diff_mat(dim=no_coef, order=order)  # FIXME: dimensions appropriate determine by grid
-        self.Q = tau * np.kron(np.eye(K.shape[0]), K) + np.kron(K, np.eye(K.shape[0]))
+        D1, D2, K = diff_mat2D(dim=no_coef)
+
+        # \gamma^T K \gamma =   \gamma^T (I_(d2) kron K1 + K2 kron I_(d1) ) \gamma
+        # with K1 = D1^T D1 and  K2 = D2^T D2 where D1 and D2 are 1st order difference matrices
+        # in z1 & z2 direction respectively.
+
+        self.Q = tau * K
+        # self.Q = tau * (np.kron(np.eye(K.shape[0]), K) + np.kron(K, np.eye(K.shape[0])))
 
         print('rank of Q: ', np.linalg.matrix_rank(self.Q))
         print('shape of Q: ', self.Q.shape)
@@ -378,7 +383,7 @@ class Bspline_K(Effects1D):
         :param degree: Bspline degree
         """
         super(Bspline_K, self).__init__(xgrid)
-        self.Q = diff_mat(dim=no_coef, order=order)[1]
+        self.Q = diff_mat1D(dim=no_coef, order=order)[1]
         Effects2D._sample_with_nullspace_pen(self, self.Q, sig_Q, sig_Q0, threshold)
         self._generate_bspline(degree)
         self.plot()
@@ -390,18 +395,18 @@ class Bspline_K(Effects1D):
 
 
 if __name__ == '__main__':
-    xgrid = (-3,3, 0.4) # FIXME: due to _generate_surface, these must span an square grid!
-    ygrid = (-3, 3, 0.4)
+    xgrid = (0, 10, 0.5)  # FIXME: due to _generate_surface, these must span an square grid!
+    ygrid = (0, 10, 0.5)
 
     # (EFFECT SUBCLASSES: GMRF / BSPLINE) --------------------------------------
     # 2D Cases
     # FIXME: check that seeds actually make it reproducible
-    grf = GRF(xgrid, ygrid, tau=1, decomp='eigenB')
-    gmrf = GMRF(xgrid, ygrid, lam=1, phi=40, delta=10, radius=10, tau=1, tau1=20, decomp='eigenB')
-    gmrf = GMRF(xgrid, ygrid, lam=1, phi=70, delta=1, radius=10, tau=1, tau1=20, decomp='choleskyB')
-    gmrf = GMRF(xgrid, ygrid, radius=6, tau=1, tau1=1, decomp='choleskyB')
-    gmrf_k = GMRF_K(xgrid, ygrid, order=2, tau=1, sig_Q=1, sig_Q0=0.01)
-    gmrf_k2 = GMRF_K2(xgrid, ygrid, order=2, tau=1, sig_Q=1, sig_Q0=0.01)
+    # grf = GRF(xgrid, ygrid, tau=1, decomp='eigenB')
+    # gmrf = GMRF(xgrid, ygrid, lam=1, phi=40, delta=10, radius=10, tau=1, tau1=20, decomp='eigenB')
+    # gmrf = GMRF(xgrid, ygrid, lam=1, phi=70, delta=1, radius=10, tau=1, tau1=20, decomp='choleskyB')
+    # gmrf = GMRF(xgrid, ygrid, radius=6, tau=1, tau1=1, decomp='choleskyB')
+    gmrf_k = GMRF_K(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.8)
+    gmrf_k2 = GMRF_K2(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.1)
     gmrf_vl = GMRF_VL(xgrid, ygrid)
 
     # FIXME: conditional effekt's edges are 'edgy'
@@ -412,9 +417,10 @@ if __name__ == '__main__':
     bspline_k = Bspline_K(xgrid)
 
     # (sparse X sampling) ------------------------------------------------------
-    gmrf = GMRF(xgrid, ygrid, lam=1, phi=40, delta=10, radius=10, tau=1, tau1=20, decomp='eigenB')
-    gmrf.sample_from_surface_density(n=10000, q=(0.05, 0.95), factor=2)
-    gmrf.plot_rejected_contour()
+    gmrf = GMRF(xgrid, ygrid, lam=1, radius=10, tau=1, tau1=20, decomp='eigenB')
+    gmrf.sample_from_surface_density(n=1000, q=(0.5, 0.95), factor=4)
+    gmrf.plot_rejected_contour(nbins=100)
+    gmrf.plot_interaction(title='SparseX')
 
     # (Draw y example) ---------------------------------------------------------
     # sample coordinates

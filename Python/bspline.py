@@ -80,11 +80,10 @@ def get_design(X, degree):
     return Z
 
 
-def diff_mat(dim, order=1):
+def diff_mat1D(dim, order=1):
     """
     :param dim: the dimension of gamma vector (i.e. number of basis dimensions)
     :param order: difference order D_r = D_1 [:-r-1, :-r-1] @ D_r-1
-
     :return: tupel: difference matrix of order,
     difference penalty matric of this order
     """
@@ -104,6 +103,41 @@ def diff_mat(dim, order=1):
 
     K = dr.T.dot(dr)
     return dr, K
+
+
+def diff_mat2D(dim):
+    """
+    This function assumes a square grid
+
+    :param dim: row length of grid (1d dim)
+
+    :return:
+    """
+    #dim = int(np.sqrt(dim))  # FIXME: ASSUMING SQUARE GRID!!
+    # one dimensional (rowwise) difference matrices
+    d1, k1 = diff_mat1D(dim, order=2)
+    d2 = d1.T
+
+    D2 = np.kron(d2, np.eye(dim)).T
+    # consider second order column D (D2)
+    # d1, k1 = diff_mat1D(dim, order=2)
+    # D2 = np.kron(d1, np.eye(4))
+
+    #D2 = np.kron(d1, np.eye(dim))[:2*dim, :dim**2]
+
+
+
+    # two dimensional difference matrix
+    D1 = np.kron(np.eye(dim), d1)
+    # D2 = np.append(np.diag(np.repeat(-1, dim**2 - dim), k=0), np.zeros((dim**2 - dim, dim)), axis=1) + \
+    #     np.append(np.zeros((dim**2 - dim, dim)), np.diag(np.repeat(1, dim**2 - dim), k=0), axis=1)
+
+    K1 = np.kron(np.eye(dim), k1)
+    K2 = D2.T.dot(D2)
+    # K2 = np.kron(np.eye(dim), K2)
+    K =  K1 + K2
+
+    return D1, D2, K
 
 
 def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
@@ -154,9 +188,11 @@ def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
 
 if __name__ == '__main__':
 
+    D1, D2, K = diff_mat2D(dim=9, order=1)
+
     # ( ) Check the diff_mat for different values -----------------------------
     for order in [1, 2, 3, 4, 5]:
-        d, K = diff_mat(dim=5, order=order)
+        d, K = diff_mat1D(dim=5, order=order)
         print('order {order}\n, D{order}: \n {d}, \n K{order} \n{K}, \n'.format(order=order, d=d, K=K))
 
     # analoge version
