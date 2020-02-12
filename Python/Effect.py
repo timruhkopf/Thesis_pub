@@ -297,6 +297,111 @@ class Effects2D:
     def log_prob(self):
         pass
 
+    def _generate_surface(self, l=2):
+        """
+        Generate a 2d Surface on a square grid from TE-Splines whose
+        coefficients originated from a Random field.
+
+        :param l: The ND-splines degreee
+        :return: ndsplines.NDSpline.__call__ object, allows to evaluate the
+        exact surface value: fxy.surface(np.stack([x, y], axis=-1))
+
+        """
+
+        # fahrmeir : d = l + m - 1
+        # ndspline package : l : degree, m: number of kappas
+        # v = m - l - 1
+        # v is the number of coefficients derived from degree l and number of knots m
+
+        # given some shape of coef (v,v) and a spline degree, derive what m is:
+        v = int(np.sqrt(self.z.shape))
+        m = v + l + 1
+
+        # spanning the knots
+        x = np.linspace(self.xgrid[0], self.xgrid[1], m)
+        y = np.linspace(self.ygrid[0], self.ygrid[1], m)
+
+        # Tensorproduct Splines with plugged in coefficents
+        coeff = self.z.reshape((v, v))  # FIXME: this assumes a square grid!
+        a = ndsplines.NDSpline(knots=[x, y], degrees=[l, l],
+                               coefficients=coeff)
+
+        # INTERPOLATION Function for Datapoints
+        self.surface = a.__call__
+
+    def plot_interaction(self, title):  # , pred_error=None):
+        """
+        # consider plotting both 3d graphics (grf & Tp-BSpline):
+            # https://matplotlib.org/mpl_examples/mplot3d/subplot3d_demo.py
+        # CONSIDER CONTOUR PLOTs only
+        """
+        # Plot the grid points with plugged-in gmrf-coef (at the grid points!).
+        (meshx, meshy), _ = self.grid
+        # meshx, meshy = np.meshgrid(x, y, indexing='ij')
+        gridxy = np.stack((meshx, meshy), axis=-1)
+
+        fig = plt.figure()
+
+        plt.title('{}'.format(title))
+
+        # plot coefficents without TP-Splines
+        ax1 = fig.add_subplot(221, projection='3d')
+        ax1.plot_wireframe(meshx, meshy, self.z.reshape(meshx.shape), color='C1')
+        ax1.set_title('Coefficents at grid position')
+
+        # plot TP-splines with plugged in coeff
+        ax2 = fig.add_subplot((222), projection='3d')
+        ax2.set_title('TE-Spline with plugged-in gmrf-coef.')
+
+        ax2.plot_wireframe(meshx, meshy, self.surface(gridxy), color='C1')
+
+        ax3 = fig.add_subplot(223)
+        # plotting the correlation matrix used for sampling effects:
+        ax3.imshow(self.Q, cmap='hot', interpolation='nearest')
+        ax3.set_title('Precision matrix Q')
+
+        plt.show()
+
+        # Deprec after removing the workaround of fitting TE to GRF instead of plugging in coef
+        # fig = plt.figure()
+        #
+        # (xmesh, ymesh), gridvec = self.grid
+        # gridxy = np.stack((xmesh, ymesh), axis=-1)
+        # # spline =  self.surface(gridxy) FIXM: this is new version!
+        #
+        # # DEPREC: scipy.interpol.bivariate Bspline input format:
+        # spline = self.surface(xi=gridvec[:, 0], yi=gridvec[:, 1])
+        # coord_grf = (xmesh, ymesh,
+        #              self.z.reshape((xmesh.shape[0], ymesh.shape[0])).T)
+        # # fIXM validate, that [0] is correct for rectangle shaped grid
+        # coord_teBspline = (xmesh, ymesh,
+        #                    spline.reshape((xmesh.shape[0], ymesh.shape[0])).T)
+        #
+        # if coord_grf is not None:
+        #     if coord_teBspline is not None:
+        #         ax = fig.add_subplot(121, projection='3d')
+        #     else:
+        #         ax = fig.add_subplot(111, projection='3d')
+        #     ax.set_title('grf')
+        #
+        #     # Plot grf in wireframe
+        #     X, Y, Z = coord_grf
+        #     ax.plot_wireframe(X, Y, Z, rstride=1, cstride=1, alpha=0.7)
+        #
+        # # optionally plot the Bspline estimate as surface
+        # if coord_teBspline is not None:
+        #     if coord_grf is not None:
+        #         ax1 = fig.add_subplot(122, projection='3d')
+        #     else:
+        #         ax1 = fig.add_subplot(111, projection='3d')
+        #
+        #     X, Y, Z = coord_teBspline
+        #     ax1.plot_surface(X, Y, Z, rstride=1, cstride=1,
+        #                      linewidth=0, antialiased=False, alpha=0.7)
+        #     ax1.set_title('B-spline estimate')
+        #
+        #     plt.show()
+
     # (Rejection Sampling gmrf density) ----------------------------------------
     def sample_from_surface_density(self, n, q=(0.05, 0.95), factor=2):
         """
@@ -386,78 +491,7 @@ class Effects2D:
         plt.show()
 
 
-    def plot_interaction(self, title):  # , pred_error=None):
-        """
-        # consider plotting both 3d graphics (grf & Tp-BSpline):
-            # https://matplotlib.org/mpl_examples/mplot3d/subplot3d_demo.py
-        # CONSIDER CONTOUR PLOTs only
-        """
-        # Plot the grid points with plugged-in gmrf-coef (at the grid points!).
-        (meshx, meshy), _ = self.grid
-        # meshx, meshy = np.meshgrid(x, y, indexing='ij')
-        gridxy = np.stack((meshx, meshy), axis=-1)
 
-        fig = plt.figure()
-
-        plt.title('{}'.format(title))
-
-        # plot coefficents without TP-Splines
-        ax1 = fig.add_subplot(221, projection='3d')
-        ax1.plot_wireframe(meshx, meshy, self.z.reshape(meshx.shape), color='C1')
-        ax1.set_title('Coefficents at grid position')
-
-        # plot TP-splines with plugged in coeff
-        ax2 = fig.add_subplot((222), projection='3d')
-        ax2.set_title('TE-Spline with plugged-in gmrf-coef.')
-
-        ax2.plot_wireframe(meshx, meshy, self.surface(gridxy), color='C1')
-
-        ax3 = fig.add_subplot(223)
-        # plotting the correlation matrix used for sampling effects:
-        ax3.imshow(self.Q, cmap='hot', interpolation='nearest')
-        ax3.set_title('Precision matrix Q')
-
-        plt.show()
-
-        # Deprec after removing the workaround of fitting TE to GRF instead of plugging in coef
-        # fig = plt.figure()
-        #
-        # (xmesh, ymesh), gridvec = self.grid
-        # gridxy = np.stack((xmesh, ymesh), axis=-1)
-        # # spline =  self.surface(gridxy) FIXM: this is new version!
-        #
-        # # DEPREC: scipy.interpol.bivariate Bspline input format:
-        # spline = self.surface(xi=gridvec[:, 0], yi=gridvec[:, 1])
-        # coord_grf = (xmesh, ymesh,
-        #              self.z.reshape((xmesh.shape[0], ymesh.shape[0])).T)
-        # # fIXM validate, that [0] is correct for rectangle shaped grid
-        # coord_teBspline = (xmesh, ymesh,
-        #                    spline.reshape((xmesh.shape[0], ymesh.shape[0])).T)
-        #
-        # if coord_grf is not None:
-        #     if coord_teBspline is not None:
-        #         ax = fig.add_subplot(121, projection='3d')
-        #     else:
-        #         ax = fig.add_subplot(111, projection='3d')
-        #     ax.set_title('grf')
-        #
-        #     # Plot grf in wireframe
-        #     X, Y, Z = coord_grf
-        #     ax.plot_wireframe(X, Y, Z, rstride=1, cstride=1, alpha=0.7)
-        #
-        # # optionally plot the Bspline estimate as surface
-        # if coord_teBspline is not None:
-        #     if coord_grf is not None:
-        #         ax1 = fig.add_subplot(122, projection='3d')
-        #     else:
-        #         ax1 = fig.add_subplot(111, projection='3d')
-        #
-        #     X, Y, Z = coord_teBspline
-        #     ax1.plot_surface(X, Y, Z, rstride=1, cstride=1,
-        #                      linewidth=0, antialiased=False, alpha=0.7)
-        #     ax1.set_title('B-spline estimate')
-        #
-        #     plt.show()
 
 
 if __name__ == '__main__':
