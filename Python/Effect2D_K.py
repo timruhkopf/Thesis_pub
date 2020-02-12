@@ -1,16 +1,3 @@
-"""
-        # NEIGHBORHOOD STRUCTURE RELATED
-        :param radius=0.25,
-
-        # PRECISION MATRIX RELATED
-        :param rho=0.2:
-        :param tau=0.1:
-
-        :return:
-        z: grf sample vector.
-        R: precisionmatrix, which induced z.
-        B: used Decomposition of R to create z
-        """
 import numpy as np
 from Python.Effect2D import Effects2D
 from Python.bspline import diff_mat2D

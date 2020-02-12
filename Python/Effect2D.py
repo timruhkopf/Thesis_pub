@@ -1,9 +1,3 @@
-"""
-Created on Mon Nov 6 2019
-@author: T.Ruhkopf
-@email:  tim.ruhkopf@outlook.de
-"""
-
 from itertools import product as prd
 import numpy as np
 import matplotlib.pyplot as plt

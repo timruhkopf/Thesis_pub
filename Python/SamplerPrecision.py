@@ -14,8 +14,7 @@ class SamplerPrecision:
     # (sampling GMRF) ----------------------------------------------------------
     # ANY such method must produce self.Q & self.z
     def _sample_with_nullspace_pen(self, Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
-        # TENSORFLOW VERSION
-        # trial on null space penalty
+        """see penalize nullspace for doc"""
         Sigma, penQ = penalize_nullspace(Q, sig_Q, sig_Q0, threshold)
         self.Sigma = Sigma
         self.penQ = penQ
@@ -59,7 +58,7 @@ class SamplerPrecision:
             # self.B = eigvec.dot(np.diag(np.sqrt(eigval)))
 
             eigval, eigvec = eigh(Q)
-            plt.scatter(np.arange(eigval.size), eigval)
+            plt.scatter(np.arange(eigval.size), eigval)  # fixme save for later
 
             self.B = eigvec.dot(np.diag(np.sqrt(eigval)))
             self.z = self.B.dot(theta)
@@ -68,7 +67,8 @@ class SamplerPrecision:
             # RUE 2005 / 99: for decomp look at sample_GMRF
             self.B = np.linalg.cholesky(Q).T  # FIXME: check if .T is correct here
             self.z = self.B.T.dot(theta)
-            #self.z = _sample_backsolve(L= self.B, z=theta) # fixme solve immediately since self.B.T is B's inverse!
+            # Deprec: backsolve produces bad gmrfs
+            # self.z = _sample_backsolve(L= self.B, z=theta)
 
         else:
             raise ValueError('decomp is not propperly specified')
@@ -83,7 +83,6 @@ class SamplerPrecision:
         _, gridvec = self.grid
 
         mask = np.ones(len(gridvec), np.bool)
-
         mask[cond_points] = 0
 
         selector = np.zeros((len(cond_points), gridvec.shape[0]), dtype=bool)
@@ -97,7 +96,7 @@ class SamplerPrecision:
         xb = np.random.multivariate_normal(mean=np.zeros(len(cond_points)),
                                            cov=tau * Q_BB)
         xa = np.random.multivariate_normal(mean=-tau * Q_AB.dot(xb - 0),
-                                           cov=tau * np.linalg.inv(Q_AA))  # fixme look at definiteness
+                                           cov=tau * np.linalg.inv(Q_AA))  # fixme definiteness
 
         z = np.zeros(shape=gridvec.shape[0])
         z[mask] = xa
@@ -108,32 +107,32 @@ class SamplerPrecision:
         Q2 = np.concatenate([Q_AB.T, Q_BB], axis=1)
         self.Q = np.concatenate([Q1, Q2], axis=0)
 
-        plt.imshow(Q_BB, cmap='hot', interpolation='nearest')
+        plt.imshow(Q_BB, cmap='hot', interpolation='nearest')  # fixme:save for later
 
-
-def _sample_backsolve(L, z, mu=0):
-    """
-    # AUXILIARY METHOD
-    Following RUE HELD 2005 slide 52 ff. explicitly slide 56
-    Solve eq. system L @ x = z for x.
-    if z ~ MVN(0,I) and Q = LL^T from cholesky, this allows to generate
-    x ~ MVN(0, Q^(-1)
-
-    :param L: upper triangular matrix
-    :param z: vector
-    :param mu: additional mean vector
-    :return x: vector
-    """
-    if L.shape[1] != z.size:
-        raise ValueError('improper dimensions')
-
-    x = np.zeros(L.shape[0])
-    x[-1] = z[-1] / L[-1, -1]
-
-    for i in reversed(range(0, L.shape[0] - 1)):
-        x[i] = (z[i] - L[i].dot(x)) / L[i, i]
-
-    return x + mu
+# Deprec
+# def _sample_backsolve(L, z, mu=0):
+#     """
+#     # AUXILIARY METHOD
+#     Following RUE HELD 2005 slide 52 ff. explicitly slide 56
+#     Solve eq. system L @ x = z for x.
+#     if z ~ MVN(0,I) and Q = LL^T from cholesky, this allows to generate
+#     x ~ MVN(0, Q^(-1)
+#
+#     :param L: upper triangular matrix
+#     :param z: vector
+#     :param mu: additional mean vector
+#     :return x: vector
+#     """
+#     if L.shape[1] != z.size:
+#         raise ValueError('improper dimensions')
+#
+#     x = np.zeros(L.shape[0])
+#     x[-1] = z[-1] / L[-1, -1]
+#
+#     for i in reversed(range(0, L.shape[0] - 1)):
+#         x[i] = (z[i] - L[i].dot(x)) / L[i, i]
+#
+#     return x + mu
 
 
 def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
