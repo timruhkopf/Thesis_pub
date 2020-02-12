@@ -140,50 +140,6 @@ def diff_mat2D(dim):
     return D1, D2, K
 
 
-def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
-    """
-    Nullspace penalty for rank deficient Precision matrix, to get rank sufficent Covariance matrix
-
-    SIMON WOOD comments in [WOOD (on general)] SmoothModels:
-    Adding such a penalty to all the smooth terms in the model
-    allows smoothing parameter selection to remove terms from the
-    model altogether.
-
-    :param Q: Precision Matrix
-    :param sig_Q: inverse variance factor (sig_Q * Q)
-    :param sig_Q0: penalty factor
-    :param threshold: numerical value, determining which eigenvals are numerical zero
-
-    :return: Covariance : inverse of the resulting penalized precision matrix:
-    (sig_Q * Q + sig_Q0 * S0)**-1 with S0 = U0 @ U0.T, where U0 corresponds
-    to the matrix of Eigenvectors corresponding to those Eigenvalues < threshold
-    """
-    eigval, eigvec = eigh(Q)
-
-    # (numeric precision) null space eigenvectors
-    U0 = eigvec[:, eigval < threshold]
-    S0 = U0.dot(U0.T)
-    penQ = sig_Q * Q + sig_Q0 * S0
-    penSIGMA = np.linalg.inv(penQ)
-
-    print('Eigenvalues: ', eigval, '\n')
-    print('Nullspace Matrix: ', U0)
-
-    fig = plt.figure()
-    ax1 = fig.add_subplot(221)
-    ax1.scatter(np.arange(eigval.size), eigval)
-    ax1.set_title('eigenvalues of Q')
-
-    ax2 = fig.add_subplot(222)
-    ax2.imshow(penSIGMA, cmap='hot', interpolation='nearest')
-    ax2.set_title('penSIGMA')
-
-    ax3 = fig.add_subplot(223)
-    ax3.imshow(Q, cmap='hot', interpolation='nearest')
-    ax3.set_title('Q')
-    plt.show()
-
-    return penSIGMA, penQ
 
 
 if __name__ == '__main__':

@@ -10,66 +10,15 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 
 # Surface generation
-from scipy.spatial.distance import pdist, cdist, squareform
-from scipy.linalg import eigh
+from scipy.spatial.distance import pdist, squareform
 import ndsplines
-from scipy.interpolate import BSpline  # FIXME: replace ndspline
-from Python.bspline import penalize_nullspace
-import tensorflow as tf
-import tensorflow_probability as tfp
-tfd = tfp.distributions
 
 # rejection sampling
 from scipy.stats import kde
+from Python.SamplerPrecision import SamplerPrecision
 
 
-class Effects1D:
-    def __init__(self, xgrid):
-        self.xgrid = xgrid
-        self.x = np.linspace(start=self.xgrid[0], stop=self.xgrid[1],
-                             num=100, endpoint=True)
-
-    def _generate_bspline(self, degree):
-        """
-        mean value of data distribution is the b-spline value f(x)
-        f(x) = \gamma B(degree), with \gamma_j | gamma_(i<J) [ ~ N(0, coef_scale)
-        i.e. gamma is a random walk
-        y = N(f(x), data_scale)
-
-        :param xgrid: tuple: (start, end) of linspace.
-        :param n_basis: number of basis functions
-        :param degree: basis degree
-        :param coef_scale: variance for random walk on basis' coefficents
-        :return:
-        (1) vector of size n, that is normally distributed with mean f(x)
-        (2) self.spl: spline function; return of BSpline. allows evaluating any x
-        (3) self.z: \gamma vector, produced by random walk
-        """
-
-        # random b-spline function parametrization
-        n_knots = degree + self.z.size + 1
-
-        # function generator for one regressor
-        self.spl = BSpline(t=np.linspace(start=self.xgrid[0], stop=self.xgrid[1],
-                                         num=n_knots, endpoint=True),
-                           c=self.z,
-                           k=degree,
-                           extrapolate=True)
-
-    def log_prob(self):
-        pass
-
-    def plot_bspline(self):
-        """plotting the bspline resulting from bspline_param"""
-        import pylab  # FIXME remove this for plt.scatter!
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.plot(self.x, self.spl(self.x))
-        pylab.show()
-
-
-class Effects2D:
+class Effects2D(SamplerPrecision):
     """
     Possible extensions
     (1) consider random data distribution & building a grf upon it.
@@ -179,119 +128,6 @@ class Effects2D:
             np.fill_diagonal(Q, 1)
 
         return Q
-
-    # (sampling GMRF) ----------------------------------------------------------
-    # ANY such method must produce self.Q & self.z
-    def _sample_with_nullspace_pen(self, Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
-        # TENSORFLOW VERSION
-        # trial on null space penalty
-        Sigma, penQ = penalize_nullspace(Q, sig_Q, sig_Q0, threshold)
-        self.Sigma = Sigma
-        self.penQ = penQ
-        rv_z = tfd.MultivariateNormalFullCovariance(
-            covariance_matrix=self.Sigma,
-            loc=0.)
-        self.z = rv_z.sample().numpy()
-
-    def _sample_uncond_from_precisionB(self, Q, tau, decomp=['eigenB', 'choleskyB'][0]):
-        """
-        1. decomposing R = BB' with either
-            a) eigendecomposition (U \sqrt(Lambda)) (U \sqrt(Lambda))'
-            b) choletzky LL'
-            c) circulant embedding, the most performant version,
-                R implementation: https://www.jstatsoft.org/article/view/v055i09/v55i09.pdf
-
-        2. sampling a multivariate normal vector \theta of size N,
-        with mu=0, cov=tau*I_N (indep)
-
-        3. realization of g(m)rf: Z = B\theta
-
-        :param Q: Precision
-        :param tau: variance of MVN vector
-        :param decomp: a) or b)
-        :stores:
-        self.B, the decomposition of Q.
-        self.z, the g(m)rf Vector.
-        """
-        # independent Normal variabels, upon which correlation will be imposed
-        theta = np.random.multivariate_normal(
-            mean=np.zeros(Q.shape[0]),
-            cov=tau * np.eye(Q.shape[0]))
-
-        if decomp == 'eigenB':
-            # DEPREC imaginary part!! - FLOATING POINT PRECISION SEEMS TO BE THE ISSUE IN ITERATIVE ALGORITHMS
-            # compare: https://stackoverflow.com/questions/8765310/scipy-linalg-eig-return-complex-eigenvalues-for-covariance-matrix
-            # eigval, eigvec = np.linalg.eig(self.Q)
-            # self.B = eigvec.dot(np.diag(np.sqrt(eigval)))
-
-            eigval, eigvec = eigh(Q)
-            plt.scatter(np.arange(eigval.size), eigval)
-
-            self.B = eigvec.dot(np.diag(np.sqrt(eigval)))
-            self.z = self.B.dot(theta)
-
-        elif decomp == 'choleskyB':
-            # RUE 2005 / 99: for decomp look at sample_GMRF
-            self.B = np.linalg.cholesky(Q).T
-            self.z = self._sample_backsolve(self.B, theta)
-
-        else:
-            raise ValueError('decomp is not propperly specified')
-
-    def _sample_backsolve(self, L, z, mu=0):
-        """
-        # AUXILIARY METHOD
-        Following RUE HELD 2005 slide 52 ff. explicitly slide 56
-        Solve eq. system L @ x = z for x.
-        if z ~ MVN(0,I) and Q = LL^T from cholesky, this allows to generate
-        x ~ MVN(0, Q^(-1)
-
-        :param L: upper triangular matrix
-        :param z: vector
-        :param mu: additional mean vector
-        :return x: vector
-        """
-        if L.shape[1] != z.size:
-            raise ValueError('improper dimensions')
-
-        x = np.zeros(L.shape[0])
-        x[-1] = z[-1] / L[-1, -1]
-
-        for i in reversed(range(0, L.shape[0] - 1)):
-            x[i] = (z[i] - L[i].dot(x)) / L[i, i]
-
-        return x + mu
-
-
-    def _sample_conditional_precision(self, cond_points, tau):
-        _, gridvec = self.grid
-
-        mask = np.ones(len(gridvec), np.bool)
-
-        mask[cond_points] = 0
-
-        selector = np.zeros((len(cond_points), gridvec.shape[0]), dtype=bool)
-        selector[np.arange(len(cond_points)), [cond_points]] = True
-        Q_BB = selector.dot(self.Q).dot(selector.T)
-
-        intermediate = self.Q[mask, :]
-        Q_AA = intermediate[:, mask]
-        Q_AB = intermediate[:, ~mask]
-
-        xb = np.random.multivariate_normal(mean=np.zeros(len(cond_points)), cov=0.001 * Q_BB)  # fixme tau * Q_BB
-        xa = np.random.multivariate_normal(mean=-tau * Q_AB.dot(xb - 0), cov=tau * np.linalg.inv(Q_AA))
-
-        z = np.zeros(shape=gridvec.shape[0])
-        z[mask] = xa
-        z[~mask] = xb
-        self.z = z
-
-        Q1 = np.concatenate([Q_AA, Q_AB], axis=1)
-        Q2 = np.concatenate([Q_AB.T, Q_BB], axis=1)
-        self.Q = np.concatenate([Q1, Q2], axis=0)
-
-        plt.imshow(Q_BB, cmap='hot', interpolation='nearest')
-
 
     # (class methods) ----------------------------------------------------------
     def log_prob(self):
@@ -466,7 +302,7 @@ class Effects2D:
 
         self.X = X
 
-    def plot_rejected_contour(self, nbins = 300):
+    def plot_rejected_contour(self, nbins=300):
         """Method to plot the result from sample_from_surface_density.
         Plotting Gaussian Kernel Density Estimate"""
         x, y = self.X[:, 0], self.X[:, 1]
@@ -489,9 +325,6 @@ class Effects2D:
         plt.colorbar()
         plt.scatter(x, y, alpha=0.1)
         plt.show()
-
-
-
 
 
 if __name__ == '__main__':
