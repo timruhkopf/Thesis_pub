@@ -136,10 +136,67 @@ class GMRF_K(Effects2D):
     def plot(self):
         self.plot_interaction(title='GMRF_K with Nullspace penalty to MVN')
 
+class GMRF_condK(GMRF_K):
+    """due to rank deficiency of K, sampling conditional on boundaries"""
+    def __init__(self, xgrid, ygrid, order=1, tau=1, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
+        """
+        # FOLLOWING FAHRMEIR KNEIB LANG
+        :param xgrid:
+        :param ygrid:
+        :param order:
+        :param tau:
+        :param sig_Q:
+        :param sig_Q0:
+        :param threshold:
+        """
+        # generate grid
+        super(GMRF_K, self).__init__(xgrid, ygrid)
+        self._construct_precision_GMRF_condK(tau)
+        self._generate_surface()
+
+        self.plot()
+
+    def _construct_precision_GMRF_condK(self, tau):
+        self._construct_precision_GMRF_K(tau)
+
+        (meshx, meshy), gridvec = self.grid
+        row_length, col_length = meshx.shape
+        no_neighb = 1
+        edges = [0, row_length - no_neighb, (col_length - no_neighb) * row_length,
+                    (col_length - no_neighb) * row_length + row_length - no_neighb]
+        mask = np.ones(len(gridvec), np.bool)
+
+        #edges = edges + [10,11,13,14,15, 200,100, 110, 210]   # FIXME remove me
+        mask[edges] = 0
+
+        selector = np.zeros((len(edges), gridvec.shape[0]),dtype= bool)
+        selector[np.arange(len(edges)), [edges]] = True
+        Q_BB = selector.dot(self.Q).dot(selector.T)
+
+        intermediate = self.Q[mask, :]
+        Q_AA = intermediate[:, mask]
+        Q_AB = intermediate[:, ~mask]
+
+        xb = np.random.multivariate_normal(mean=np.zeros(len(edges)), cov=0.001* Q_BB) # fixme tau * Q_BB
+        xa = np.random.multivariate_normal(mean=-tau * Q_AB.dot(xb - 0), cov=tau * np.linalg.inv(Q_AA))
+
+        z = np.zeros(shape=gridvec.shape[0])
+        z[mask] = xa
+        z[~mask] = xb
+        self.z = z
+
+        Q1 = np.concatenate([Q_AA, Q_AB], axis=1)
+        Q2 = np.concatenate([Q_AB.T, Q_BB], axis=1)
+        self.Q = np.concatenate([Q1, Q2], axis=0)
+
+        import matplotlib.pyplot as plt
+        plt.imshow(Q_BB ,cmap='hot', interpolation='nearest')
+
+
 
 class GMRF_K2(GMRF_K):
     """Construct GMRF from K_order=D_order @ D_order with nullspace penalty on K.
-    coef are drawn from the resulting MVN(0, penK)
+    coef are drawn using Cholesky (on full rank K)
 
     different approach: try nullspace penalty & Cholesky afterwards"""
 
@@ -405,6 +462,7 @@ if __name__ == '__main__':
     # gmrf = GMRF(xgrid, ygrid, lam=1, phi=40, delta=10, radius=10, tau=1, tau1=20, decomp='eigenB')
     # gmrf = GMRF(xgrid, ygrid, lam=1, phi=70, delta=1, radius=10, tau=1, tau1=20, decomp='choleskyB')
     # gmrf = GMRF(xgrid, ygrid, radius=6, tau=1, tau1=1, decomp='choleskyB')
+    gmrf_condK = GMRF_condK(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.8)
     gmrf_k = GMRF_K(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.8)
     gmrf_k2 = GMRF_K2(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.1)
     gmrf_vl = GMRF_VL(xgrid, ygrid)
