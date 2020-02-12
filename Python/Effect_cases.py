@@ -18,12 +18,11 @@ from scipy.spatial.distance import cdist
 
 
 class GRF(Effects2D):
-    # with eigendecomposition
     def __init__(self, xgrid, ygrid, corrfn='gaussian', lam=1, phi=0, delta=1, tau=1, tau1=1,
                  decomp=['eigenB', 'choleskyB'][0]):
         """
         FOLLOWING THE PAPER OF PICHOT (Algorithms for GRF Construction:
-        EIGEN, CHOLESKY [& CIRCULANT EMBEDDING]
+        EIGEN, CHOLESKY [& CIRCULANT EMBEDDING], eigendecomp default
         :param xgrid:
         :param ygrid:
         :param corrfn:
@@ -78,19 +77,50 @@ class GMRF(Effects2D):
         # generate grid
         super(GMRF, self).__init__(xgrid, ygrid)
 
-        self._grid_distances(corrfn, lam, phi, delta, gridvec=self.grid[1])
-        self._construct_precision_GMRF(radius, tau)
+        self._construct_precision_GMRF(radius, corrfn, lam, phi, delta, tau)
 
         self._sample_uncond_from_precisionB(self.Q, tau1, decomp)
         self._generate_surface()
 
         self.plot()
 
-    def _construct_precision_GMRF(self, radius, tau):
+    def _construct_precision_GMRF(self, radius, corrfn, lam, phi, delta, tau):
+        self._grid_distances(corrfn, lam, phi, delta, gridvec=self.grid[1])
         self.Q = tau * self._keep_neighbour(self.kernel_distance, radius, fill_diagonal=True)
 
     def plot(self):
         self.plot_interaction(title='GMRF with {}'.format(self.decomp))
+
+
+class GMRF_cond(GMRF):
+    # original function needs refactoring, but works
+    def __init__(self, xgrid, ygrid, corrfn='gaussian', lam=1, phi=0, delta=1,
+                 radius=4, tau=1, no_neighb=4, decomp=['draw_normal', 'cholesky'][0], seed=1337):
+        self.decomp = decomp
+        super(GMRF_cond, self).__init__(xgrid, ygrid)
+
+
+        (meshx, meshy), gridvec = self.grid
+
+        # Identify the index positions of points corresponding to
+        # no_neighb square at each of the grid's edges
+        row_length, col_length = meshx.shape
+        edge_ref = [rowbase + col
+                    for rowbase in np.linspace(0, (row_length) * (no_neighb - 1), no_neighb, dtype=np.int32)
+                    for col in np.arange(0, no_neighb)]
+        edge_pos = [0, row_length - no_neighb, (col_length - no_neighb) * row_length,
+                    (col_length - no_neighb) * row_length + row_length - no_neighb]
+        edges = [x + y for y in edge_pos for x in edge_ref]
+
+        #self._sample_conditional_gmrf(corrfn, lam, no_neighb, decomp, radius, tau, seed)
+        self._construct_precision_GMRF(radius, corrfn, lam, phi, delta, tau)
+        self._sample_conditional_precision(cond_points=edges, tau=tau)
+        self._generate_surface()
+
+        self.plot()
+
+    def plot(self):
+        self.plot_interaction(title='Cond_GMRF with {}'.format(self.decomp))
 
 
 class GMRF_K(Effects2D):
@@ -102,7 +132,7 @@ class GMRF_K(Effects2D):
         # FOLLOWING FAHRMEIR KNEIB LANG
         :param xgrid:
         :param ygrid:
-        :param order:
+        :param order: CURRENTLY HIGHER ORDERS OF K are not supported due to theoretical issues. implementation works fine
         :param tau:
         :param sig_Q:
         :param sig_Q0:
@@ -136,64 +166,39 @@ class GMRF_K(Effects2D):
     def plot(self):
         self.plot_interaction(title='GMRF_K with Nullspace penalty to MVN')
 
-class GMRF_condK(GMRF_K):
-    """due to rank deficiency of K, sampling conditional on boundaries"""
-    def __init__(self, xgrid, ygrid, order=1, tau=1, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
+class GMRF_K_cond(GMRF_K):
+    """due to rank deficiency of K, sampling conditional on edges"""
+    def __init__(self, xgrid, ygrid, order=1, tau=1,):
         """
         # FOLLOWING FAHRMEIR KNEIB LANG
         :param xgrid:
         :param ygrid:
         :param order:
         :param tau:
-        :param sig_Q:
-        :param sig_Q0:
-        :param threshold:
         """
         # generate grid
         super(GMRF_K, self).__init__(xgrid, ygrid)
-        self._construct_precision_GMRF_condK(tau)
-        self._generate_surface()
-
-        self.plot()
-
-    def _construct_precision_GMRF_condK(self, tau):
         self._construct_precision_GMRF_K(tau)
 
+        # find edges
         (meshx, meshy), gridvec = self.grid
         row_length, col_length = meshx.shape
         no_neighb = 1
         edges = [0, row_length - no_neighb, (col_length - no_neighb) * row_length,
-                    (col_length - no_neighb) * row_length + row_length - no_neighb]
-        mask = np.ones(len(gridvec), np.bool)
+                 (col_length - no_neighb) * row_length + row_length - no_neighb]
 
-        mask[edges] = 0
+        self._sample_conditional_precision(cond_points=edges)
+        self._generate_surface()
 
-        selector = np.zeros((len(edges), gridvec.shape[0]),dtype= bool)
-        selector[np.arange(len(edges)), [edges]] = True
-        Q_BB = selector.dot(self.Q).dot(selector.T)
+        self.plot()
 
-        intermediate = self.Q[mask, :]
-        Q_AA = intermediate[:, mask]
-        Q_AB = intermediate[:, ~mask]
-
-        xb = np.random.multivariate_normal(mean=np.zeros(len(edges)), cov=0.001* Q_BB) # fixme tau * Q_BB
-        xa = np.random.multivariate_normal(mean=-tau * Q_AB.dot(xb - 0), cov=tau * np.linalg.inv(Q_AA))
-
-        z = np.zeros(shape=gridvec.shape[0])
-        z[mask] = xa
-        z[~mask] = xb
-        self.z = z
-
-        Q1 = np.concatenate([Q_AA, Q_AB], axis=1)
-        Q2 = np.concatenate([Q_AB.T, Q_BB], axis=1)
-        self.Q = np.concatenate([Q1, Q2], axis=0)
-
-        import matplotlib.pyplot as plt
-        plt.imshow(Q_BB ,cmap='hot', interpolation='nearest')
+    def plot(self):
+        self.plot_interaction(title='conditonal GMRF_K')
 
 
 
-class GMRF_K2(GMRF_K):
+
+class GMRF_K_null_cholesky(GMRF_K):
     """Construct GMRF from K_order=D_order @ D_order with nullspace penalty on K.
     coef are drawn using Cholesky (on full rank K)
 
@@ -294,103 +299,6 @@ class GMRF_VL(Effects2D):
         self.plot_interaction(title='GMRF_VL with {}'.format(self.decomp))
 
 
-class Cond_GMRF(Effects2D):
-    # original function needs refactoring, but works
-    def __init__(self, xgrid, ygrid, corrfn='gaussian', lam=1, phi=0, delta=1,
-                 radius=4, tau=1, no_neighb=4, decomp=['draw_normal', 'cholesky'][0], seed=1337):
-        self.decomp = decomp
-        super(Cond_GMRF, self).__init__(xgrid, ygrid)
-
-        self._grid_distances(corrfn, lam, phi, delta, gridvec=self.grid[1])
-        self._sample_conditional_gmrf(corrfn, lam, no_neighb, decomp, radius, tau, seed)
-        self._generate_surface()
-
-        self.plot()
-
-    def _sample_conditional_gmrf(self, corrfn='gaussian', lam=1, no_neighb=4, decomp=['draw_normal', 'cholesky'][0],
-                                 radius=20, tau=0.1, seed=1337):
-        """
-        conditional sampling of grf (compare Rue / Held slides p.59, eq (10))
-        :param corrfn:
-        :param lam:
-        :param no_neighb:
-        :param decomp:
-        :param radius:
-        :param tau:
-        :param seed:
-        :return:
-        """
-        (meshx, meshy), gridvec = self.grid
-
-        # Identify the index positions of points corresponding to
-        # no_neighb square at each of the grid's edges
-        row_length, col_length = meshx.shape
-        edge_ref = [rowbase + col
-                    for rowbase in np.linspace(0, (row_length) * (no_neighb - 1), no_neighb, dtype=np.int32)
-                    for col in np.arange(0, no_neighb)]
-        edge_pos = [0, row_length - no_neighb, (col_length - no_neighb) * row_length,
-                    (col_length - no_neighb) * row_length + row_length - no_neighb]
-        edges = [x + y for y in edge_pos for x in edge_ref]
-
-        # index workaround for deselection
-        mask = np.ones(len(gridvec), np.bool)
-        mask[edges] = 0
-        Q_AAdata = gridvec[mask]
-        Q_ABdata = gridvec[~mask]
-
-        # generate Qs and deselect neighbours for GMRF
-        # order of function calls important, as grid_distance tampers with distance
-        self._grid_distances('gaussian', lam=1, phi=0, delta=1, gridvec=Q_AAdata)
-        Q_AA = self._keep_neighbour(self.kernel_distance, radius, fill_diagonal=True)
-
-        self._grid_distances('gaussian', lam=1, phi=0, delta=1, gridvec=Q_ABdata)
-        Q_BB = self._keep_neighbour(self.kernel_distance, radius, fill_diagonal=True)
-
-        # euclidean kernel comparison: GRF Qs
-        corr = {
-            'gaussian': lambda h: np.exp(-(h / lam) ** 2)
-            # consider different kernels: exponential
-        }[corrfn]
-
-        dist_AB = cdist(XA=Q_AAdata, XB=Q_ABdata, metric='euclidean')
-        Q_AB = corr(dist_AB)
-
-        # deselect neighbours (dist_AB not in self!)
-        neighbor = dist_AB <= radius
-        Q_AB = np.where(neighbor == False, 0, Q_AB)
-
-        # for plotting purposes:
-        Q1 = np.concatenate([Q_AA, Q_AB], axis=1)
-        Q2 = np.concatenate([Q_AB.T, Q_BB], axis=1)
-        self.Q = np.concatenate([Q1, Q2], axis=0)
-
-        if seed is not None:
-            np.random.seed(seed=seed)
-
-        if decomp == 'draw_normal':  # flavours of drawing xa
-            xb = np.random.multivariate_normal(mean=np.zeros(Q_BB.shape[0]), cov=tau * Q_BB)
-            xa = np.random.multivariate_normal(mean=-tau * Q_AB.dot(xb - 0), cov=tau * Q_AA)
-
-            # xa = np.zeros((Q_AA.shape[0],))  # Consider remove this control
-        elif decomp == 'cholesky':
-            xb = self._sample_backsolve(L=np.linalg.cholesky(tau * Q_BB),
-                                        z=np.random.normal(loc=0, scale=1, size=Q_BB.shape[0]),
-                                        mu=np.zeros(Q_BB.shape[0]))
-            xa = self._sample_backsolve(L=np.linalg.cholesky(tau * Q_AA),
-                                        z=np.random.normal(loc=0, scale=1, size=Q_AA.shape[0]),
-                                        mu=-Q_AB.dot(xb - 0))
-
-        # join coefficients of xa, xb in to sorted gridvector
-        # (which in generate_surface will be destacked appropriately
-        z = np.zeros(shape=gridvec.shape[0])
-        z[mask] = xa
-        z[~mask] = xb
-
-        self.z = z
-
-    def plot(self):
-        self.plot_interaction(title='Cond_GMRF with {}'.format(self.decomp))
-
 
 class Bspline_cum(Effects1D):
     """Bspline generator based on cumulative sum of Normaldistrib"""
@@ -461,13 +369,13 @@ if __name__ == '__main__':
     # gmrf = GMRF(xgrid, ygrid, lam=1, phi=40, delta=10, radius=10, tau=1, tau1=20, decomp='eigenB')
     # gmrf = GMRF(xgrid, ygrid, lam=1, phi=70, delta=1, radius=10, tau=1, tau1=20, decomp='choleskyB')
     # gmrf = GMRF(xgrid, ygrid, radius=6, tau=1, tau1=1, decomp='choleskyB')
-    gmrf_condK = GMRF_condK(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.8)
+    gmrf_condK = GMRF_K_cond(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.8)
     gmrf_k = GMRF_K(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.8)
-    gmrf_k2 = GMRF_K2(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.1)
+    gmrf_k2 = GMRF_K_null_cholesky(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.1)
     gmrf_vl = GMRF_VL(xgrid, ygrid)
 
     # FIXME: conditional effekt's edges are 'edgy'
-    cond_gmrf = Cond_GMRF(xgrid, ygrid, radius=4, tau=1, no_neighb=4)
+    cond_gmrf = GMRF_cond(xgrid, ygrid, radius=4, tau=1, no_neighb=4)
 
     # 1D Cases
     bspline_cum = Bspline_cum(xgrid, coef_scale=0.3)

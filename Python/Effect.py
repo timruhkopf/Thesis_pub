@@ -181,6 +181,7 @@ class Effects2D:
         return Q
 
     # (sampling GMRF) ----------------------------------------------------------
+    # ANY such method must produce self.Q & self.z
     def _sample_with_nullspace_pen(self, Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
         # TENSORFLOW VERSION
         # trial on null space penalty
@@ -239,6 +240,7 @@ class Effects2D:
 
     def _sample_backsolve(self, L, z, mu=0):
         """
+        # AUXILIARY METHOD
         Following RUE HELD 2005 slide 52 ff. explicitly slide 56
         Solve eq. system L @ x = z for x.
         if z ~ MVN(0,I) and Q = LL^T from cholesky, this allows to generate
@@ -260,37 +262,36 @@ class Effects2D:
 
         return x + mu
 
-    def _generate_surface(self, l=2):
-        """
-        Generate a 2d Surface on a square grid from TE-Splines whose
-        coefficients originated from a Random field.
 
-        :param l: The ND-splines degreee
-        :return: ndsplines.NDSpline.__call__ object, allows to evaluate the
-        exact surface value: fxy.surface(np.stack([x, y], axis=-1))
+    def _sample_conditional_precision(self, cond_points, tau):
+        _, gridvec = self.grid
 
-        """
+        mask = np.ones(len(gridvec), np.bool)
 
-        # fahrmeir : d = l + m - 1
-        # ndspline package : l : degree, m: number of kappas
-        # v = m - l - 1
-        # v is the number of coefficients derived from degree l and number of knots m
+        mask[cond_points] = 0
 
-        # given some shape of coef (v,v) and a spline degree, derive what m is:
-        v = int(np.sqrt(self.z.shape))
-        m = v + l + 1
+        selector = np.zeros((len(cond_points), gridvec.shape[0]), dtype=bool)
+        selector[np.arange(len(cond_points)), [cond_points]] = True
+        Q_BB = selector.dot(self.Q).dot(selector.T)
 
-        # spanning the knots
-        x = np.linspace(self.xgrid[0], self.xgrid[1], m)
-        y = np.linspace(self.ygrid[0], self.ygrid[1], m)
+        intermediate = self.Q[mask, :]
+        Q_AA = intermediate[:, mask]
+        Q_AB = intermediate[:, ~mask]
 
-        # Tensorproduct Splines with plugged in coefficents
-        coeff = self.z.reshape((v, v))  # FIXME: this assumes a square grid!
-        a = ndsplines.NDSpline(knots=[x, y], degrees=[l, l],
-                               coefficients=coeff)
+        xb = np.random.multivariate_normal(mean=np.zeros(len(cond_points)), cov=0.001 * Q_BB)  # fixme tau * Q_BB
+        xa = np.random.multivariate_normal(mean=-tau * Q_AB.dot(xb - 0), cov=tau * np.linalg.inv(Q_AA))
 
-        # INTERPOLATION Function for Datapoints
-        self.surface = a.__call__
+        z = np.zeros(shape=gridvec.shape[0])
+        z[mask] = xa
+        z[~mask] = xb
+        self.z = z
+
+        Q1 = np.concatenate([Q_AA, Q_AB], axis=1)
+        Q2 = np.concatenate([Q_AB.T, Q_BB], axis=1)
+        self.Q = np.concatenate([Q1, Q2], axis=0)
+
+        plt.imshow(Q_BB, cmap='hot', interpolation='nearest')
+
 
     # (class methods) ----------------------------------------------------------
     def log_prob(self):
