@@ -1,5 +1,4 @@
 from Python.Effect2D import Effects2D
-from Python.bspline import diff_mat2D
 import numpy as np
 
 

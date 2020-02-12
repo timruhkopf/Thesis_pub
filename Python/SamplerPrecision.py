@@ -2,9 +2,13 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 from scipy.linalg import eigh
-import tensorflow as tf
-import tensorflow_probability as tfp
-tfd = tfp.distributions
+
+# Deprec remove Tensorflow Dependence
+# import tensorflow as tf
+# import tensorflow_probability as tfp
+#
+# tfd = tfp.distributions
+
 
 class SamplerPrecision:
     # (sampling GMRF) ----------------------------------------------------------
@@ -15,10 +19,13 @@ class SamplerPrecision:
         Sigma, penQ = penalize_nullspace(Q, sig_Q, sig_Q0, threshold)
         self.Sigma = Sigma
         self.penQ = penQ
-        rv_z = tfd.MultivariateNormalFullCovariance(
-            covariance_matrix=self.Sigma,
-            loc=0.)
-        self.z = rv_z.sample().numpy()
+        self.z = np.random.multivariate_normal(mean=np.zeros((self.Sigma.shape[0],)), cov=self.Sigma)
+
+        # Deprec
+        # rv_z = tfd.MultivariateNormalFullCovariance(  # FIXME remove tf dependence
+        #     covariance_matrix=self.Sigma,
+        #     loc=0.)
+        # self.z = rv_z.sample().numpy()
 
     def _sample_uncond_from_precisionB(self, Q, tau, decomp=['eigenB', 'choleskyB'][0]):
         """
