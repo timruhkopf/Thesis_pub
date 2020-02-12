@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d import axes3d
 
 from Python.SamplerPrecision import SamplerPrecision
 from scipy.interpolate import BSpline  # FIXME: replace ndspline
@@ -45,12 +44,9 @@ class Effects1D(SamplerPrecision):
 
     def plot_bspline(self):
         """plotting the bspline resulting from bspline_param"""
-        import pylab  # FIXME remove this for plt.scatter!
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.plot(self.x, self.spl(self.x))
-        pylab.show()
+        plt.plot(self.x, self.spl(self.x), '-', label='line 1', linewidth=2)
+        plt.title('Bspline')
+        # FIXME plot Q & eigen values of Q
 
 
 class Bspline_cum(Effects1D):
@@ -86,16 +82,17 @@ class Bspline_cum(Effects1D):
 
 
 class Bspline_K(Effects1D):
-    # with K matrix and proper prior ( nullspace penalty)
+
     def __init__(self, xgrid, no_coef=20, order=2, sig_Q=1, sig_Q0=1, threshold=10 ** -3, degree=2):
         """
         BSPLINE with K matrix & nullspace_penalty sampling
         :param xgrid:
         :param no_coef: number of Bspline coefficents/ no of bases
         :param order: order of difference K_order = D_order @ D_order
-        :param tau:
         :param sig_Q: (sig_Q*Q + sig_Q0* S0)**-1 with S0 nullspace eigenvector matrix
         :param sig_Q0:
+        # with K matrix and proper prior (nullspace penalty) beware, sig_Q & sig_Q0
+        # are factors before inverting Q - so smaller values mean larger variance!
         :param threshold: determining numerical zero in eigenvalues
         :param degree: Bspline degree
         """
@@ -105,14 +102,12 @@ class Bspline_K(Effects1D):
         self._generate_bspline(degree)
         self.plot()
 
-        # CONSIDER: draw the first value with a prior & make conditional GMRF 1d
-
     def plot(self):
         self.plot_bspline()
 
 
 class Bspline_K_cond(Effects1D):
-    # with K matrix and proper prior ( nullspace penalty)
+    # with K matrix and proper prior, sampling first & last value beforehand
     def __init__(self, xgrid, no_coef=20, order=2, degree=2, tau=1):
         """
         BSPLINE with K matrix & conditionally sampling values
@@ -120,9 +115,6 @@ class Bspline_K_cond(Effects1D):
         :param no_coef: number of Bspline coefficents/ no of bases
         :param order: order of difference K_order = D_order @ D_order
         :param tau:
-        :param sig_Q: (sig_Q*Q + sig_Q0* S0)**-1 with S0 nullspace eigenvector matrix
-        :param sig_Q0:
-        :param threshold: determining numerical zero in eigenvalues
         :param degree: Bspline degree
         """
         Effects1D.__init__(self, xgrid)
@@ -130,6 +122,8 @@ class Bspline_K_cond(Effects1D):
 
         # workaround as it was originally intended for 2D grid
         self.grid = (None, None), np.arange(0, no_coef, 1)
+        # BE CAREFULL, order determines how many values must be sampled due to
+        # increasing rank deficiency!
         self._sample_conditional_precision(cond_points=[0, no_coef - 1], tau=tau)
 
         self._generate_bspline(degree)
@@ -143,7 +137,7 @@ if __name__ == '__main__':
     xgrid = (0, 10, 0.5)
 
     # 1D Cases
-    # bspline_cum = Bspline_cum(xgrid, coef_scale=0.3)
-    # bspline_k = Bspline_K(xgrid)
+    bspline_cum = Bspline_cum(xgrid, coef_scale=0.3)
+    bspline_k = Bspline_K(xgrid, no_coef=10, order=1, sig_Q=0.1, sig_Q0=0.01, threshold=10 ** -3)
     bspline_K_cond = Bspline_K_cond(xgrid, no_coef=10, order=2, tau=0.7)
     print('')
