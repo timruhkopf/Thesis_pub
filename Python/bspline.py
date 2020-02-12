@@ -107,13 +107,17 @@ def diff_mat1D(dim, order=1):
 
 def diff_mat2D(dim):
     """
+    \gamma^T K \gamma =   \gamma^T (I_(d2) kron K1 + K2 kron I_(d1) ) \gamma
+    with K1 = D1^T D1 and  K2 = D2^T D2 where D1 and D2 are 1st order difference matrices
+    in z1 & z2 direction respectively.
+
     This function assumes a square grid
 
     :param dim: row length of grid (1d dim)
 
-    :return:
+    :return: D1 (2Drowwisediff), D2 (2Dcolumnwisediff), K (2Dprecision)
     """
-    #dim = int(np.sqrt(dim))  # FIXME: ASSUMING SQUARE GRID!!
+    # dim = int(np.sqrt(dim))  # FIXME: ASSUMING SQUARE GRID!!
     # one dimensional (rowwise) difference matrices
     d1, k1 = diff_mat1D(dim, order=2)
     d2 = d1.T
@@ -123,9 +127,7 @@ def diff_mat2D(dim):
     # d1, k1 = diff_mat1D(dim, order=2)
     # D2 = np.kron(d1, np.eye(4))
 
-    #D2 = np.kron(d1, np.eye(dim))[:2*dim, :dim**2]
-
-
+    # D2 = np.kron(d1, np.eye(dim))[:2*dim, :dim**2]
 
     # two dimensional difference matrix
     D1 = np.kron(np.eye(dim), d1)
@@ -135,11 +137,9 @@ def diff_mat2D(dim):
     K1 = np.kron(np.eye(dim), k1)
     K2 = D2.T.dot(D2)
     # K2 = np.kron(np.eye(dim), K2)
-    K =  K1 + K2
+    K = K1 + K2
 
     return D1, D2, K
-
-
 
 
 if __name__ == '__main__':

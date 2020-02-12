@@ -35,8 +35,6 @@ class GRF(Effects2D):
         self.Q = self.kernel_distance
         np.fill_diagonal(self.Q, 1)  # FIXME: Fact checkk if not e.g. rowsum?
 
-
-
     def plot(self):
         self.plot_interaction(title='GRF with {}'.format(self.decomp))
 
@@ -69,7 +67,8 @@ class GMRF(Effects2D):
 
         self.plot()
 
-    def _construct_precision_GMRF(self, radius, corrfn, lam, phi, delta):      # FIXME Refactor such, that GMRF inherritance of GRF method becomes more apparent
+    def _construct_precision_GMRF(self, radius, corrfn, lam, phi,
+                                  delta):  # FIXME Refactor such, that GMRF inherritance of GRF method becomes more apparent
         self._grid_distances(corrfn, lam, phi, delta, gridvec=self.grid[1])
         self.Q = self._keep_neighbour(self.kernel_distance, radius, fill_diagonal=True)
 
@@ -184,13 +183,12 @@ if __name__ == '__main__':
 
     grf = GRF(xgrid, ygrid, tau=1, decomp='eigenB')
     gmrf = GMRF(xgrid, ygrid, lam=1, phi=40, delta=10, radius=10, tau=1, decomp='eigenB')
-    gmrf = GMRF(xgrid, ygrid, lam=1, phi=70, delta=1, radius=10, tau=1,  decomp='choleskyB')
-    gmrf = GMRF(xgrid, ygrid, radius=6, tau=1,  decomp='choleskyB')
+    gmrf = GMRF(xgrid, ygrid, lam=1, phi=70, delta=1, radius=10, tau=1, decomp='choleskyB')
+    gmrf = GMRF(xgrid, ygrid, radius=6, tau=1, decomp='choleskyB')
     gmrf_vl = GMRF_VL(xgrid, ygrid)
 
-    #FIXME: conditional effect's edges are 'edgy'
+    # FIXME: conditional effect's edges are 'edgy'
     cond_gmrf = GMRF_cond(xgrid, ygrid, radius=4, tau=1, no_neighb=4)
-
 
     # (sparse X sampling) ------------------------------------------------------
     gmrf = GMRF(xgrid, ygrid, lam=1, radius=10, tau=1, decomp='eigenB')
