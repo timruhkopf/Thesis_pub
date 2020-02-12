@@ -59,8 +59,9 @@ class SamplerPrecision:
 
         elif decomp == 'choleskyB':
             # RUE 2005 / 99: for decomp look at sample_GMRF
-            self.B = np.linalg.cholesky(Q).T
-            self.z = _sample_backsolve(L= self.B, z=theta)
+            self.B = np.linalg.cholesky(Q).T  # FIXME: check if .T is correct here
+            self.z = self.B.T.dot(theta)
+            #self.z = _sample_backsolve(L= self.B, z=theta) # fixme solve immediately since self.B.T is B's inverse!
 
         else:
             raise ValueError('decomp is not propperly specified')
