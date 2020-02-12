@@ -173,7 +173,7 @@ class GMRF_K_cond(GMRF_K):
         # FOLLOWING FAHRMEIR KNEIB LANG
         :param xgrid:
         :param ygrid:
-        :param order:
+        :param order: currently not supported
         :param tau:
         """
         # generate grid
@@ -187,7 +187,7 @@ class GMRF_K_cond(GMRF_K):
         edges = [0, row_length - no_neighb, (col_length - no_neighb) * row_length,
                  (col_length - no_neighb) * row_length + row_length - no_neighb]
 
-        self._sample_conditional_precision(cond_points=edges)
+        self._sample_conditional_precision(cond_points=edges, tau=tau)
         self._generate_surface()
 
         self.plot()
@@ -218,7 +218,7 @@ class GMRF_K_null_cholesky(GMRF_K):
         # generate grid
         Effects2D.__init__(self, xgrid=xgrid, ygrid=ygrid)
 
-        self._construct_precision_GMRF_K(order, tau)
+        self._construct_precision_GMRF_K(tau)
         Sigma, penQ = penalize_nullspace(self.Q, sig_Q, sig_Q0, threshold)
         self.Sigma = Sigma
         self.penQ = penQ
@@ -286,11 +286,11 @@ class GMRF_VL(Effects2D):
         Sigma_inv = np.diag(w_s / tau)
 
         self.SIGMA = np.diag(tau / w_s).dot(np.linalg.inv(np.eye(BS.shape[0]) - BS))
-        plt.imshow(self.SIGMA, cmap='hot', interpolation='nearest')
+        #plt.imshow(self.SIGMA, cmap='hot', interpolation='nearest')
 
         # Q =(I_S - B) SIGMA⁻1
         self.Q = (np.eye(BS.shape[0]) - BS).dot(Sigma_inv)
-        plt.imshow(self.Q, cmap='hot', interpolation='nearest')
+        # plt.imshow(self.Q, cmap='hot', interpolation='nearest')
 
         print('rank of Q: ', np.linalg.matrix_rank(self.Q))
         print('shape of Q: ', self.Q.shape)
@@ -369,13 +369,13 @@ if __name__ == '__main__':
     # gmrf = GMRF(xgrid, ygrid, lam=1, phi=40, delta=10, radius=10, tau=1, tau1=20, decomp='eigenB')
     # gmrf = GMRF(xgrid, ygrid, lam=1, phi=70, delta=1, radius=10, tau=1, tau1=20, decomp='choleskyB')
     # gmrf = GMRF(xgrid, ygrid, radius=6, tau=1, tau1=1, decomp='choleskyB')
-    gmrf_condK = GMRF_K_cond(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.8)
-    gmrf_k = GMRF_K(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.8)
-    gmrf_k2 = GMRF_K_null_cholesky(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.1)
-    gmrf_vl = GMRF_VL(xgrid, ygrid)
+    # gmrf_condK = GMRF_K_cond(xgrid, ygrid, order=1, tau=1)
+    # gmrf_k = GMRF_K(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.8)
+    # gmrf_k2 = GMRF_K_null_cholesky(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.1)
+    # gmrf_vl = GMRF_VL(xgrid, ygrid)
 
     # FIXME: conditional effekt's edges are 'edgy'
-    cond_gmrf = GMRF_cond(xgrid, ygrid, radius=4, tau=1, no_neighb=4)
+    # cond_gmrf = GMRF_cond(xgrid, ygrid, radius=4, tau=1, no_neighb=4)
 
     # 1D Cases
     bspline_cum = Bspline_cum(xgrid, coef_scale=0.3)
