@@ -111,9 +111,39 @@ class Bspline_K(Effects1D):
         self.plot_bspline()
 
 
+class Bspline_K_cond(Effects1D):
+    # with K matrix and proper prior ( nullspace penalty)
+    def __init__(self, xgrid, no_coef=20, order=2, degree=2, tau=1):
+        """
+        BSPLINE with K matrix & conditionally sampling values
+        :param xgrid:
+        :param no_coef: number of Bspline coefficents/ no of bases
+        :param order: order of difference K_order = D_order @ D_order
+        :param tau:
+        :param sig_Q: (sig_Q*Q + sig_Q0* S0)**-1 with S0 nullspace eigenvector matrix
+        :param sig_Q0:
+        :param threshold: determining numerical zero in eigenvalues
+        :param degree: Bspline degree
+        """
+        Effects1D.__init__(self, xgrid)
+        self.Q = diff_mat1D(dim=no_coef, order=order)[1]
+
+        # workaround as it was originally intended for 2D grid
+        self.grid = (None, None), np.arange(0, no_coef, 1)
+        self._sample_conditional_precision(cond_points=[0, no_coef - 1], tau=tau)
+
+        self._generate_bspline(degree)
+        self.plot()
+
+    def plot(self):
+        self.plot_bspline()
+
+
 if __name__ == '__main__':
     xgrid = (0, 10, 0.5)
 
     # 1D Cases
-    bspline_cum = Bspline_cum(xgrid, coef_scale=0.3)
-    bspline_k = Bspline_K(xgrid)
+    # bspline_cum = Bspline_cum(xgrid, coef_scale=0.3)
+    # bspline_k = Bspline_K(xgrid)
+    bspline_K_cond = Bspline_K_cond(xgrid, no_coef=10, order=2, tau=0.7)
+    print('')
