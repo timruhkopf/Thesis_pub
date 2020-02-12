@@ -23,7 +23,7 @@ tfd = tfp.distributions
 from scipy.stats import kde
 
 
-class Effects1D():
+class Effects1D:
     def __init__(self, xgrid):
         self.xgrid = xgrid
         self.x = np.linspace(start=self.xgrid[0], stop=self.xgrid[1],
@@ -69,7 +69,7 @@ class Effects1D():
         pylab.show()
 
 
-class Effects2D():
+class Effects2D:
     """
     Possible extensions
     (1) consider random data distribution & building a grf upon it.
@@ -423,13 +423,13 @@ class Effects2D():
         #
         # (xmesh, ymesh), gridvec = self.grid
         # gridxy = np.stack((xmesh, ymesh), axis=-1)
-        # # spline =  self.surface(gridxy) FIXME: this is new version!
+        # # spline =  self.surface(gridxy) FIXM: this is new version!
         #
         # # DEPREC: scipy.interpol.bivariate Bspline input format:
         # spline = self.surface(xi=gridvec[:, 0], yi=gridvec[:, 1])
         # coord_grf = (xmesh, ymesh,
         #              self.z.reshape((xmesh.shape[0], ymesh.shape[0])).T)
-        # # FIXME validate, that [0] is correct for rectangle shaped grid
+        # # fIXM validate, that [0] is correct for rectangle shaped grid
         # coord_teBspline = (xmesh, ymesh,
         #                    spline.reshape((xmesh.shape[0], ymesh.shape[0])).T)
         #

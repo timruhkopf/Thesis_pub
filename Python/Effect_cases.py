@@ -166,7 +166,6 @@ class GMRF_condK(GMRF_K):
                     (col_length - no_neighb) * row_length + row_length - no_neighb]
         mask = np.ones(len(gridvec), np.bool)
 
-        #edges = edges + [10,11,13,14,15, 200,100, 110, 210]   # FIXME remove me
         mask[edges] = 0
 
         selector = np.zeros((len(edges), gridvec.shape[0]),dtype= bool)
@@ -453,7 +452,7 @@ class Bspline_K(Effects1D):
 
 if __name__ == '__main__':
     xgrid = (0, 10, 0.5)  # FIXME: due to _generate_surface, these must span an square grid!
-    ygrid = (0, 10, 0.5)
+    ygrid = xgrid
 
     # (EFFECT SUBCLASSES: GMRF / BSPLINE) --------------------------------------
     # 2D Cases
