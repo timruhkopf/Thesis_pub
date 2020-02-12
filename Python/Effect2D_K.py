@@ -14,7 +14,6 @@
 import numpy as np
 from Python.Effect2D import Effects2D
 from Python.bspline import diff_mat2D
-from Python.SamplerPrecision import penalize_nullspace
 
 
 class GMRF_K(Effects2D):
@@ -84,34 +83,6 @@ class GMRF_K_cond(GMRF_K):
         self.plot_interaction(title='conditonal GMRF_K')  # fixme make it class dependent
 
 
-class GMRF_K_null_cholesky(GMRF_K):
-    """Construct GMRF from K_order=D_order @ D_order with nullspace penalty on K.
-    coef are drawn using Cholesky (on full rank K)
-
-    different approach: try nullspace penalty & Cholesky afterwards"""
-
-    def __init__(self, xgrid, ygrid, order=2, tau=1, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
-        """
-        # FOLLOWING FAHRMEIR KNEIB LANG
-        :param xgrid:
-        :param ygrid:
-        :param order:
-        :param tau:
-        :param sig_Q:
-        :param sig_Q0:
-        :param threshold:
-        """
-        # generate grid
-        Effects2D.__init__(self, xgrid=xgrid, ygrid=ygrid)
-
-        self._construct_precision_GMRF_K()
-        Sigma, penQ = penalize_nullspace(self.Q, sig_Q, sig_Q0, threshold)
-        self.Sigma = Sigma
-        self.penQ = penQ
-        self._sample_uncond_from_precisionB(penQ, tau, decomp='choleskyB')
-        self._generate_surface()
-
-        self.plot()
 
 
 if __name__ == '__main__':
@@ -120,6 +91,5 @@ if __name__ == '__main__':
 
     gmrf_condK = GMRF_K_cond(xgrid, ygrid, no_neighb=1, order=1, tau=1)
     gmrf_k = GMRF_K(xgrid, ygrid, order=1, sig_Q=1, sig_Q0=0.8)
-    gmrf_k2 = GMRF_K_null_cholesky(xgrid, ygrid, order=1, tau=1, sig_Q=1, sig_Q0=0.1)
 
     print('')
