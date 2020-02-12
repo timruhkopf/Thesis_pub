@@ -1,6 +1,5 @@
-from Python.Effect2D import Effects2D
 import numpy as np
-
+from Python.Effect2D import Effects2D
 
 class GRF(Effects2D):
     def __init__(self, xgrid, ygrid, corrfn='gaussian', lam=1, phi=0, delta=1, tau=1,

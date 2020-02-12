@@ -1,10 +1,7 @@
 import numpy as np
 from scipy.interpolate import BSpline
 from collections import deque
-from scipy.linalg import eigh
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import axes3d
 
 
 # CONSIDER: def fnc: Recursive Bspline Definiton, returning a callable,
@@ -123,20 +120,13 @@ def diff_mat2D(dim):
     d2 = d1.T
 
     D2 = np.kron(d2, np.eye(dim)).T
-    # consider second order column D (D2)
-    # d1, k1 = diff_mat1D(dim, order=2)
-    # D2 = np.kron(d1, np.eye(4))
-
-    # D2 = np.kron(d1, np.eye(dim))[:2*dim, :dim**2]
 
     # two dimensional difference matrix
     D1 = np.kron(np.eye(dim), d1)
-    # D2 = np.append(np.diag(np.repeat(-1, dim**2 - dim), k=0), np.zeros((dim**2 - dim, dim)), axis=1) + \
-    #     np.append(np.zeros((dim**2 - dim, dim)), np.diag(np.repeat(1, dim**2 - dim), k=0), axis=1)
 
     K1 = np.kron(np.eye(dim), k1)
     K2 = D2.T.dot(D2)
-    # K2 = np.kron(np.eye(dim), K2)
+
     K = K1 + K2
 
     return D1, D2, K
