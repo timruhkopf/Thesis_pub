@@ -1,6 +1,7 @@
 import numpy as np
 from Python.Effect2D import Effects2D
 
+
 class GRF(Effects2D):
     def __init__(self, xgrid, ygrid, corrfn='gaussian', lam=1, phi=0, delta=1, tau=1,
                  decomp=['eigenB', 'choleskyB'][0]):
@@ -16,7 +17,6 @@ class GRF(Effects2D):
         :param tau: variance of the z ~ MVN(0, tau1*I), bevore B^T z is applied
         :param decomp:
         """
-        self.decomp = decomp
 
         # generate grid
         Effects2D.__init__(self, xgrid, ygrid)
@@ -26,15 +26,12 @@ class GRF(Effects2D):
         self._sample_uncond_from_precisionB(self.Q, tau, decomp)
         self._generate_surface()
 
-        self.plot()
+        self.plot_interaction(title='{} with {}'.format(self.__class__.__name__, decomp))
 
     def _construct_precision_GRF(self, corrfn, lam, phi, delta):
         self._grid_distances(corrfn, lam, phi, delta, gridvec=self.grid[1])
         self.Q = self.kernel_distance
         np.fill_diagonal(self.Q, 1)  # FIXME: Fact checkk if not e.g. rowsum?
-
-    def plot(self):
-        self.plot_interaction(title='GRF with {}'.format(self.decomp))
 
 
 class GMRF(Effects2D):
@@ -54,7 +51,7 @@ class GMRF(Effects2D):
         :param tau1: variance of the z ~ MVN(0, tau1*I), bevore B^T z is applied
         :param decomp:
         """
-        self.decomp = decomp
+
         # generate grid
         Effects2D.__init__(self, xgrid, ygrid)
 
@@ -63,15 +60,13 @@ class GMRF(Effects2D):
         self._sample_uncond_from_precisionB(self.Q, tau, decomp)
         self._generate_surface()
 
-        self.plot()
+        self.plot_interaction(title='{} with {}'.format(self.__class__.__name__, decomp))
 
     def _construct_precision_GMRF(self, radius, corrfn, lam, phi,
                                   delta):  # FIXME Refactor such, that GMRF inherritance of GRF method becomes more apparent
         self._grid_distances(corrfn, lam, phi, delta, gridvec=self.grid[1])
         self.Q = self._keep_neighbour(self.kernel_distance, radius, fill_diagonal=True)
 
-    def plot(self):
-        self.plot_interaction(title='GMRF with {}'.format(self.decomp))
 
 class GMRF_cond(GMRF):  # FIXME GMRF_cond produces periodical results
     # original function needs refactoring, but works
@@ -96,17 +91,13 @@ class GMRF_cond(GMRF):  # FIXME GMRF_cond produces periodical results
         self._sample_conditional_precision(cond_points=edges, tau=tau)
         self._generate_surface()
 
-        self.plot()
-
-    def plot(self):
-        self.plot_interaction(title='Cond_GMRF with {}'.format(self.decomp))
+        self.plot_interaction(title='{} with {}'.format(self.__class__.__name__, decomp))
 
 
 class GMRF_VL(Effects2D):
     # NOT WORKING
     def __init__(self, xgrid, ygrid, corrfn='gaussian', lam=1, phi=0, delta=1,
                  radius=4, rho=0.7, tau=1, tau1=1, decomp=['eigenB', 'choleskyB'][0]):
-        self.decomp = decomp
         # generate grid
         super(GMRF_VL, self).__init__(xgrid, ygrid)
 
@@ -116,7 +107,7 @@ class GMRF_VL(Effects2D):
         self._sample_uncond_from_precisionB(self.Q, tau1, decomp)
         self._generate_surface()
 
-        self.plot()
+        self.plot_interaction(title='{} with {}'.format(self.__class__.__name__, decomp))
 
     def _construct_precision_GMRF_VL(self, radius, rho, tau):
         """
@@ -168,9 +159,6 @@ class GMRF_VL(Effects2D):
 
         print('rank of Q: ', np.linalg.matrix_rank(self.Q))
         print('shape of Q: ', self.Q.shape)
-
-    def plot(self):
-        self.plot_interaction(title='GMRF_VL with {}'.format(self.decomp))
 
 
 if __name__ == '__main__':

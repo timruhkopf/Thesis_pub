@@ -24,7 +24,7 @@ class GMRF_K(Effects2D):
         self._sample_with_nullspace_pen(Q=self.Q, sig_Q=sig_Q, sig_Q0=sig_Q0, threshold=threshold)
         self._generate_surface()
 
-        self.plot()
+        self.plot_interaction(title='{} with {}'.format(self.__class__.__name__, 'Nullspace penalty to MVN'))
 
     def _construct_precision_GMRF_K(self):
         (meshx, _), _ = self.grid
@@ -35,9 +35,6 @@ class GMRF_K(Effects2D):
 
         print('rank of Q: ', np.linalg.matrix_rank(self.Q))
         print('shape of Q: ', self.Q.shape)
-
-    def plot(self):
-        self.plot_interaction(title='GMRF_K with Nullspace penalty to MVN')
 
 
 class GMRF_K_cond(GMRF_K):
@@ -64,19 +61,14 @@ class GMRF_K_cond(GMRF_K):
         self._sample_conditional_precision(cond_points=edges, tau=tau)
         self._generate_surface()
 
-        self.plot()
-
-    def plot(self):
-        self.plot_interaction(title='conditonal GMRF_K')  # fixme make it class dependent
-
-
+        self.plot_interaction(title='{}'.format(self.__class__.__name__))
 
 
 if __name__ == '__main__':
     xgrid = (0, 10, 0.5)  # FIXME: due to _generate_surface, these must span an square grid!
     ygrid = xgrid
 
-    gmrf_condK = GMRF_K_cond(xgrid, ygrid, no_neighb=1, order=1, tau=1)
+    gmrf_condK = GMRF_K_cond(xgrid, ygrid, no_neighb=1, order=1, tau=3)
     gmrf_k = GMRF_K(xgrid, ygrid, order=1, sig_Q=1, sig_Q0=0.8)
 
     print('')
