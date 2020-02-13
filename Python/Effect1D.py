@@ -44,8 +44,10 @@ class Effects1D(SamplerPrecision):
 
     def plot_bspline(self):
         """plotting the bspline resulting from bspline_param"""
+        plt.figure()
         plt.plot(self.x, self.spl(self.x), '-', label='line 1', linewidth=2)
         plt.title('Bspline')
+        plt.show()
         # FIXME plot Q & eigen values of Q
 
 
@@ -57,7 +59,7 @@ class Bspline_cum(Effects1D):
         super(Bspline_cum, self).__init__(xgrid)
         self._random_coef(size=n_basis, loc=0, scale=coef_scale, seed=seed, **kwargs)
         self._generate_bspline(degree)
-        self.plot()
+        self.plot_bspline()
 
     def _random_coef(self, size, seed=None, **kwargs):
         """
@@ -77,9 +79,6 @@ class Bspline_cum(Effects1D):
 
         self.z = coef.cumsum()
 
-    def plot(self):
-        self.plot_bspline()
-
 
 class Bspline_K(Effects1D):
 
@@ -98,13 +97,9 @@ class Bspline_K(Effects1D):
         """
         super(Bspline_K, self).__init__(xgrid)
         self.Q = diff_mat1D(dim=no_coef, order=order)[1]
-        SamplerPrecision._sample_with_nullspace_pen(self, self.Q, sig_Q, sig_Q0, threshold)
+        self._sample_with_nullspace_pen(self.Q, sig_Q, sig_Q0, threshold)
         self._generate_bspline(degree)
-        self.plot()
-
-    def plot(self):
         self.plot_bspline()
-
 
 class Bspline_K_cond(Effects1D):
     # with K matrix and proper prior, sampling first & last value beforehand
@@ -127,10 +122,31 @@ class Bspline_K_cond(Effects1D):
         self._sample_conditional_precision(cond_points=[0, no_coef - 1], tau=tau)
 
         self._generate_bspline(degree)
-        self.plot()
-
-    def plot(self):
         self.plot_bspline()
+
+
+from Python.Effect2D import Effects2D
+
+
+class Bspline_GMRF(Effects1D, Effects2D):
+    def __init__(self, xgrid, radius=1, degree=2, sig_Q=1, sig_Q0=0.01,threshold=10 ** -3):
+        Effects1D.__init__(self, xgrid)
+
+        # workaround as grid_distances was inteded to be 2D
+        gridvec =  np.arange(xgrid[0], xgrid[1], xgrid[2])
+        gridvec = np.stack([gridvec, np.zeros((len(gridvec),))], axis=1)
+        self._grid_distances(corrfn='gaussian', lam=1, phi=0, delta=1, gridvec=gridvec)
+
+        # GRF STYLE
+        self.Q = self.kernel_distance
+
+        # GMRF STYLE
+        #self.Q = self._keep_neighbour(self.kernel_distance, radius=radius, fill_diagonal=True)
+
+        self._sample_with_nullspace_pen(self.Q, sig_Q, sig_Q0, threshold)
+        self._generate_bspline(degree)
+        self.plot_bspline()
+
 
 
 if __name__ == '__main__':
@@ -140,4 +156,6 @@ if __name__ == '__main__':
     bspline_cum = Bspline_cum(xgrid, coef_scale=0.3)
     bspline_k = Bspline_K(xgrid, no_coef=10, order=1, sig_Q=0.1, sig_Q0=0.01, threshold=10 ** -3)
     bspline_K_cond = Bspline_K_cond(xgrid, no_coef=10, order=2, tau=0.7)
+
+    bspline_dist = Bspline_GMRF(xgrid)
     print('')
