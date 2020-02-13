@@ -19,7 +19,7 @@ class GRF(Effects2D):
         self.decomp = decomp
 
         # generate grid
-        super(GRF, self).__init__(xgrid, ygrid)
+        Effects2D.__init__(self, xgrid, ygrid)
 
         self._construct_precision_GRF(corrfn, lam, phi, delta)
 
@@ -56,7 +56,7 @@ class GMRF(Effects2D):
         """
         self.decomp = decomp
         # generate grid
-        super(GMRF, self).__init__(xgrid, ygrid)
+        Effects2D.__init__(self, xgrid, ygrid)
 
         self._construct_precision_GMRF(radius, corrfn, lam, phi, delta)
 
@@ -73,13 +73,11 @@ class GMRF(Effects2D):
     def plot(self):
         self.plot_interaction(title='GMRF with {}'.format(self.decomp))
 
-
-class GMRF_cond(GMRF):
+class GMRF_cond(GMRF):  # FIXME GMRF_cond produces periodical results
     # original function needs refactoring, but works
     def __init__(self, xgrid, ygrid, corrfn='gaussian', lam=1, phi=0, delta=1,
                  radius=4, tau=1, no_neighb=4, decomp=['draw_normal', 'cholesky'][0], seed=1337):
-        self.decomp = decomp
-        super(GMRF_cond, self).__init__(xgrid, ygrid)
+        Effects2D.__init__(self, xgrid, ygrid)
 
         (meshx, meshy), gridvec = self.grid
 
@@ -186,7 +184,7 @@ if __name__ == '__main__':
     gmrf_vl = GMRF_VL(xgrid, ygrid)
 
     # FIXME: conditional effect's edges are 'edgy'
-    cond_gmrf = GMRF_cond(xgrid, ygrid, radius=4, tau=1, no_neighb=4)
+    cond_gmrf = GMRF_cond(xgrid, ygrid, radius=4, tau=1, no_neighb=1)
 
     # (sparse X sampling) ------------------------------------------------------
     gmrf = GMRF(xgrid, ygrid, lam=1, radius=10, tau=1, decomp='eigenB')

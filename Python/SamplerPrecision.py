@@ -94,7 +94,7 @@ class SamplerPrecision:
         Q_AB = intermediate[:, ~mask]
 
         xb = np.random.multivariate_normal(mean=np.zeros(len(cond_points)),
-                                           cov=tau * Q_BB)
+                                           cov=0.1 * np.linalg.inv(Q_BB))
         xa = np.random.multivariate_normal(mean=-tau * Q_AB.dot(xb - 0),
                                            cov=tau * np.linalg.inv(Q_AA))  # fixme definiteness
 
