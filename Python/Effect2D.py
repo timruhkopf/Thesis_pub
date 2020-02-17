@@ -30,12 +30,12 @@ class Effects2D(SamplerPrecision):
         self.xgrid = xgrid
         self.ygrid = ygrid
 
-        x, y = np.arange(xgrid[0], xgrid[1], xgrid[2]), \
-               np.arange(ygrid[0], ygrid[1], ygrid[2])
-        self.grid = self._generate_grid(x, y)
+        self.grid = self._generate_grid(xgrid, ygrid)
 
     # (helper functions) -------------------------------------------------------
-    def _generate_grid(self, x, y):
+    def _generate_grid(self, xgrid, ygrid):
+        x, y = np.arange(xgrid[0], xgrid[1], xgrid[2]), \
+               np.arange(ygrid[0], ygrid[1], ygrid[2])
         xmesh, ymesh = np.meshgrid(x, y)
         # xflat, yflat = xmesh.flatten(), ymesh.flatten()
         # gridvec = np.stack((xflat, yflat), axis=1)
