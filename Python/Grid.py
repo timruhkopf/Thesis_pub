@@ -149,7 +149,7 @@ class Grid:
 
 
 if __name__ == '__main__':
-    from Python.Model_cases import Xbeta
+    from Python import Xbeta
     pathroot = os.getcwd()
 
     # (MINIMAL SHELVE TF EXAMPLE) ----------------------------------------------
