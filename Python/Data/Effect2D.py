@@ -1,6 +1,7 @@
 from itertools import product as prd
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 # Surface generation
 from scipy.spatial.distance import pdist, squareform
@@ -191,45 +192,25 @@ class Effects2D(SamplerPrecision):
 
         plt.show()
 
-        # Deprec after removing the workaround of fitting TE to GRF instead of plugging in coef
-        # fig = plt.figure()
-        #
-        # (xmesh, ymesh), gridvec = self.grid
-        # gridxy = np.stack((xmesh, ymesh), axis=-1)
-        # # spline =  self.surface(gridxy) FIXM: this is new version!
-        #
-        # # DEPREC: scipy.interpol.bivariate Bspline input format:
-        # spline = self.surface(xi=gridvec[:, 0], yi=gridvec[:, 1])
-        # coord_grf = (xmesh, ymesh,
-        #              self.z.reshape((xmesh.shape[0], ymesh.shape[0])).T)
-        # # fIXM validate, that [0] is correct for rectangle shaped grid
-        # coord_teBspline = (xmesh, ymesh,
-        #                    spline.reshape((xmesh.shape[0], ymesh.shape[0])).T)
-        #
-        # if coord_grf is not None:
-        #     if coord_teBspline is not None:
-        #         ax = fig.add_subplot(121, projection='3d')
-        #     else:
-        #         ax = fig.add_subplot(111, projection='3d')
-        #     ax.set_title('grf')
-        #
-        #     # Plot grf in wireframe
-        #     X, Y, Z = coord_grf
-        #     ax.plot_wireframe(X, Y, Z, rstride=1, cstride=1, alpha=0.7)
-        #
-        # # optionally plot the Bspline estimate as surface
-        # if coord_teBspline is not None:
-        #     if coord_grf is not None:
-        #         ax1 = fig.add_subplot(122, projection='3d')
-        #     else:
-        #         ax1 = fig.add_subplot(111, projection='3d')
-        #
-        #     X, Y, Z = coord_teBspline
-        #     ax1.plot_surface(X, Y, Z, rstride=1, cstride=1,
-        #                      linewidth=0, antialiased=False, alpha=0.7)
-        #     ax1.set_title('B-spline estimate')
-        #
-        #     plt.show()
+    def plot_y2D(self, xgrid, ygrid, effectsurface):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        # ax.plot_wireframe(meshx, meshy, fxy.surface(gridxy))
+        ax.scatter(xs=self.X[:, 0], ys=self.X[:, 1], zs=self.y, alpha=0.3)
+        ax.set_title('N(f(x,y), ...) = z')
+
+        # plot mu
+        (xmesh, ymesh), gridvec = Effects2D._generate_grid(self, xgrid, ygrid)
+        gridmu = effectsurface.surface(gridvec)  # fixme: call from self.surface instead!
+        # ax.plot_surface(X=xmesh, Y=ymesh, Z=gridmu.reshape(xmesh.shape) ,facecolors=np.repeat('b', 100).reshape(xmesh.shape), linewidth=0)
+        ax.plot_trisurf(xmesh.reshape(gridmu.shape), ymesh.reshape(gridmu.shape), gridmu, alpha=0.3, linewidth=0.2,
+                        antialiased=True)
+
+        # ax1 = fig.add_subplot(222, projection='3d')
+        # ax1.scatter(xs=self.X[:,0], ys=self.X[:,1], zs=self.mu, alpha=0.3)
+        # ax1.set_title('mu')
+
+        plt.show()
 
     # (Rejection Sampling gmrf density) ----------------------------------------
     def sample_from_surface_density(self, n, q=(0.05, 0.95), factor=2):
