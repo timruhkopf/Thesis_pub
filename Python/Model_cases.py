@@ -21,33 +21,36 @@ class AdaptiveHMC:
         self.initial = initial
         bijected_hmc = tfp.mcmc.TransformedTransitionKernel(
             inner_kernel=tfp.mcmc.HamiltonianMonteCarlo(
-            target_log_prob_fn=log_prob,
-            num_leapfrog_steps=num_leapfrog_steps,
-            step_size=1.),
+                target_log_prob_fn=log_prob,
+                num_leapfrog_steps=num_leapfrog_steps,
+                step_size=1.),
             bijector=bijectors)
 
         self.adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(
             bijected_hmc,
             num_adaptation_steps=int(num_burnin_steps * 0.8))
 
-
-        # self.adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(
-        #     tfp.mcmc.HamiltonianMonteCarlo(
-        #         target_log_prob_fn=log_prob,
-        #         num_leapfrog_steps=3,
-        #         step_size=1.),
-        #     num_adaptation_steps=int(num_burnin_steps * 0.8))
-
     @tf.function
     def sample_chain(self, num_burnin_steps=int(1e3), num_results=int(10e3)):
-        samples = tfp.mcmc.sample_chain(
+        samples = tfp.mcmc.sample_chain(  # samples, *tup
             num_results=num_results,
             num_burnin_steps=num_burnin_steps,
             current_state=self.initial,
             kernel=self.adaptive_hmc)
-            #trace_fn=lambda _, pkr: pkr.inner_results.is_accepted ) # increases number of outputs
+        # trace_fn=lambda _, pkr: pkr.inner_results.is_accepted ) # increases number of outputs
 
-        self.samples = samples
+        self.samples = samples[0]
+
+        # tf.print(samples.__len__())
+        # tf.print(samples[1])
+
+        # seriously depending on trace_fn
+        is_accepted = samples[1].inner_results.inner_results.is_accepted
+        # tf.print(is_accepted.dtype)
+
+        rate_accepted = tf.reduce_mean(tf.cast(is_accepted, tf.float32), axis=0)
+        tf.print('acceptance rate: ', rate_accepted)
+        #  float32, float64, int32, uint8, int16, int8, complex64, int64, qint8, quint8, qint32, bfloat16, uint16, complex128, float16, uint32, uint64
 
         # sample_mean = tf.reduce_mean(samples, axis=0)
         # sample_stddev = tf.math.reduce_std(samples, axis=0)
@@ -71,7 +74,8 @@ class AdaptiveHMC:
         (xmesh, ymesh), gridvec = Effects2D._generate_grid(self, xgrid, ygrid)
         gridmu = effectsurface.surface(gridvec)
         # ax.plot_surface(X=xmesh, Y=ymesh, Z=gridmu.reshape(xmesh.shape) ,facecolors=np.repeat('b', 100).reshape(xmesh.shape), linewidth=0)
-        ax.plot_trisurf(xmesh.reshape(gridmu.shape), ymesh.reshape(gridmu.shape), gridmu, alpha=0.3,linewidth=0.2, antialiased=True)
+        ax.plot_trisurf(xmesh.reshape(gridmu.shape), ymesh.reshape(gridmu.shape), gridmu, alpha=0.3, linewidth=0.2,
+                        antialiased=True)
 
         # ax1 = fig.add_subplot(222, projection='3d')
         # ax1.scatter(xs=self.X[:,0], ys=self.X[:,1], zs=self.mu, alpha=0.3)
