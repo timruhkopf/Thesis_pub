@@ -1,4 +1,13 @@
-class Metrics():
+import matplotlib.pyplot as plt
+class Metrics:
+    """object inherriting Metrics is required to have self.y, self.mu, self.yhat"""
+
+    def __init__(self, mu, y, yhat):
+        # residuals & residual sum sq
+        self.error = abs(self.y - self.mu)
+        self.residuals = abs(self.yhat - self.mu)
+        self.rssq = sum(self.residuals ** 2)
+
     def plot_residuals(self):
         pass
 
