@@ -1,7 +1,6 @@
 from itertools import product as prd
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import axes3d
 
 # Surface generation
 from scipy.spatial.distance import pdist, squareform
@@ -9,7 +8,7 @@ import ndsplines
 
 # rejection sampling
 from scipy.stats import kde
-from Python.SamplerPrecision import SamplerPrecision
+from Python.Data.SamplerPrecision import SamplerPrecision
 
 
 class Effects2D(SamplerPrecision):

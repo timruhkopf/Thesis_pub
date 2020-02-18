@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from Python.SamplerPrecision import SamplerPrecision
+from Python.Data.SamplerPrecision import SamplerPrecision
 from scipy.interpolate import BSpline  # FIXME: replace ndspline
-from Python.bspline import diff_mat1D
+from Python.Data.bspline import diff_mat1D
 
 
 class Effects1D(SamplerPrecision):
@@ -49,6 +49,9 @@ class Effects1D(SamplerPrecision):
         plt.title('Bspline')
         plt.show()
         # FIXME plot Q & eigen values of Q
+
+    def plot_y1D(self):
+        pass
 
 
 class Bspline_cum(Effects1D):
@@ -100,6 +103,7 @@ class Bspline_K(Effects1D):
         self._sample_with_nullspace_pen(self.Q, sig_Q, sig_Q0, threshold)
         self._generate_bspline(degree)
         self.plot_bspline()
+
 
 class Bspline_K_cond(Effects1D):
     # with K matrix and proper prior, sampling first & last value beforehand

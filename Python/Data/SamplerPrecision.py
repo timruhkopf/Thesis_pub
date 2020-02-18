@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.linalg import eigh
 
+
 # Deprec remove Tensorflow Dependence
 # import tensorflow as tf
 # import tensorflow_probability as tfp
@@ -108,6 +109,7 @@ class SamplerPrecision:
         self.Q = np.concatenate([Q1, Q2], axis=0)
 
         plt.imshow(Q_BB, cmap='hot', interpolation='nearest')  # fixme:save for later
+
 
 # Deprec
 # def _sample_backsolve(L, z, mu=0):

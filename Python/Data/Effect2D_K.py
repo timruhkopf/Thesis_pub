@@ -1,6 +1,6 @@
 import numpy as np
-from Python.Effect2D import Effects2D
-from Python.bspline import diff_mat2D
+from Python.Data.Effect2D import Effects2D
+from Python.Data.bspline import diff_mat2D
 
 
 class GMRF_K(Effects2D):
@@ -30,7 +30,7 @@ class GMRF_K(Effects2D):
         (meshx, _), _ = self.grid
         no_coef = meshx.shape[0]
 
-        D1, D2, K = diff_mat2D(dim=no_coef)  # fixme check theory for higher order
+        D1, D2, K = diff_mat2D(dim=no_coef)
         self.Q = K
 
         print('rank of Q: ', np.linalg.matrix_rank(self.Q))
