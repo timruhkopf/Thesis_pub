@@ -4,12 +4,6 @@ import numpy as np
 from scipy.linalg import eigh
 
 
-# Deprec remove Tensorflow Dependence
-# import tensorflow as tf
-# import tensorflow_probability as tfp
-#
-# tfd = tfp.distributions
-
 
 class SamplerPrecision:
     # (sampling GMRF) ----------------------------------------------------------
