@@ -19,7 +19,9 @@ class Xbeta(AdaptiveHMC):
         # MAKE SURE, all of the below is TF Ready
 
         self.n = n
-        self.X = tf.stack([tf.ones((self.n,)), tfd.Uniform(xgrid[0], xgrid[1]).sample((self.n,))], axis=1)
+        self.X = tf.stack([tf.ones((self.n,)),
+                           tfd.Uniform(xgrid[0], xgrid[1]).sample((self.n,))],
+                          axis=1)
         self.beta = tf.constant(beta)
         self.mu = tf.linalg.matvec(self.X, self.beta)
         self.y = self.mu + tfd.Normal(loc=0, scale=1).sample((self.n,))
@@ -29,7 +31,9 @@ class Xbeta(AdaptiveHMC):
         self.initial = tf.constant([1., 1.])  # CAREFULL MUST BE FLOAT!
         self.bijectors = [tfb.Identity(), tfb.Identity()]
 
-        AdaptiveHMC.__init__(self, initial=self.initial, bijectors=self.bijectors, log_prob=self.unnormalized_log_prob)
+        AdaptiveHMC.__init__(self, initial=self.initial,
+                             bijectors=self.bijectors,
+                             log_prob=self.unnormalized_log_prob)
 
     def unnormalized_log_prob(self, beta):
         """
@@ -134,7 +138,9 @@ if __name__ == '__main__':
     # log posterior of true beta
     xbeta.unnormalized_log_prob(beta=tf.constant([-1., 2.]))
 
-    samples, tup = xbeta.sample_chain()
+    samples, traced = xbeta.sample_chain(log_dir='/home/tim/PycharmProjects/Thesis/TFResults' )
+    # num_burnin_steps = int(1e3), num_results = int(10e3)
+    # TERMINAL: tensorboard --logdir TFResults
 
     # (PRINTING TRACE RESULTS)
     # # argument structure depending on the nesting:
@@ -155,7 +161,7 @@ if __name__ == '__main__':
     # xbetasigma.unnormalized_log_prob(beta=tf.constant([-1., 2.]), sigma=tf.constant([10.]))
     # samples, tup = xbetasigma.sample_chain()
 
-    is_accepted = tup[0][1][1]
+    is_accepted = traced[0][1][1]
     lw = 0.3
     # plt.plot(is_accepted[:, 0], label="trace of beta 0", lw=lw)
     # plt.plot(is_accepted[:, 1], label="trace of beta 1", lw=lw)

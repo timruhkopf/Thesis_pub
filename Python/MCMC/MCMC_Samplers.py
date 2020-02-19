@@ -4,6 +4,8 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 tfb = tfp.bijectors
 
+from functools import partial
+
 
 class AdaptiveHMC:
     # FIXME: FAIL OF SAMPLING ALWAYS SAME  VALUE MUST LIE IN HERE NOT XBETA!!
@@ -23,43 +25,73 @@ class AdaptiveHMC:
             bijected_hmc,
             num_adaptation_steps=int(num_burnin_steps * 0.8))
 
-    @tf.function
-    def sample_chain(self, num_burnin_steps=int(1e3), num_results=int(10e3)):
-        samples = tfp.mcmc.sample_chain(  # samples, *tup
+
+    def sample_chain(self, log_dir, num_burnin_steps=int(1e3), num_results=int(10e3)):
+
+        # (SAMPLING RELATED) ----------------------
+        def trace_fn(current_state, kernel_results, summary_freq=10):
+            """
+            Trace function has a "current" look inside the state of the chain and
+            the inner_kernels result and allows choosing which values to build
+            traces of. Those values are returned in nested tupel "inner_kernel"
+            parameters, (inner_kernel) = tfp.mcmc.sample_chain()
+
+            This function allows TB integration during training
+            based on https://github.com/tensorflow/probability/issues/356
+            """
+            #     step = kernel_results.step
+            #     with tf.summary.record_if(tf.equal(step % summary_freq, 0)):
+            #         tf.print(current_state)
+            return kernel_results.inner_results
+
+        @tf.function
+        def tfgraph_sample_chain(*args, **kwargs):
+            """tf.function wrapped sample_chain. This became necessary, as TB 
+            was introduced"""
+            return tfp.mcmc.sample_chain(*args, **kwargs)
+
+        chain, traced = tfgraph_sample_chain(
             num_results=num_results,
             num_burnin_steps=num_burnin_steps,
             current_state=self.initial,
-            kernel=self.adaptive_hmc)
-        # trace_fn=lambda _, pkr: pkr.inner_results.is_accepted ) # increases number of outputs
+            kernel=self.adaptive_hmc,
+            trace_fn=trace_fn)  # partial(trace_fn, summary_freq=20)
 
-        # (TRACE FUNCTION RELATED) ---------------------------------------------
-        # Trace function has a "current" look inside the state of the chain and
-        # the inner_kernels result and allows choosing which values to build
-        # traces of. Those values are returned in nested tupel "inner_kernel"
-        # parameters, (inner_kernel) = tfp.mcmc.sample_chain()
-
-        # TRACE WITH TENSORBOARD:
-        # https://github.com/tensorflow/probability/issues/356
-        # def trace_fn(weights, results):
-        #    with tf.compat.v2.summary.record_if(tf.equal(results.step % 100, 0)):
-        #      tf.compat.v2.summary.histogram(weights, step=results.step)
-        #    return ()
-
-        self.samples = samples[0]
-
-        # tf.print(samples.__len__())
-        # tf.print(samples[1])
-
+        # (SUMMARY STATISTICS) -----------------
         # seriously depending on trace_fn
-        is_accepted = samples[1].inner_results.inner_results.is_accepted
+        is_accepted = traced.inner_results.is_accepted
         rate_accepted = tf.reduce_mean(tf.cast(is_accepted, tf.float32), axis=0)
+        chain_accepted = chain[tf.reduce_all(is_accepted, axis=1)]
+        # FIXME: PECULARITY: not all parameters of a state need be rejected!
 
-        sample_mean = tf.reduce_mean(samples[0], axis=0)
-        sample_stddev = tf.math.reduce_std(samples[0], axis=0)
+        sample_mean = tf.reduce_mean(chain_accepted, axis=0)
+        sample_stddev = tf.math.reduce_std(chain_accepted, axis=0)
         tf.print('sample mean:\t', sample_mean,
                  '\nsample std: \t', sample_stddev,
                  '\nacceptance rate: ', rate_accepted)
-        return samples
+
+        # (TB RELATED) ---------------------
+        writer = tf.summary.create_file_writer(log_dir)
+        with writer.as_default():
+
+            for i, col in enumerate(tf.transpose(chain_accepted)):
+                name = 'parameter' + str(i) + '_chain'
+                namehist = 'parameter' + str(i) + '_hist'
+
+                tf.summary.histogram(name=namehist, data=col, step=0)
+                for step, proposal in enumerate(col):
+                    tf.summary.scalar(name=name, data=proposal, step=step)
+
+
+
+        self.chain = chain
+        self.traced = traced
+
+        # tf.print(chain.__len__())
+        # tf.print(self.chain)
+
+
+        return self.chain, traced
 
     def predict(self):
         pass
