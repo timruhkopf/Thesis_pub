@@ -29,7 +29,8 @@ class Xbeta(AdaptiveHMC):
 
         # attributes for sampler
         self.initial = tf.constant([1., 1.])  # CAREFULL MUST BE FLOAT!
-        self.bijectors = [tfb.Identity(), tfb.Identity()]
+        self.bijectors = tfb.Identity() # [tfb.Identity(), tfb.Identity()]
+        # TODO look at traced[0] (TransformedTransitionKernelResults(transformed_state,...))
 
         AdaptiveHMC.__init__(self, initial=self.initial,
                              bijectors=self.bijectors,

@@ -8,12 +8,13 @@ from functools import partial
 
 
 class AdaptiveHMC:
-    # FIXME: FAIL OF SAMPLING ALWAYS SAME  VALUE MUST LIE IN HERE NOT XBETA!!
     """intended to hold the adaptive HMC sampler and to be inherited by a model class
     object, that has unnormalized_log_prob, bijectors and initial self attributes"""
 
     def __init__(self, initial, bijectors, log_prob, num_burnin_steps=int(1e3), num_leapfrog_steps=3):
         self.initial = initial
+
+        # FIXME: CHECK DOC OF THESE THREE SAMPLER OBJECTS & PAPERS PROVIDED IN DOC
         bijected_hmc = tfp.mcmc.TransformedTransitionKernel(
             inner_kernel=tfp.mcmc.HamiltonianMonteCarlo(
                 target_log_prob_fn=log_prob,
@@ -60,6 +61,7 @@ class AdaptiveHMC:
         # (SUMMARY STATISTICS) -----------------
         # seriously depending on trace_fn
         is_accepted = traced.inner_results.is_accepted
+
         rate_accepted = tf.reduce_mean(tf.cast(is_accepted, tf.float32), axis=0)
         chain_accepted = chain[tf.reduce_all(is_accepted, axis=1)]
         # FIXME: PECULARITY: not all parameters of a state need be rejected!
@@ -71,9 +73,11 @@ class AdaptiveHMC:
                  '\nacceptance rate: ', rate_accepted)
 
         # (TB RELATED) ---------------------
+        # FIXME: change sub log_dir for multiple runs!
         writer = tf.summary.create_file_writer(log_dir)
         with writer.as_default():
-
+            # TODO tfp.stats.auto_correlation
+            # TODO add_graph?? self.adaptiveHMC / unnormalized_log_post
             for i, col in enumerate(tf.transpose(chain_accepted)):
                 name = 'parameter' + str(i) + '_chain'
                 namehist = 'parameter' + str(i) + '_hist'
@@ -82,6 +86,8 @@ class AdaptiveHMC:
                 for step, proposal in enumerate(col):
                     tf.summary.scalar(name=name, data=proposal, step=step)
 
+        # TODO saving model with: tf.train.Checkpoint ???
+        # TODO how to start from checkpoint: adaptations & overwrite self.initial
 
 
         self.chain = chain
@@ -94,6 +100,11 @@ class AdaptiveHMC:
         return self.chain, traced
 
     def predict(self):
+        # TODO (1) point prediction (posterior Mode? max log-prob param-set)
+        # TODO (2) posterior predictive distribution
+        #  (log-prob weighted pred for parameter sets of chain_accepted??)
+        # Consider posterior predictive distribution estimation, writing in TF
+        # file:///home/tim/PycharmProjects/Thesis/Literature/Bayesian/(Krueger, Lerch) Predictive Inference Based on Markov Chain Monte.pdf
         pass
 
     # def eval_metrics(self):
