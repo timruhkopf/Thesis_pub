@@ -4,8 +4,6 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 tfb = tfp.bijectors
 
-from functools import partial
-
 
 class AdaptiveHMC:
     """intended to hold the adaptive HMC sampler and to be inherited by a model class
@@ -27,36 +25,18 @@ class AdaptiveHMC:
             bijected_hmc,
             num_adaptation_steps=int(num_burnin_steps * 0.8))
 
-
-    def sample_chain(self, log_dir, num_burnin_steps=int(1e3), num_results=int(10e3)):
-
-        # (SAMPLING RELATED) ----------------------
-        def trace_fn(current_state, kernel_results, summary_freq=10):
-            """
-            Trace function has a "current" look inside the state of the chain and
-            the inner_kernels result and allows choosing which values to build
-            traces of. Those values are returned in nested tupel "inner_kernel"
-            parameters, (inner_kernel) = tfp.mcmc.sample_chain()
-
-            This function allows TB integration during training
-            based on https://github.com/tensorflow/probability/issues/356
-            """
-            step = kernel_results.step
-            with tf.summary.record_if(tf.equal(step % summary_freq, 0)):
-                name='experiment writing during execution'
-                tf.summary.scalar(name=name, data=current_state[0], step=tf.cast(step, tf.int64))
-                # tf.summary.histogram(name=name, data=current_state, step=tf.cast(step, tf.int64))
-
-            return kernel_results.inner_results
-
+    def sample_chain(self, logdir, num_burnin_steps=int(1e3), num_results=int(10e3)):
         @tf.function
         def tfgraph_sample_chain(*args, **kwargs):
             """tf.function wrapped sample_chain. This became necessary, as TB 
             was introduced"""
             return tfp.mcmc.sample_chain(*args, **kwargs)
 
+        self.logdir = logdir
+
         # TB wrapper for Runtime (trace_fn) TB writing!
-        writer = tf.summary.create_file_writer(log_dir)
+        # Tracing graph: https://github.com/tensorflow/tensorboard/issues/1961
+        writer = tf.summary.create_file_writer(self.logdir)
         with writer.as_default():
             tf.summary.trace_on(graph=True)
             chain, traced = tfgraph_sample_chain(
@@ -64,7 +44,7 @@ class AdaptiveHMC:
                 num_burnin_steps=num_burnin_steps,
                 current_state=self.initial,
                 kernel=self.adaptive_hmc,
-                trace_fn=trace_fn)  # partial(trace_fn, summary_freq=20)
+                trace_fn=self.sample_chain_trace_fn)  # functools.partial(trace_fn, summary_freq=20)
 
             tf.summary.trace_export(name='graphingit', step=0)
             tf.summary.trace_off()
@@ -72,12 +52,41 @@ class AdaptiveHMC:
         self.chain = chain
         self.traced = traced
 
-        # (SUMMARY STATISTICS) -----------------
+        self.sample_chain_write_staticsummary_toTB()
+
+        # (TB HYPERPARAMETERS) ---------------------
+        # https://www.tensorflow.org/tensorboard/hyperparameter_tuning_with_hparams
+
+        # tf.print(chain.__len__())
+        # tf.print(self.chain)
+
+        return self.chain, traced
+
+    def _sample_chain_trace_fn(self, current_state, kernel_results, summary_freq=10):
+        """
+        Trace function has a "current" look inside the state of the chain and
+        the inner_kernels result and allows choosing which values to build
+        traces of. Those values are returned in nested tupel "inner_kernel"
+        parameters, (inner_kernel) = tfp.mcmc.sample_chain()
+
+        This function allows TB integration during training
+        based on https://github.com/tensorflow/probability/issues/356
+        """
+        step = kernel_results.step
+        with tf.summary.record_if(tf.equal(step % summary_freq, 0)):
+            name = 'experiment writing during execution'
+            # tf.summary.scalar(name=name, data=current_state[0], step=tf.cast(step, tf.int64))
+            tf.summary.histogram(name=name, data=current_state, step=tf.cast(step, tf.int64))
+
+        return kernel_results.inner_results
+
+    def _sample_chain_write_staticsummary_toTB(self):
+        # (TB STATIC STATISTICS RELATED) ---------------------
         # seriously depending on trace_fn
-        is_accepted = traced.inner_results.is_accepted
+        is_accepted = self.traced.inner_results.is_accepted
 
         rate_accepted = tf.reduce_mean(tf.cast(is_accepted, tf.float32), axis=0)
-        chain_accepted = chain[tf.reduce_all(is_accepted, axis=1)]
+        chain_accepted = self.chain[tf.reduce_all(is_accepted, axis=1)]
         # FIXME: PECULARITY: not all parameters of a state need be rejected!
 
         # TODO Posterior Mode
@@ -87,9 +96,8 @@ class AdaptiveHMC:
                  '\nsample std: \t', sample_stddev,
                  '\nacceptance rate: ', rate_accepted)
 
-        # (TB RELATED) ---------------------
         # FIXME: change sub log_dir for multiple runs!
-        writer = tf.summary.create_file_writer(log_dir)
+        writer = tf.summary.create_file_writer(self.logdir)
         with writer.as_default():
             # TODO tfp.stats.auto_correlation
             # TODO add_graph?? self.adaptiveHMC / unnormalized_log_post
@@ -103,15 +111,6 @@ class AdaptiveHMC:
 
         # TODO saving model with: tf.train.Checkpoint ???
         # TODO how to start from checkpoint: adaptations & overwrite self.initial
-
-
-
-
-        # tf.print(chain.__len__())
-        # tf.print(self.chain)
-
-
-        return self.chain, traced
 
     def predict(self):
         # TODO (1) point prediction (posterior Mode? max log-prob param-set)
