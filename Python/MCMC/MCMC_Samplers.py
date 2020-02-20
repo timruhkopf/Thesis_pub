@@ -11,7 +11,8 @@ class AdaptiveHMC:
     """intended to hold the adaptive HMC sampler and to be inherited by a model class
     object, that has unnormalized_log_prob, bijectors and initial self attributes"""
 
-    def __init__(self, initial, bijectors, log_prob, num_burnin_steps=int(1e3), num_leapfrog_steps=3):
+    def __init__(self, initial, bijectors, log_prob,
+                 num_burnin_steps=int(1e3), num_leapfrog_steps=3):
         self.initial = initial
 
         # FIXME: CHECK DOC OF THESE THREE SAMPLER OBJECTS & PAPERS PROVIDED IN DOC
@@ -40,9 +41,12 @@ class AdaptiveHMC:
             This function allows TB integration during training
             based on https://github.com/tensorflow/probability/issues/356
             """
-            #     step = kernel_results.step
-            #     with tf.summary.record_if(tf.equal(step % summary_freq, 0)):
-            #         tf.print(current_state)
+            step = kernel_results.step
+            with tf.summary.record_if(tf.equal(step % summary_freq, 0)):
+                name='experiment writing during execution'
+                tf.summary.scalar(name=name, data=current_state[0], step=tf.cast(step, tf.int64))
+                # tf.summary.histogram(name=name, data=current_state, step=tf.cast(step, tf.int64))
+
             return kernel_results.inner_results
 
         @tf.function
@@ -51,12 +55,22 @@ class AdaptiveHMC:
             was introduced"""
             return tfp.mcmc.sample_chain(*args, **kwargs)
 
-        chain, traced = tfgraph_sample_chain(
-            num_results=num_results,
-            num_burnin_steps=num_burnin_steps,
-            current_state=self.initial,
-            kernel=self.adaptive_hmc,
-            trace_fn=trace_fn)  # partial(trace_fn, summary_freq=20)
+        # TB wrapper for Runtime (trace_fn) TB writing!
+        writer = tf.summary.create_file_writer(log_dir)
+        with writer.as_default():
+            tf.summary.trace_on(graph=True)
+            chain, traced = tfgraph_sample_chain(
+                num_results=num_results,
+                num_burnin_steps=num_burnin_steps,
+                current_state=self.initial,
+                kernel=self.adaptive_hmc,
+                trace_fn=trace_fn)  # partial(trace_fn, summary_freq=20)
+
+            tf.summary.trace_export(name='graphingit', step=0)
+            tf.summary.trace_off()
+
+        self.chain = chain
+        self.traced = traced
 
         # (SUMMARY STATISTICS) -----------------
         # seriously depending on trace_fn
@@ -66,6 +80,7 @@ class AdaptiveHMC:
         chain_accepted = chain[tf.reduce_all(is_accepted, axis=1)]
         # FIXME: PECULARITY: not all parameters of a state need be rejected!
 
+        # TODO Posterior Mode
         sample_mean = tf.reduce_mean(chain_accepted, axis=0)
         sample_stddev = tf.math.reduce_std(chain_accepted, axis=0)
         tf.print('sample mean:\t', sample_mean,
@@ -90,8 +105,7 @@ class AdaptiveHMC:
         # TODO how to start from checkpoint: adaptations & overwrite self.initial
 
 
-        self.chain = chain
-        self.traced = traced
+
 
         # tf.print(chain.__len__())
         # tf.print(self.chain)
@@ -104,7 +118,8 @@ class AdaptiveHMC:
         # TODO (2) posterior predictive distribution
         #  (log-prob weighted pred for parameter sets of chain_accepted??)
         # Consider posterior predictive distribution estimation, writing in TF
-        # file:///home/tim/PycharmProjects/Thesis/Literature/Bayesian/(Krueger, Lerch) Predictive Inference Based on Markov Chain Monte.pdf
+        # file:///home/tim/PycharmProjects/Thesis/Literature/Bayesian/(Krueger, Lerch)
+        # Predictive Inference Based on Markov Chain Monte.pdf
         pass
 
     # def eval_metrics(self):
