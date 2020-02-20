@@ -67,7 +67,9 @@ class Xbetasigma(AdaptiveHMC):
         # MAKE SURE, all of the below is TF Ready
 
         self.n = n
-        self.X = tf.stack([tf.ones((self.n,)), tfd.Uniform(xgrid[0], xgrid[1]).sample((self.n,))], axis=1)
+        self.X = tf.stack([tf.ones((self.n,)),
+                           tfd.Uniform(xgrid[0], xgrid[1]).sample((self.n,))],
+                          axis=1)
         self.beta = tf.constant(beta)
         self.sigma = tf.constant(sigma)
         self.mu = tf.linalg.matvec(self.X, self.beta)
@@ -77,7 +79,10 @@ class Xbetasigma(AdaptiveHMC):
         self.initial = [tf.constant([1., -1.]), tf.constant([4.])]  # CAREFULL MUST BE FLOAT!
         self.bijectors = [tfb.Identity(), tfb.Identity(), tfb.Exp()]
 
-        AdaptiveHMC.__init__(self, initial=self.initial, bijectors=self.bijectors, log_prob=self.unnormalized_log_prob)
+        AdaptiveHMC.__init__(self,
+                             initial=self.initial,
+                             bijectors=self.bijectors,
+                             log_prob=self.unnormalized_log_prob)
 
     def unnormalized_log_prob(self, beta, sigma):
         """
@@ -120,7 +125,9 @@ class ZGamma(AdaptiveHMC, Bspline_K):
         self.initial = None
         self.bijectors = None
 
-        AdaptiveHMC.__init__(self, initial=self.initial, bijectors=self.bijectors)
+        AdaptiveHMC.__init__(self, initial=self.initial,
+                             bijectors=self.bijectors,
+                             log_prob=self.unnormalized_log_prob)
 
     def unnormalized_log_prob(self, gamma):
         def xbeta_log_prob(gamma=gamma, X=self.X, y=self.y):
@@ -139,7 +146,8 @@ if __name__ == '__main__':
     # log posterior of true beta
     xbeta.unnormalized_log_prob(beta=tf.constant([-1., 2.]))
 
-    samples, traced = xbeta.sample_chain(log_dir='/home/tim/PycharmProjects/Thesis/TFResults' )
+    samples, traced = xbeta.sample_chain(
+        logdir='/home/tim/PycharmProjects/Thesis/TFResults')
     # num_burnin_steps = int(1e3), num_results = int(10e3)
     # TERMINAL: tensorboard --logdir TFResults
 
@@ -172,8 +180,10 @@ if __name__ == '__main__':
     # TODO make this in sub plots!
     # TODO parameters' standard deviation trace
     samples = samples.numpy()
-    plt.plot(samples[np.all(is_accepted, axis=1), :][:, 0], label="trace of beta 0", lw=lw)
-    plt.plot(samples[np.all(is_accepted, axis=1), :][:, 1], label="trace of beta 1", lw=lw)
+    plt.plot(samples[np.all(is_accepted, axis=1), :][:, 0],
+             label="trace of beta 0", lw=lw)
+    plt.plot(samples[np.all(is_accepted, axis=1), :][:, 1],
+             label="trace of beta 1", lw=lw)
     plt.title("Traces of unknown parameters")
 
     # histogram of parameters
