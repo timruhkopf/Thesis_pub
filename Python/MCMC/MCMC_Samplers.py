@@ -44,7 +44,7 @@ class AdaptiveHMC:
                 num_burnin_steps=num_burnin_steps,
                 current_state=self.initial,
                 kernel=self.adaptive_hmc,
-                trace_fn=self.sample_chain_trace_fn)  # functools.partial(trace_fn, summary_freq=20)
+                trace_fn=self._sample_chain_trace_fn)  # functools.partial(trace_fn, summary_freq=20)
 
             tf.summary.trace_export(name='graphingit', step=0)
             tf.summary.trace_off()
@@ -52,7 +52,7 @@ class AdaptiveHMC:
         self.chain = chain
         self.traced = traced
 
-        self.sample_chain_write_staticsummary_toTB()
+        self._sample_chain_write_staticsummary_toTB()
 
         # (TB HYPERPARAMETERS) ---------------------
         # https://www.tensorflow.org/tensorboard/hyperparameter_tuning_with_hparams
@@ -80,7 +80,8 @@ class AdaptiveHMC:
 
         return kernel_results.inner_results
 
-    def _sample_chain_write_staticsummary_toTB(self):
+    def _sample_chain_staticsummary_toTB(self):
+        # CONSIDER: Move to Metrics class and inherrit Metrics class
         # (TB STATIC STATISTICS RELATED) ---------------------
         # seriously depending on trace_fn
         is_accepted = self.traced.inner_results.is_accepted
@@ -99,8 +100,7 @@ class AdaptiveHMC:
         # FIXME: change sub log_dir for multiple runs!
         writer = tf.summary.create_file_writer(self.logdir)
         with writer.as_default():
-            # TODO tfp.stats.auto_correlation
-            # TODO add_graph?? self.adaptiveHMC / unnormalized_log_post
+            # TODO tfp.stats.auto_correlation !!!!!!!!!!!!!!!!!!!!!!!!!
             for i, col in enumerate(tf.transpose(chain_accepted)):
                 name = 'parameter' + str(i) + '_chain'
                 namehist = 'parameter' + str(i) + '_hist'
@@ -112,8 +112,11 @@ class AdaptiveHMC:
         # TODO saving model with: tf.train.Checkpoint ???
         # TODO how to start from checkpoint: adaptations & overwrite self.initial
 
-    def predict(self):
+    def predict_mode(self):
         # TODO (1) point prediction (posterior Mode? max log-prob param-set)
+        pass
+
+    def predict_posterior(self):
         # TODO (2) posterior predictive distribution
         #  (log-prob weighted pred for parameter sets of chain_accepted??)
         # Consider posterior predictive distribution estimation, writing in TF
