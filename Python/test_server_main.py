@@ -13,8 +13,8 @@ from time import gmtime, strftime
 import os
 
 # ensure relative paths on both server & local
-pathroot = os.getcwd()
-pathdata = pathroot + '/data'
+pathroot = '$HOME'
+# pathdata = pathroot + '/data'
 pathresults = pathroot + '/results'
 pathlogs = pathresults + '/logs'
 
@@ -43,12 +43,12 @@ model = tf.keras.models.Sequential([
 model.compile(optimizer='adam',
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
-#
-# model.fit(x, y,
-#           epochs=5,
-#           callbacks=tf.keras.callbacks.TensorBoard(log_dir='/usr/users/truhkop/results/logs'))
-# model.evaluate(x, y)
-#
-# model.save(filepath='/usr/users/truhkop/results/{}'.format(githash))
+
+model.fit(x, y,
+          epochs=5,
+          callbacks=[tf.keras.callbacks.TensorBoard(log_dir=pathresults)])
+model.evaluate(x, y)
+
+model.save(filepath='/usr/users/truhkop/results/{}'.format(githash))
 
 print('evaluated a NN in tf2.0')
