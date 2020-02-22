@@ -13,7 +13,7 @@ from time import gmtime, strftime
 import os
 
 # ensure relative paths on both server & local
-pathroot = '$HOME'
+pathroot = '/usr/users/truhkop/'
 # pathdata = pathroot + '/data'
 pathresults = pathroot + '/results'
 pathlogs = pathresults + '/logs'
