@@ -29,7 +29,7 @@ class Xbeta(AdaptiveHMC):
 
         # attributes for sampler
         self.initial = tf.constant([1., 1.])  # CAREFULL MUST BE FLOAT!
-        self.bijectors = tfb.Identity() # [tfb.Identity(), tfb.Identity()]
+        self.bijectors = tfb.Identity()  # [tfb.Identity(), tfb.Identity()]
         # TODO look at traced[0] (TransformedTransitionKernelResults(transformed_state,...))
 
         AdaptiveHMC.__init__(self, initial=self.initial,
@@ -77,7 +77,7 @@ class Xbetasigma(AdaptiveHMC):
 
         # attributes for sampler
         self.initial = [tf.constant([1., -1.]), tf.constant([4.])]  # CAREFULL MUST BE FLOAT!
-        self.bijectors = [tfb.Identity(), tfb.Identity(), tfb.Exp()]
+        self.bijectors = [tfb.Identity(), tfb.Exp()]
 
         AdaptiveHMC.__init__(self,
                              initial=self.initial,
@@ -135,6 +135,18 @@ class ZGamma(AdaptiveHMC, Bspline_K):
             return value
 
         return xbeta_log_prob(gamma)
+
+    def __repr__(self):
+        """
+        # ToDo Print method for class instance:
+        Can leverage the plot method on the data generation process
+        and some basic statistics.
+        :example:
+            zgamma = Zgamma(...)
+            print(zgamma)
+
+         """
+        pass
 
 
 if __name__ == '__main__':

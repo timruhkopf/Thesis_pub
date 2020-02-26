@@ -22,7 +22,7 @@ class AdaptiveHMC:
             bijector=bijectors)
 
         self.adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(
-            bijected_hmc,
+            inner_kernel=bijected_hmc,
             num_adaptation_steps=int(num_burnin_steps * 0.8))
 
     def sample_chain(self, logdir, num_burnin_steps=int(1e3), num_results=int(10e3)):
@@ -36,6 +36,9 @@ class AdaptiveHMC:
 
         # TB wrapper for Runtime (trace_fn) TB writing!
         # Tracing graph: https://github.com/tensorflow/tensorboard/issues/1961
+        # profiling in TB https://www.tensorflow.org/tensorboard/tensorboard_profiling_keras
+        # with tf.python.eager.profiler.Profiler('logdir_path'): # not working as tf.python does not exist
+        
         writer = tf.summary.create_file_writer(self.logdir)
         with writer.as_default():
             tf.summary.trace_on(graph=True)
@@ -52,7 +55,7 @@ class AdaptiveHMC:
         self.chain = chain
         self.traced = traced
 
-        self._sample_chain_write_staticsummary_toTB()
+        self._sample_chain_staticsummary_toTB()
 
         # (TB HYPERPARAMETERS) ---------------------
         # https://www.tensorflow.org/tensorboard/hyperparameter_tuning_with_hparams
@@ -81,7 +84,7 @@ class AdaptiveHMC:
         return kernel_results.inner_results
 
     def _sample_chain_staticsummary_toTB(self):
-        # CONSIDER: Move to Metrics class and inherrit Metrics class
+        # CONSIDER: Move to Metrics class and inherit Metrics class
         # (TB STATIC STATISTICS RELATED) ---------------------
         # seriously depending on trace_fn
         is_accepted = self.traced.inner_results.is_accepted
