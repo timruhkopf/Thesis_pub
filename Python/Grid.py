@@ -13,6 +13,7 @@ from pip._internal.operations import freeze
 
 
 class Grid:
+    """Grid Class is intended to work as a sceduler"""
     def __init__(self, root, model, configs):
         """
         Grid Object, taking care of all the OS ops and tracking the Configs
@@ -40,8 +41,6 @@ class Grid:
         self.result_table = pd.DataFrame(columns=['hash', 'config', 'success'],
                                          index=range(len(configs)))
 
-        self.run_model()
-        self.result_table.to_csv(self.pathresults)
 
         for attr in self.__dict__:
             print(attr, self.__dict__[attr] , '\n')
@@ -60,7 +59,7 @@ class Grid:
             try:
                 # run object config
                 instance = self.model(**config)
-                # FIXME instance.sample_chain
+                # FIXME instance.sample_chain()
                 instance.hash = hash
 
             except:
@@ -78,7 +77,7 @@ class Grid:
 
             else:  # passed try
 
-                # ToDo get metrics
+                # ToDo get static, non-TB metrics to table
                 # metric = instance.metric_fn()
                 # self.result_table.append(metric)
 
@@ -96,6 +95,8 @@ class Grid:
 
                 self.result_table.loc[i] = [hash, str(config), True]
 
+        self.result_table.to_csv(self.pathresults)
+
     def _get_git_revision_hash(self):
         return check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
 
@@ -103,7 +104,7 @@ class Grid:
         return '{hash}_{model}{timestamp}'.format(
             hash=self.git_hash,
             model=model_name,
-            timestamp=  # strftime("%Y%m%d_%H%M%S%", gmtime())
+            timestamp= # strftime("%Y%m%d_%H%M%S%", gmtime())
             datetime.now().strftime("%H:%M:%S.%f")
         )
 
@@ -124,19 +125,21 @@ class Grid:
         """
         hash = model_object.hash  # model_object.__class__.__name__
 
-        # HMC does not want to get sampled:
+        # HMC does not want to get stored:
         # (1) FIXME: HMC.model_save()
         # ToDo store tensorflow models also elsewhere -
         # so TB can access all instances from one dir
         self.pathtf
 
         # (2) remove hmc & shelve
+        # FIXME FIXME! does this prevent model to be recoverable? - class def init requires adaptiveHMC
         model_object.__delattr__('adaptive_hmc')
         print(self.pathroot)
         with shelve.open(self.pathroot + 'shelve', flag='c') as db:
             db[hash] = model_object
 
     def recover_instance(self, hash, filepath):
+        """Relevant ONLY, if Plots cannot be executed during runtime"""
 
         # (1) recover shelved without TF
         with shelve.open(filepath + 'shelve', flag='c') as db:
@@ -152,10 +155,15 @@ if __name__ == '__main__':
     from Python import Xbeta
     pathroot = os.getcwd()
 
+    # ToDo write actual execution directives for Remote server here, commit, push
+    # pull & execute .sh script
+
     # (MINIMAL SHELVE TF EXAMPLE) ----------------------------------------------
     xgrid = (0, 10, 0.5)
     G = Grid(root='{root}/Grid/'.format(root=os.getcwd()),
              model=Xbeta, configs=[{'xgrid': xgrid}, {'xgrid': xgrid, 'Fail': True}])
+
+    G.run_model()
 
     xbeta = G.recover_instance(hash='d2e6849_Xbeta13:28:26.883481', filepath=G.pathroot)
 print('')
