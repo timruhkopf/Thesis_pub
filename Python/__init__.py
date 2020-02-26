@@ -4,3 +4,4 @@
 
 # https://docs.python.org/3/reference/import.html#regular-packages
 from Python.Data import *
+from Python.MCMC import *
