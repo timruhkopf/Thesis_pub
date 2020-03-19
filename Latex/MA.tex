@@ -99,17 +99,17 @@
     BNN
 
     SAMPLING SCHEMES
-    A conceptual introduction into the use of Monte Carlo methods to approximate the unknown posterior's quantities as well as an didactically appealing progression from Importance, Rejection Sampling to Markov Chain Monte Carlo (MCMC) methods and Gibbs sampling to Hamiltonian Monte Carlo (HMC), regarding their methodology and suffocation in higher dimensional parameter spaces can be found with \cite{mackay2003information}. Considering the distribution's typical sets and their exploration in higher dimensions both \cite{mackay2003information} and \cite{betancourt2017conceptual} are good introductions to motivate efficient exploration of the typical set in the light of Monte Carlo integration.
-    The mathematical foundations of MCMC can be found with \cite{brooks2011handbook}. Particularly setting up an appropriate Markov chain and the requiries for MCMC methods to converge to the desired distribution are of special interest. \cite{neal2011mcmc}'s review on the efficient MCMC flavour HMC is a worthwhile read to grasp Hamiltonian dynamics and its properties of reversibility and preservation of volume in the context of MCMC as well as the discrete (modified) Euler and Leapfrog approximation preserving volume - provided some basic knowledge in differential equations. For the inclined reader, the line of thought on posterior inference presented in the above literature is paraphrased in chapter \ref{inference}.
+    A conceptual introduction into the use of Monte Carlo methods to approximate the unknown posterior's quantities as well as an didactically appealing progression from Importance, Rejection Sampling to Markov Chain Monte Carlo (Bayesian) methods and Gibbs sampling to Hamiltonian Monte Carlo (HMC), regarding their methodology and suffocation in higher dimensional parameter spaces can be found with \cite{mackay2003information}. Considering the distribution's typical sets and their exploration in higher dimensions both \cite{mackay2003information} and \cite{betancourt2017conceptual} are good introductions to motivate efficient exploration of the typical set in the light of Monte Carlo integration.
+    The mathematical foundations of Bayesian can be found with \cite{brooks2011handbook}. Particularly setting up an appropriate Markov chain and the requiries for Bayesian methods to converge to the desired distribution are of special interest. \cite{neal2011mcmc}'s review on the efficient Bayesian flavour HMC is a worthwhile read to grasp Hamiltonian dynamics and its properties of reversibility and preservation of volume in the context of Bayesian as well as the discrete (modified) Euler and Leapfrog approximation preserving volume - provided some basic knowledge in differential equations. For the inclined reader, the line of thought on posterior inference presented in the above literature is paraphrased in chapter \ref{inference}.
 
 
     \clearpage
     \section{Theory}
         \subsection{Generalized Additive Models}
-        On their own, bayesian gam can be estimated using MCMC(IWLS) \cite{}
+        On their own, bayesian gam can be estimated using Bayesian(IWLS) \cite{}
         \subsection{Neural Nets}
         \subsection{Bayesian Neural Nets}
-        note: motivate the use of HMC as efficient MCMC, due to fast increase in dimension.
+        note: motivate the use of HMC as efficient Bayesian, due to fast increase in dimension.
 
         Also
 
@@ -203,7 +203,7 @@
         \subsection{Results}
 
 
-    \section{A note on MCMC posterior inference} \label{inference}
+    \section{A note on Bayesian posterior inference} \label{inference}
         Bayesian models are generally of the form
 
         \begin{equation}
@@ -233,9 +233,9 @@
 
         \subsection{Markov Chain Monte Carlo}
         To overcome the problem of dimensionality, Markov Chain Monte Carlo Methods introduce dependence between the samples using a carefully constructed Markov chain, whose stationary distribution is in fact the posterior distribution in order to explore the typical set (compare \cite{betancourt2017conceptual} chp. 2.4). Thereby, once converged into this stationary distribution, highly informative but (potentially) strongly correlated samples are obtained from the posterior distribution.
-        Essentially, the MCMC's Markov Chain is designed to asymptotically spend the right amount of time - which is proportional to the volume of the area under the desired posterior to effectively reflect samples drawn from it. Given the CLT in (\ref{clt}) can be established despite the auto-correlation, $\sigma$ is expanded by this structure, motivating thinning on the obtained sample sequence in order to gain close to independent samples from the posteriors typical set. The length of auto-correlation drives the "effective sample size", and thereby the computational effort to obtain independent samples from the posterior.
+        Essentially, the Bayesian's Markov Chain is designed to asymptotically spend the right amount of time - which is proportional to the volume of the area under the desired posterior to effectively reflect samples drawn from it. Given the CLT in (\ref{clt}) can be established despite the auto-correlation, $\sigma$ is expanded by this structure, motivating thinning on the obtained sample sequence in order to gain close to independent samples from the posteriors typical set. The length of auto-correlation drives the "effective sample size", and thereby the computational effort to obtain independent samples from the posterior.
         The defacto random walk exploration of the sampling space contrasts importance and rejection sampling schemes in a distinct way: both employ some form of weighting and rejection schemes of uniform independent proposals respectively. Both essentially try to explore the entire space uniformly and adjust the samples for their relative importance in the sense of (\ref{montecarlo}) either with a weighting scheme or stochastically. However, with the curse of dimensionality it becomes increasingly infeasible to hit - and gain sufficiently many samples from the typical set (see \cite{mackay2003information} chp. 29.2 -29.3).
-        The random walk exploration driven by a Markov Chain's transition probability becomes apparent denoting the special MCMC case of Metropolis-Hastings \cite{} by the form of \cite{roberts1999note} chp. 2 with some abuse of notation.
+        The random walk exploration driven by a Markov Chain's transition probability becomes apparent denoting the special Bayesian case of Metropolis-Hastings \cite{} by the form of \cite{roberts1999note} chp. 2 with some abuse of notation.
 
         \begin{equation}
             P_{ij} = \begin{cases}
@@ -282,7 +282,7 @@
             \it{"The Hamiltonian Monte Carlo method alternates simple updates for these momentum variables with Metropolis up-dates in which a new state is proposed by computing a trajectory according to Hamiltonian dynamics, implemented with the leapfrog method. A state proposed in this way can be distant from the current state but nevertheless have a high probability of acceptance. This bypasses the slow exploration of the state space that occurs when Metropolis updates are done using a simple random-walk proposal distribution."}   \normalfont     (\cite{neal2011mcmc}: 2)
         \end{quote}
 
-        First and foremost, see that HMC in fact can be expressed as a particular Markov Chain constructed by Hamiltonian dynamics, rendering it a special case of MCMC and directing the discussion on its convergence properties to those of this particular Markov Chain.
+        First and foremost, see that HMC in fact can be expressed as a particular Markov Chain constructed by Hamiltonian dynamics, rendering it a special case of Bayesian and directing the discussion on its convergence properties to those of this particular Markov Chain.
 
         \begin{equation}
             P_{ij} =
@@ -326,7 +326,7 @@
         \end{equation}
 
         this eq. makes the approximation error in terms of energy apparent and incorporates it into the Markov Chain.
-        Noteworthy, leapfrog avoids divergence  and spiralling into the origin for the trajectory for non pathologic structures (see \cite{betancourt2017conceptual} chp. 6), which put themselves forward for diagnostics. Betancourt notes further, that this correction scheme also scales very well in higher dimensions, as leapfrog ocilitates near the exact energy level set such that the acceptance probability will deteriorate only negligibly %- which may become a major problem in MCMC in higher dimensions SOURCE??
+        Noteworthy, leapfrog avoids divergence  and spiralling into the origin for the trajectory for non pathologic structures (see \cite{betancourt2017conceptual} chp. 6), which put themselves forward for diagnostics. Betancourt notes further, that this correction scheme also scales very well in higher dimensions, as leapfrog ocilitates near the exact energy level set such that the acceptance probability will deteriorate only negligibly %- which may become a major problem in Bayesian in higher dimensions SOURCE??
 
 
       %  The detailed balance condition in \cite{neal2011mcmc} chp. 3.2 sheds light on the connection of HMC to HM:
@@ -337,9 +337,9 @@
 
         %Particularly $min[ . ]$ corresponds to the acceptance probability and $\frac{V}{Z}exp(-H_{A_k})$ corresponds to the probability of state $A_k$ under the canonical distribution
 
-        \cite{neal2011mcmc} shows that Hamiltonian dynamics are reversible, easing the proof of MCMC updates using Hamiltonian dynamics leaving the desired distribution invariant. The proof requires the Markov chain transitions, which in case of HMC are generated by Hamiltonian dynamics, to be reversible.
+        \cite{neal2011mcmc} shows that Hamiltonian dynamics are reversible, easing the proof of Bayesian updates using Hamiltonian dynamics leaving the desired distribution invariant. The proof requires the Markov chain transitions, which in case of HMC are generated by Hamiltonian dynamics, to be reversible.
 
-        % what is the role of volume for MCMC? - no adjustment of acceptance rate to keep it a proper transition?
+        % what is the role of volume for Bayesian? - no adjustment of acceptance rate to keep it a proper transition?
         % The detailed balance condition for HMC can be found with chp. Proof that HMC leaves the canonical distribution invariant (NEAL) Note that with the momentums distribution being independent of $U$, this is the proof for p(x) being the stationary distribtuion of the underlying process, ignoring p
 
 
