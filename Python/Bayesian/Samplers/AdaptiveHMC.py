@@ -5,13 +5,19 @@ tfd = tfp.distributions
 tfb = tfp.bijectors
 
 
+
 class AdaptiveHMC:
+    # TODO saving model with: tf.train.Checkpoint ???
+    # TODO how to start from checkpoint: adaptations & overwrite self.initial
+
     """intended to hold the adaptive HMC sampler and to be inherited by a model class
     object, that has unnormalized_log_prob, bijectors and initial self attributes"""
 
     def __init__(self, initial, bijectors, log_prob,
                  num_burnin_steps=int(1e3), num_leapfrog_steps=3):
+        assert(all([tensor.dtype == tf.float32 for tensor in initial]))
         self.initial = initial
+        self.bijectors = bijectors
 
         # FIXME: CHECK DOC OF THESE THREE SAMPLER OBJECTS & PAPERS PROVIDED IN DOC
         bijected_hmc = tfp.mcmc.TransformedTransitionKernel(
@@ -19,7 +25,7 @@ class AdaptiveHMC:
                 target_log_prob_fn=log_prob,
                 num_leapfrog_steps=num_leapfrog_steps,
                 step_size=1.),
-            bijector=bijectors)
+            bijector=self.bijectors)
 
         self.adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(
             inner_kernel=bijected_hmc,
@@ -78,8 +84,13 @@ class AdaptiveHMC:
         step = kernel_results.step
         with tf.summary.record_if(tf.equal(step % summary_freq, 0)):
             name = 'experiment writing during execution'
-            # tf.summary.scalar(name=name, data=current_state[0], step=tf.cast(step, tf.int64))
-            tf.summary.histogram(name=name, data=current_state, step=tf.cast(step, tf.int64))
+
+            # FIXME: singlevalued CURRENT_STATE
+            tf.summary.scalar(name=name, data=current_state[0], step=tf.cast(step, tf.int64))
+
+            # FIXME: multivalued CURRENT_STATE
+            # for variable in current_state:
+            #     tf.summary.histogram(name=name, data=variable, step=tf.cast(step, tf.int64))
 
         return kernel_results.inner_results
 
@@ -91,7 +102,7 @@ class AdaptiveHMC:
 
         rate_accepted = tf.reduce_mean(tf.cast(is_accepted, tf.float32), axis=0)
         chain_accepted = self.chain[tf.reduce_all(is_accepted, axis=1)]
-        # FIXME: PECULARITY: not all parameters of a state need be rejected!
+        # FIXME: PECULARITY: not all parameters of a state (row) need be rejected!
 
         # TODO Posterior Mode
         sample_mean = tf.reduce_mean(chain_accepted, axis=0)
@@ -103,7 +114,10 @@ class AdaptiveHMC:
         # FIXME: change sub log_dir for multiple runs!
         writer = tf.summary.create_file_writer(self.logdir)
         with writer.as_default():
-            # TODO tfp.stats.auto_correlation !!!!!!!!!!!!!!!!!!!!!!!!!
+            # (chain autocorrelation)
+            # TODO tfp.stats.auto_correlation !!!!!!!!!!!!
+
+            # (Chain trace plot)
             for i, col in enumerate(tf.transpose(chain_accepted)):
                 name = 'parameter' + str(i) + '_chain'
                 namehist = 'parameter' + str(i) + '_hist'
@@ -112,8 +126,6 @@ class AdaptiveHMC:
                 for step, proposal in enumerate(col):
                     tf.summary.scalar(name=name, data=proposal, step=step)
 
-        # TODO saving model with: tf.train.Checkpoint ???
-        # TODO how to start from checkpoint: adaptations & overwrite self.initial
 
     def predict_mode(self):
         # TODO (1) point prediction (posterior Mode? max log-prob param-set)
