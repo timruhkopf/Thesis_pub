@@ -71,6 +71,7 @@ class AdaptiveHMC:
 
         return self.chain, traced
 
+    @tf.function
     def _sample_chain_trace_fn(self, current_state, kernel_results, summary_freq=10):
         """
         Trace function has a "current" look inside the state of the chain and
@@ -81,19 +82,20 @@ class AdaptiveHMC:
         This function allows TB integration during training
         based on https://github.com/tensorflow/probability/issues/356
         """
-        step = kernel_results.step
-        with tf.summary.record_if(tf.equal(step % summary_freq, 0)):
-            name = 'experiment writing during execution'
-
-            # FIXME: singlevalued CURRENT_STATE
-            tf.summary.scalar(name=name, data=current_state[0], step=tf.cast(step, tf.int64))
-
-            # FIXME: multivalued CURRENT_STATE
-            # for variable in current_state:
-            #     tf.summary.histogram(name=name, data=variable, step=tf.cast(step, tf.int64))
+        # step = kernel_results.step
+        # with tf.summary.record_if(tf.equal(step % summary_freq, 0)):
+        #     name = 'experiment writing during execution'
+        #
+        #     # FIXME: singlevalued CURRENT_STATE
+        #     # tf.summary.scalar(name=name, data=current_state[0], step=tf.cast(step, tf.int64))
+        #
+        #     # FIXME: multivalued CURRENT_STATE
+        #     for variable in current_state:
+        #         tf.summary.histogram(name=name, data=variable, step=tf.cast(step, tf.int64))
 
         return kernel_results.inner_results
 
+    @tf.function
     def _sample_chain_staticsummary_toTB(self):
         # CONSIDER: Move to Metrics class and inherit Metrics class
         # (TB STATIC STATISTICS RELATED) ---------------------
@@ -112,19 +114,19 @@ class AdaptiveHMC:
                  '\nacceptance rate: ', rate_accepted)
 
         # FIXME: change sub log_dir for multiple runs!
-        writer = tf.summary.create_file_writer(self.logdir)
-        with writer.as_default():
-            # (chain autocorrelation)
-            # TODO tfp.stats.auto_correlation !!!!!!!!!!!!
-
-            # (Chain trace plot)
-            for i, col in enumerate(tf.transpose(chain_accepted)):
-                name = 'parameter' + str(i) + '_chain'
-                namehist = 'parameter' + str(i) + '_hist'
-
-                tf.summary.histogram(name=namehist, data=col, step=0)
-                for step, proposal in enumerate(col):
-                    tf.summary.scalar(name=name, data=proposal, step=step)
+        # writer = tf.summary.create_file_writer(self.logdir)
+        # with writer.as_default():
+        #     # (chain autocorrelation)
+        #     # TODO tfp.stats.auto_correlation !!!!!!!!!!!!
+        #
+        #     # (Chain trace plot)
+        #     for i, col in enumerate(tf.transpose(chain_accepted)):
+        #         name = 'parameter' + str(i) + '_chain'
+        #         namehist = 'parameter' + str(i) + '_hist'
+        #
+        #         tf.summary.histogram(name=namehist, data=col, step=0)
+        #         for step, proposal in enumerate(col):
+        #             tf.summary.scalar(name=name, data=proposal, step=step)
 
 
     def predict_mode(self):

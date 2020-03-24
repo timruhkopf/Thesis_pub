@@ -1,4 +1,7 @@
 import matplotlib.pyplot as plt
+import numpy as np
+
+
 class Metrics:
     """object inherriting Metrics is required to have self.y, self.mu, self.yhat"""
 
@@ -8,8 +11,39 @@ class Metrics:
         self.residuals = abs(self.yhat - self.mu)
         self.rssq = sum(self.residuals ** 2)
 
+    # (Prediction-based) -------------------------------------------------------
     def plot_residuals(self):
         pass
+
+    # (MCMC-based) -------------------------------------------------------------
+    def plot_chain(self, model):
+        # CONSIDER: TB also writes out these metrics at the end of the run!
+        # CONSIDER: BurnIN phase should also be removed!
+        samples = model.chain.numpy()
+        is_accepted = model.traced.inner_results.is_accepted
+
+        lw = 0.3
+        # FIXME: multiple plots (one for each param) & adaptive to no. of param
+        plt.plot(samples[np.all(is_accepted, axis=1), :][:, 0],
+                 label="trace of beta 0", lw=lw)
+        plt.plot(samples[np.all(is_accepted, axis=1), :][:, 1],
+                 label="trace of beta 1", lw=lw)
+        plt.title("Traces of accepted unknown parameters")
+
+    def plot_autocorrelation(self):
+        # https://www.tensorflow.org/probability/api_docs/python/tfp/stats/auto_correlation
+
+        # Deprec Naive implementation
+        #  from statsmodels.graphics.tsaplots import plot_acf
+        #         plot_acf(samples[np.all(is_accepted, axis=1)][:, 0])
+        #         plt.show()
+
+        pass
+
+
+if __name__ == '__main__':
+    pass
+
 
 # Deprec: Now only data generation not prediction evaluation
 # adding a heatmap contour of the prediction error below it
@@ -34,7 +68,6 @@ class Metrics:
 #                  linewidth=0, antialiased=False)
 #
 # ax3 = fig.add_subplot(223)
-#
 # CS = ax3.contour(X, Y, pred_error[80:120, 80:120]/800)
 # ax3.clabel(CS, inline=1, fontsize=10)
 # ax3.set_title('Simplest default with labels')

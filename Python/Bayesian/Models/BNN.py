@@ -43,8 +43,8 @@ class BNN:
     def _initialize_from_prior(self):
         # FIXME: sample_shape!. Does list match Samplers.initial input format?
         # FIXME: list comprehension or tf.map_fn(lambda i: i ** 2 if i > 0 else i, x)
-        self.Ws = [h.prior_W.sample((1,)) for h in self.layers]
-        self.b = [h.prior_b.sample((1,)) for h in self.layers]
+        self.Ws = [h.prior_W.sample() for h in self.layers]
+        self.b = [h.prior_b.sample() for h in self.layers]
 
     @tf.function
     def forward(self, X, Ws, bs):

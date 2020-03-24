@@ -14,10 +14,10 @@ class Xbeta:
         :param p: number of parameters
         """
         self.p = p
-        self.prior_beta = tfd.Normal(loc=tf.repeat(0., p), scale=tf.repeat(1., p))
+        self.prior_beta = tfd.Normal(loc=tf.repeat(0., p), scale=tf.repeat(10., p))
 
     def _initialize_from_prior(self):
-        self.beta = self.prior_beta.sample((1,))
+        self.beta = self.prior_beta.sample()
 
     def likelihood_model(self, X, beta):
         mu_hat = tf.linalg.matvec(X, beta)
@@ -36,8 +36,9 @@ class Xbeta:
         return xbeta_log_prob
 
 
-class Data:
-    def __init__(self, xgrid, n, beta=None):
+class Data_Xbeta:
+    def __init__(self, xgrid, n, beta):
+        """plain linear regression data with unit & homoscedastic variance"""
         self.n = n
         self.X = tf.stack(
             values=[tf.ones((self.n,)),
@@ -47,8 +48,8 @@ class Data:
         self.beta = tf.constant(beta)
         self.y = self.true_likelihood().sample((self.n,))
 
-    def true_likelihood(self):
-        self.mu = tf.linalg.matvec(self.X, self.beta)
+    def true_likelihood(self, X, beta):
+        self.mu = tf.linalg.matvec(X, beta)
         y = tfd.MultivariateNormalDiag(
             loc=self.mu,
             scale_diag=tf.repeat(1., self.mu.shape[0]))
@@ -60,7 +61,7 @@ if __name__ == '__main__':
 
     # (0) (generating data) ------------------------------
     # beta = tfd.Normal(loc=[0., 0.], scale=[1., 1.]).sample((1,))
-    data = Data(xgrid=(0, 10), n=1000, beta=[-1., 2.])
+    data = Data(xgrid=(0, 10), n=100, beta=[-1., 2.])
 
     # TODO TRAIN TEST SPLIT?
 
@@ -81,7 +82,7 @@ if __name__ == '__main__':
 
     # (3) (evaluate the model) --------------------------
     # histogram of parameters
-    is_accepted = xbeta.traced.inner_results.is_accepted
+    is_accepted = traced.inner_results.is_accepted
     samples = samples.numpy()
 
     plt.hist(samples[:, 0], bins=30, histtype="stepfilled")
