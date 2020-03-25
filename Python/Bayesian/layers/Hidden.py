@@ -4,6 +4,7 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 tfb = tfp.bijectors
 
+
 class Hidden:
     def __init__(self, input_shape, no_units=10, activation='relu'):
         """create independent normal priors with MVN(0,I)"""
@@ -26,7 +27,12 @@ class Hidden:
 
     def init_W_from_prior(self):
         """initialize W matrix from stacked_prior"""
-        return tf.reshape(self.prior_stackedW.sample(), shape=(self.no_units, self.input_shape))
+        self.W = tf.reshape(self.prior_stackedW.sample(), shape=(self.no_units, self.input_shape))
+        return self.W
+
+    def init_b_from_prior(self):
+        self.b = self.prior_b.sample()
+        return self.b
 
     @tf.function
     def dense(self, x, W, b):
@@ -34,12 +40,25 @@ class Hidden:
 
     @tf.function
     def log_prob(self, W, b):
-        return self.prior_W.log_prob(W) + self.prior_b.log_prob(b)
+        """
+        :param W: stacked vector of W matrix
+        :param b: bias vector
+        :return: joined prior log_prob value of the Hidden unit.
+        """
+        return self.prior_stackedW.log_prob(W) + self.prior_b.log_prob(b)
+
 
 if __name__ == '__main__':
     h = Hidden(input_shape=2, no_units=3, activation='relu')
+
+    # check dense functon
     h.dense(x=tf.constant([1., 2.]),
             W=tf.constant([[1., 1.], [1., 2.], [3., 4.]]),  # three hidden units
             b=tf.constant([0.5, 1., 1.]))
 
+    # check prior logprob
+    h.init_W_from_prior()
+    h.init_b_from_prior()
+    h.log_prob(W=tf.reshape(h.W, shape=(tf.reduce_prod(h.W.shape),)), b=h.b)
 
+print('')

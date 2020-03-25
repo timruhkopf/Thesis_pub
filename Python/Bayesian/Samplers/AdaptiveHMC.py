@@ -5,7 +5,6 @@ tfd = tfp.distributions
 tfb = tfp.bijectors
 
 
-
 class AdaptiveHMC:
     # TODO saving model with: tf.train.Checkpoint ???
     # TODO how to start from checkpoint: adaptations & overwrite self.initial
@@ -15,7 +14,7 @@ class AdaptiveHMC:
 
     def __init__(self, initial, bijectors, log_prob,
                  num_burnin_steps=int(1e3), num_leapfrog_steps=3):
-        assert(all([tensor.dtype == tf.float32 for tensor in initial]))
+        assert (all([tensor.dtype == tf.float32 for tensor in initial]))
         self.initial = initial
         self.bijectors = bijectors
 
@@ -44,7 +43,7 @@ class AdaptiveHMC:
         # Tracing graph: https://github.com/tensorflow/tensorboard/issues/1961
         # profiling in TB https://www.tensorflow.org/tensorboard/tensorboard_profiling_keras
         # with tf.python.eager.profiler.Profiler('logdir_path'): # not working as tf.python does not exist
-        
+
         writer = tf.summary.create_file_writer(self.logdir)
         with writer.as_default():
             tf.summary.trace_on(graph=True)
@@ -127,7 +126,6 @@ class AdaptiveHMC:
         #         tf.summary.histogram(name=namehist, data=col, step=0)
         #         for step, proposal in enumerate(col):
         #             tf.summary.scalar(name=name, data=proposal, step=step)
-
 
     def predict_mode(self):
         # TODO (1) point prediction (posterior Mode? max log-prob param-set)
