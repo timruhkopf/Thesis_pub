@@ -178,7 +178,7 @@ if __name__ == '__main__':
     print(eval_basis(X[0], knots=get_design.knots, degree=2))
 
     # (1.1) Least squares example: ---------------------------------------------
-    # Data generation
+    # Effects generation
     n = 100
     X = np.stack([np.ones(n), np.random.uniform(0, 10, n)], axis=1)
     beta = np.array([4, -2])
