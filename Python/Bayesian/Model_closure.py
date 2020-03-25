@@ -21,7 +21,7 @@ class Xbetasigma(AdaptiveHMC):
                  bijectors=[tfb.Identity(), tfb.Exp()]):
         """
 
-        :param X: Data matrix
+        :param X: Effects matrix
         :param beta: floating point tf.tensor e.g.: tf.constant([-1.,2.]) or
         None. In this case, a vector from the prior is drawn!
         :param sigma: floating point tf.tensor e.g.: tf.constant([-1.,2.]) or

@@ -4,39 +4,7 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 tfb = tfp.bijectors
 
-
-class Hidden:
-    def __init__(self, input_shape, no_units=10, activation='relu'):
-        """create independent normal priors with MVN(0,I)"""
-
-        self.input_shape = input_shape
-        self.no_units = no_units
-
-        # W matrix is drawn with stacked vector
-        self.prior_stackedW = tfd.MultivariateNormalDiag(
-            loc=tf.repeat(0., no_units * input_shape),
-            scale_diag=tf.repeat(1., no_units * input_shape))
-        self.prior_b = tfd.MultivariateNormalDiag(
-            loc=tf.repeat(0., no_units),
-            scale_diag=tf.repeat(1., no_units))
-
-        identity = lambda x: x
-        self.activation = {'relu': tf.nn.relu,
-                           'tanh': tf.math.tanh,
-                           'identity': identity}[activation]
-
-    def init_W_from_prior(self):
-        """initialize W matrix from stacked_prior"""
-        return tf.reshape(self.prior_stackedW.sample(), shape=(self.no_units, self.input_shape))
-
-    @tf.function
-    def dense(self, x, W, b):
-        return self.activation(tf.linalg.matvec(W, x) + b)
-
-    @tf.function
-    def log_prob(self, W, b):
-        return self.prior_W.log_prob(W) + self.prior_b.log_prob(b)
-
+from Python.Bayesian.layers.Hidden import Hidden
 
 class BNN:
     # on how to write BNN models in Code (later example has even TB)
@@ -66,7 +34,7 @@ class BNN:
         self.Ws = [h.init_W_from_prior() for h in [*self.layers, self.final_layer]]
         self.bs = [h.prior_b.sample() for h in self.layers]
 
-    # @tf.function
+    @tf.function
     def forward(self, X, Ws, bs):
         # TODO default arguments for Ws, bs - if already self.Ws and bs exist?
         """
@@ -115,58 +83,10 @@ class BNN:
         return Ws, bs
 
 
-class Data_BNN_1D:
-    def __init__(self, n, grid=(0, 10, 0.5)):
-        """One dimensional effect"""
-        from Python.Data.Cases1D.Bspline_GMRF import Bspline_GMRF
-        self.gmrf = Bspline_GMRF(xgrid=grid)
-
-        self.n = n
-        self.X = tfd.Uniform(grid[0], grid[1]).sample((self.n,))
-        self.y = self.true_likelihood(self.X).sample((self.n,))
-
-    def true_likelihood(self, X):
-        self.mu = tf.constant(self.gmrf.spl(X), dtype=tf.float32)
-        y = tfd.MultivariateNormalDiag(
-            loc=self.mu,
-            scale_diag=tf.repeat(1., self.mu.shape[0]))
-        return y
-
-
-class Data_BNN_2D:
-    def __init__(self, n, grid=(0, 10, 0.5)):
-        """complex two dimensional effect, no main effects"""
-        from Python.Data.Cases2D.K.GMRF_K import GMRF_K
-        self.gmrf = GMRF_K(xgrid=grid, ygrid=grid)
-
-        self.n = n
-        self.X = tf.stack(
-            values=[tfd.Uniform(grid[0], grid[1]).sample((self.n,)),
-                    tfd.Uniform(grid[0], grid[1]).sample((self.n,))],
-            axis=1)
-        self.y = self.true_likelihood(self.X).sample((self.n,))
-
-    def true_likelihood(self, X):
-        self.mu = tf.constant(self.gmrf.surface(X), dtype=tf.float32)
-        y = tfd.MultivariateNormalDiag(
-            loc=self.mu,
-            scale_diag=tf.repeat(1., self.mu.shape[0]))
-        return y
-
 
 if __name__ == '__main__':
-    h = Hidden(input_shape=2, no_units=3, activation='relu')
-    h.dense(x=tf.constant([1., 2.]),
-            W=tf.constant([[1., 1.], [1., 2.], [3., 4.]]),  # three hidden units
-            b=tf.constant([0.5, 1., 1.]))
-
-    # (0) (generating data) ----------------------------------
-    # data = Data_BNN_2D(n=1000, grid=(0, 10, 0.5))
-
     # (1) (setting up posterior model) -----------------------
     bnn = BNN(hunits=[2, 10, 9, 8, 1], activation='relu')
-    # data = Data_BNN_2D(n=1000, grid=(0, 10, 0.5))
-    # bnn.unnormalized_log_prob = bnn._closure_log_prob(data.X, data.y)
 
     # (1.1) (sampling NN from priors) ------------------------
     bnn._initialize_from_prior()
@@ -175,16 +95,5 @@ if __name__ == '__main__':
     # batches work naturally!
     y = bnn.forward(X=tf.constant([[1., 2.],[3.,4]]), Ws=bnn.Ws, bs=bnn.bs)
 
-
-    # (2) (sampling posterior) -------------------------------
-    # FIXME BNN initial
-    # from Python.Bayesian.Samplers import AdaptiveHMC
-    # bnn._initialize_from_prior()
-    # adHMC = AdaptiveHMC(initial=initial,
-    #             bijectors=tfb.Identity(),
-    #             log_prob=bnn.unnormalized_log_prob)
-    #
-    # samples, traced = adHMC.sample_chain(
-    #     logdir='/home/tim/PycharmProjects/Thesis/TFResults')
 
     print('')

@@ -61,7 +61,7 @@ if __name__ == '__main__':
 
     # (0) (generating data) ------------------------------
     # beta = tfd.Normal(loc=[0., 0.], scale=[1., 1.]).sample((1,))
-    data = Data(xgrid=(0, 10), n=100, beta=[-1., 2.])
+    data = Data_Xbeta(xgrid=(0, 10), n=100, beta=[-1., 2.])
 
     # TODO TRAIN TEST SPLIT?
 

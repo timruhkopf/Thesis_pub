@@ -1,5 +1,5 @@
 import tensorflow as tf
-from Python.Bayesian.Models.BNN import Hidden
+from Python.Bayesian.layers import Hidden
 
 class Input(Hidden):
     def __init__(self, activation='relu'):
