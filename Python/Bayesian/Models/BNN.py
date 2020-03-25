@@ -107,6 +107,52 @@ class BNN:
 
         return BNN_log_prob
 
+    def argparser(self, paramlist):
+        """parse the chain's results, because sample_chain(current_state= is
+        either tensor or list of tensors, but not multiple arguments!!!"""
+        Ws = paramlist[:len(self.layers)]
+        bs = paramlist[len(self.layers):]
+        return Ws, bs
+
+
+class Data_BNN_1D:
+    def __init__(self, n, grid=(0, 10, 0.5)):
+        """One dimensional effect"""
+        from Python.Data.Cases1D.Bspline_GMRF import Bspline_GMRF
+        self.gmrf = Bspline_GMRF(xgrid=grid)
+
+        self.n = n
+        self.X = tfd.Uniform(grid[0], grid[1]).sample((self.n,))
+        self.y = self.true_likelihood(self.X).sample((self.n,))
+
+    def true_likelihood(self, X):
+        self.mu = tf.constant(self.gmrf.spl(X), dtype=tf.float32)
+        y = tfd.MultivariateNormalDiag(
+            loc=self.mu,
+            scale_diag=tf.repeat(1., self.mu.shape[0]))
+        return y
+
+
+class Data_BNN_2D:
+    def __init__(self, n, grid=(0, 10, 0.5)):
+        """complex two dimensional effect, no main effects"""
+        from Python.Data.Cases2D.K.GMRF_K import GMRF_K
+        self.gmrf = GMRF_K(xgrid=grid, ygrid=grid)
+
+        self.n = n
+        self.X = tf.stack(
+            values=[tfd.Uniform(grid[0], grid[1]).sample((self.n,)),
+                    tfd.Uniform(grid[0], grid[1]).sample((self.n,))],
+            axis=1)
+        self.y = self.true_likelihood(self.X).sample((self.n,))
+
+    def true_likelihood(self, X):
+        self.mu = tf.constant(self.gmrf.surface(X), dtype=tf.float32)
+        y = tfd.MultivariateNormalDiag(
+            loc=self.mu,
+            scale_diag=tf.repeat(1., self.mu.shape[0]))
+        return y
+
 
 if __name__ == '__main__':
     h = Hidden(input_shape=2, no_units=3, activation='relu')
