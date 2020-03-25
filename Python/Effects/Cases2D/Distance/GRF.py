@@ -1,5 +1,5 @@
 import numpy as np
-from Python.Data.Effect2D import Effects2D
+from Python.Effects.Effect2D import Effects2D
 
 
 class GRF(Effects2D):

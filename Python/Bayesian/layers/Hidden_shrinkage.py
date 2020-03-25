@@ -8,3 +8,6 @@ class Input(Hidden):
         self.prior_b
         self.activation = {'relu': tf.nn.relu,
                            'tanh': tf.math.tanh}[activation]
+
+if __name__ == '__main__':
+    print('')

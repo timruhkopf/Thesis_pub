@@ -1,6 +1,6 @@
 import numpy as np
-from Python.Data.Effect2D import Effects2D
-from Python.Data.bspline import diff_mat2D
+from Python.Effects.Effect2D import Effects2D
+from Python.Effects.bspline import diff_mat2D
 
 
 class GMRF_K(Effects2D):

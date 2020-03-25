@@ -1,6 +1,6 @@
 import numpy as np
-from Python.Data.Cases2D.Distance.GMRF import GMRF
-from Python.Data import Effects2D
+from Python.Effects.Cases2D.Distance.GMRF import GMRF
+from Python.Effects import Effects2D
 
 
 class GMRF_cond(Effects2D):  # FIXME GMRF_cond produces periodical results

@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from Python.Data.SamplerPrecision import SamplerPrecision
+from Python.Effects.SamplerPrecision import SamplerPrecision
 from scipy.interpolate import BSpline  # FIXME: replace ndspline
 
 class Effects1D(SamplerPrecision):

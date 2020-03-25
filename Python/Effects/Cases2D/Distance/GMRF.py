@@ -1,4 +1,4 @@
-from Python.Data.Effect2D import Effects2D
+from Python.Effects.Effect2D import Effects2D
 
 
 class GMRF(Effects2D):

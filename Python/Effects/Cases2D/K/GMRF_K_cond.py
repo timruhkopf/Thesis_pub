@@ -1,5 +1,5 @@
-from Python.Data import Effects2D
-from Python.Data.Cases2D.K.GMRF_K import GMRF_K
+from Python.Effects import Effects2D
+from Python.Effects.Cases2D.K.GMRF_K import GMRF_K
 
 class GMRF_K_cond(Effects2D):
     """due to rank deficiency of K, sampling conditional on edges"""

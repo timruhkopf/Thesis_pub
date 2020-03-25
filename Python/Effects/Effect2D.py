@@ -9,7 +9,7 @@ import ndsplines
 
 # rejection sampling
 from scipy.stats import kde
-from Python.Data.SamplerPrecision import SamplerPrecision
+from Python.Effects.SamplerPrecision import SamplerPrecision
 
 
 class Effects2D(SamplerPrecision):

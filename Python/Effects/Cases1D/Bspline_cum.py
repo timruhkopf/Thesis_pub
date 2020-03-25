@@ -1,5 +1,5 @@
 import numpy as np
-from Python.Data.Effect1D import Effects1D
+from Python.Effects.Effect1D import Effects1D
 
 
 class Bspline_cum(Effects1D):
