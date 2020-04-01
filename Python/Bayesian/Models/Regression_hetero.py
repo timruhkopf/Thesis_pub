@@ -84,7 +84,10 @@ if __name__ == '__main__':
     print(reg_data.beta)
 
 
+    # CAREFULL! LOW ACCEPTANCE RATE
     rate_accepted = tf.reduce_mean(tf.cast( traced[1].is_accepted, tf.float32), axis=0)
+
+    # CAREFULL! VARIANCE ESTIMATES ARE OFF!!!
 
     for chain_accepted in samples:
         sample_mean = tf.reduce_mean(chain_accepted, axis=0)
