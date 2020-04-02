@@ -1,6 +1,6 @@
 import numpy as np
-from Python.Data.Effect1D import Effects1D
-from Python.Data.Effect2D import Effects2D
+from Python.Effects.Effect1D import Effects1D
+from Python.Effects.Effect2D import Effects2D
 
 
 class Bspline_GMRF(Effects1D):
