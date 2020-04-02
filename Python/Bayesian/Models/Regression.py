@@ -22,9 +22,16 @@ class Regression(Hidden):
         # for not overwriting dense
         self.b = tf.repeat(0., input_shape)
 
+    @staticmethod
+    @tf.function
+    def dense(X, beta):
+        return tf.linalg.matvec(X, beta)
+
     def likelihood_model(self, X, beta):
         """distributional assumption"""
-        mu = tf.linalg.matvec(X, beta)
+        # mu = tf.linalg.matvec(X, beta)
+
+        mu = self.dense(X, beta)
         likelihood = tfd.Normal(loc=mu, scale=1.)
         return likelihood, mu
 
@@ -85,4 +92,8 @@ if __name__ == '__main__':
     samples, traced = adHMC.sample_chain(num_burnin_steps=int(1e3), num_results=int(10e2),
                                          logdir='/home/tim/PycharmProjects/Thesis/TFResults')
 
+    # for var, var_samples in pooled_samples._asdict().items():
+    #     plot_traces(var, samples=var_samples, num_chains=4)
+    adHMC.plot_traces('beta', adHMC.chain, 2)
     print(reg_data.beta)
+    print(tf.reduce_mean(samples, axis=0))
