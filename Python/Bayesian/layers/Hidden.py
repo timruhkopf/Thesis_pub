@@ -16,6 +16,7 @@ class Hidden:
         identity = lambda x: x
         self.activation = {'relu': tf.nn.relu,
                            'tanh': tf.math.tanh,
+                           'sigmoid':tf.math.sigmoid,
                            'identity': identity}[activation]
 
     def prior_model(self, no_units, input_shape):
