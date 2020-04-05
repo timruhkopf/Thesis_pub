@@ -1,6 +1,6 @@
 import numpy as np
-from Python.Data.Effect1D import Effects1D
-from Python.Data.bspline import diff_mat1D
+from Python.Effects.Effect1D import Effects1D
+from Python.Effects.bspline import diff_mat1D
 
 
 class Bspline_K_cond(Effects1D):
