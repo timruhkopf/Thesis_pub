@@ -3,7 +3,6 @@ from scipy.interpolate import BSpline
 from collections import deque
 
 
-
 # CONSIDER: def fnc: Recursive Bspline Definiton, returning a callable,
 # in order to be plugged into eval_basis instead of BSpline.basis_element
 
@@ -42,37 +41,43 @@ def eval_basis(x, knots=np.arange(0, 20, 1), degree=2):
     #         ``k+1`` elements to internal knots `t`.
 
     # vector of callable B_{ks,..., k(s+t)}(x) with appropriate
-    eval_basis.Z = [BSpline.basis_element(t=seq, extrapolate=False) for seq in window(knots, n=degree + 3)]
-    z = np.stack([B(x) for B in eval_basis.Z])
+    Z = [BSpline.basis_element(t=seq, extrapolate=False) for seq in window(knots, n=degree + 3)]
+    z = np.stack([B(x) for B in Z])
 
     return np.nan_to_num(z)
 
 
-def get_design(X, degree):
+def get_design(X, degree, no_basis):
     """
     Broadcast eval_basis to a 1dim array X, to obtain the corresponding
     Designmatrix Z in Basis representation
 
     :param X:
-    :param basis_param:
+    :param degree:
+    :param no_basis: number of basis functions (dim of gamma)
     :return:
 
     # consider eval_basis decorator - to ensure, The callable Basis Vector is caluclated only once
     """
 
     # construct degree and X's support dependent number of outer knots
-    l_knot = X.min() - degree - 1
-    u_knot = X.max() + degree + 2
+    # FIXME: +-1 is not reasoned!, but introduced to make rowsum Z == 1
+    l_knot = X.min() -1 #- degree - 1
+    u_knot = X.max()  +1# + degree + 2
 
     # generate apporpriate knots & associated metrics
-    get_design.degree = degree
-    get_design.knots = np.arange(l_knot, u_knot, 1)
-    get_design.num_basis = get_design.knots.shape[0] - (degree + 2)
+    no_inner_knots = no_basis - degree + 1
+    total_no_knots = no_inner_knots + 2*degree
+
+    h = (u_knot - l_knot) / no_inner_knots
+
+    knots = np.linspace(l_knot - 2*h, u_knot+ 2*h, num=total_no_knots+1)
+    # num_basis = knots.shape[0] - (degree + 2)
 
     # obtain designmatrix
-    Z = np.zeros((X.__len__(), get_design.num_basis))
+    Z = np.zeros((X.__len__(), no_basis))
     for i, obs in enumerate(X):
-        Z[i, :] = eval_basis(obs, knots=get_design.knots, degree=degree)
+        Z[i, :] = eval_basis(obs, knots=knots, degree=degree)
 
     return Z
 
