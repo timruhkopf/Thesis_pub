@@ -27,7 +27,7 @@ class Data_GAM:
             tf.float32)
 
         y, mu = self.true_likelihood(self.Z, self.gamma)
-        self.y = y.sample((self.n,))
+        self.y = y.sample()
         self.mu = mu
 
     def priorX(self, grid, n):
@@ -51,17 +51,74 @@ class Data_GAM:
 
 
 if __name__ == '__main__':
-    from Python.Bayesian.layers.GAM import GAM
+    from Python.Bayesian.Models.GAM import GAM
     from Python.Bayesian.Samplers.AdaptiveHMC import AdaptiveHMC
 
     tfb = tfp.bijectors
 
     # (0) gam example ---------------------------------------
-    gam = Data_GAM(n=100)
-    gam.X
-    gam.Z
-    gam.gamma
+    data = Data_GAM(n=100)
+    # gam_data.X
+    # gam_data.Z
+    # gam_data.gamma
 
-    AdaptiveHMC()
+    # no preset precision
+    gam = GAM()  # precision @ default: diff_mat1D(dim=20, order=1)[1][1:, 1:]
+    # gam.joint_prior.sample()
+    # gam.unnormalized = gam._closure_log_prob(Z=data.Z, y=data.y)
+    # gam.unnormalized(*list(gam.joint_prior.sample().values()))
+
+    import functools
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+
+    unnormalized_posterior_log_prob = functools.partial(
+        gam.joint_log_prob,
+        y=data.y, Z=data.Z)  # y = tf.reshape(data.y, (data.y.shape[0], 1)
+
+    sampled = gam.model(data.Z).sample()
+    w = tf.concat([tf.reshape(sampled['w0'], (1,)), sampled['w']], axis=0)
+    mu = gam.dense(data.Z, w)
+
+    sns.scatterplot(tf.reshape(data.X, (data.X.shape[0],)), data.y,)
+    sns.lineplot(tf.reshape(data.X, (data.X.shape[0],)), mu)
+    # plt.title('Data & estimated function, log_prob={}'.format(unnormalized_posterior_log_prob(
+    #     **{k: v for k, v in sampled.items() if k != 'y'})))
+
+
+    # sampled['y']
+    # FIXME!!!!: log posterior of this data easily diverges to infinity
+    unnormalized_posterior_log_prob(
+        **{k: v for k, v in sampled.items() if k != 'y'})
+
+    # Parameters: tau, w, w0, sigma
+    # get key-ordering
+    # gam.joint_prior._parameters['model'].keys()
+
+    bijectors = {'tau': tfb.Exp(),
+                 'w0': tfb.Identity(),
+                 'w': tfb.Identity(),
+                 'sigma': tfb.Exp()}
+
+    initial_state = sampled
+
+    adHMC = AdaptiveHMC(
+        initial=[initial_state[k] for k in ['tau', 'w0', 'w', 'sigma']],  # kick out y
+        bijectors=[bijectors[k] for k in ['tau', 'w0', 'w', 'sigma']],
+        # gam.gam1._parameters['model'].keys() if k != 'y'],
+        # [bijectors[k] for k in gam.joint._parameters['model'].keys() if k != 'y']
+        # [tfb.Exp(), tfb.Identity(), tfb.Identity(), tfb.Exp()]
+        log_prob=unnormalized_posterior_log_prob)
+
+    # adHMC = AdaptiveHMC(
+    #     initial=list(gam.joint_prior.sample().values()),
+    #     bijectors=[bijectors[k] for k in gam.joint_prior._parameters['model'].keys()],
+    #     # [tfb.Exp(), tfb.Identity(), tfb.Identity(), tfb.Exp()]
+    #     log_prob=gam._closure_log_prob(Z=data.Z, y=data.y))
+
+    samples, traced = adHMC.sample_chain(
+        num_burnin_steps=int(1e3),
+        num_results=int(10e2),
+        logdir='/home/tim/PycharmProjects/Thesis/TFResults')
 
     print('')
