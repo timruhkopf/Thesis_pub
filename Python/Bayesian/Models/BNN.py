@@ -8,6 +8,9 @@ from Python.Bayesian.layers.Hidden import Hidden
 
 
 class BNN:
+    # a tfp implementation with post:
+    # https://janosh.io/blog/hmc-bnn
+
     # on how to write BNN models in Code (later example has even TB)
     # https://github.com/tensorflow/probability/issues/292 # but claimed to not work
 
@@ -143,7 +146,7 @@ if __name__ == '__main__':
     # FIXME: decrease the number of hidden layers to one!
     #  this allows resampling in adjacent region
     # the prior, knowing exacly, the linear combination will be in range
-    bnn = BNN(hunits=[1, 10, 1], activation='sigmoid')
+    bnn = BNN(hunits=[1, 100, 10, 1], activation='relu')
 
     # generate the "true" parameters & store them
     bnn._initialize_from_prior()
@@ -163,8 +166,10 @@ if __name__ == '__main__':
     fig, ax = plt.subplots(nrows=1, ncols=1)
     fig.subplots_adjust(hspace=0.5)
     fig.suptitle('true function & sampled points')
+
     sns.lineplot(x=tf.range(-1., 10., 0.1), y=tf.reshape(true_mu, (110,)).numpy(), ax=ax)
     sns.scatterplot(x=tf.range(-1., 10., 0.1), y=tf.reshape(y, (110,)), ax=ax)
+
     sns.lineplot(x=tf.range(-1., 10., 0.1), y=tf.reshape(y_hat, (110,)).numpy(), ax=ax)
     ax.set(title='log_prob' + str(bnn.unnormalized_log_prob([*bnn.Ws, *bnn.bs]).numpy()))
 
