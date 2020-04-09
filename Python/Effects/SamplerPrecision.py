@@ -104,6 +104,13 @@ class SamplerPrecision:
 
         plt.imshow(Q_BB, cmap='hot', interpolation='nearest')  # fixme:save for later
 
+    # def prior_log_prob(self, tausq, w):
+    #     w = w[1:]
+    #     return (w.shape - tf.constant(1.)) * tf.math.log(tausq) - \
+    #            tf.linalg.matvec(
+    #                tf.linalg.matvec(self.precision, w, transpose_a=True),
+    #                w, transpose_a=True)
+
 
 # Deprec
 # def _sample_backsolve(L, z, mu=0):

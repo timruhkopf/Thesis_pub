@@ -16,19 +16,20 @@ class Metrics:
         pass
 
     # (MCMC-based) -------------------------------------------------------------
-    def plot_chain(self, model):
-        # CONSIDER: TB also writes out these metrics at the end of the run!
-        # CONSIDER: BurnIN phase should also be removed!
-        samples = model.chain.numpy()
-        is_accepted = model.traced.inner_results.is_accepted
-
-        lw = 0.3
-        # FIXME: multiple plots (one for each param) & adaptive to no. of param
-        plt.plot(samples[np.all(is_accepted, axis=1), :][:, 0],
-                 label="trace of beta 0", lw=lw)
-        plt.plot(samples[np.all(is_accepted, axis=1), :][:, 1],
-                 label="trace of beta 1", lw=lw)
-        plt.title("Traces of accepted unknown parameters")
+    # Deprec
+    # def plot_chain(self, model):
+    #     # CONSIDER: TB also writes out these metrics at the end of the run!
+    #     # CONSIDER: BurnIN phase should also be removed!
+    #     samples = model.chain.numpy()
+    #     is_accepted = model.traced.inner_results.is_accepted
+    #
+    #     lw = 0.3
+    #     # FIXME: multiple plots (one for each param) & adaptive to no. of param
+    #     plt.plot(samples[np.all(is_accepted, axis=1), :][:, 0],
+    #              label="trace of beta 0", lw=lw)
+    #     plt.plot(samples[np.all(is_accepted, axis=1), :][:, 1],
+    #              label="trace of beta 1", lw=lw)
+    #     plt.title("Traces of accepted unknown parameters")
 
     def plot_autocorrelation(self):
         # https://www.tensorflow.org/probability/api_docs/python/tfp/stats/auto_correlation
@@ -40,10 +41,15 @@ class Metrics:
 
         pass
 
+    # Experimental
+    # @staticmethod
+    # def plot_forests():
+    #     # HDP and MAP of each parameter.
+    #     pass
+
 
 if __name__ == '__main__':
     pass
-
 
 # Deprec: Now only data generation not prediction evaluation
 # adding a heatmap contour of the prediction error below it

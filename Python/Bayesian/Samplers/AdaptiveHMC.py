@@ -1,6 +1,10 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
+# traceplot
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 tfd = tfp.distributions
 tfb = tfp.bijectors
 
@@ -31,7 +35,7 @@ class AdaptiveHMC:
             num_adaptation_steps=int(num_burnin_steps * 0.8))
 
     def sample_chain(self, logdir, num_burnin_steps=int(1e3), num_results=int(10e3)):
-        @tf.function
+        #@tf.function
         def tfgraph_sample_chain(*args, **kwargs):
             """tf.function wrapped sample_chain. This became necessary, as TB 
             was introduced"""
@@ -62,15 +66,9 @@ class AdaptiveHMC:
 
         self._sample_chain_staticsummary_toTB()
 
-        # (TB HYPERPARAMETERS) ---------------------
-        # https://www.tensorflow.org/tensorboard/hyperparameter_tuning_with_hparams
-
-        # tf.print(chain.__len__())
-        # tf.print(self.chain)
-
         return self.chain, traced
 
-    @tf.function
+    #@tf.function
     def _sample_chain_trace_fn(self, current_state, kernel_results, summary_freq=10):
         """
         Trace function has a "current" look inside the state of the chain and
@@ -94,7 +92,7 @@ class AdaptiveHMC:
 
         return kernel_results.inner_results
 
-    @tf.function
+    # @tf.function
     def _sample_chain_staticsummary_toTB(self):
         # CONSIDER: Move to Metrics class and inherit Metrics class
         # (TB STATIC STATISTICS RELATED) ---------------------
@@ -102,15 +100,23 @@ class AdaptiveHMC:
         is_accepted = self.traced.inner_results.is_accepted
 
         rate_accepted = tf.reduce_mean(tf.cast(is_accepted, tf.float32), axis=0)
-        chain_accepted = self.chain[tf.reduce_all(is_accepted, axis=1)]
-        # FIXME: PECULARITY: not all parameters of a state (row) need be rejected!
+
+        # FIXME!!!!! look at shapes of chain - depending on chain of single or multiple
+        #  parameter tensors (list of tensors)
+        if len(is_accepted.shape) == 1:
+            # chain_accepted = self.chain[is_accepted]
+            if isinstance(self.chain, list):
+                chain_accepted = [chain[is_accepted] for chain in self.chain]
+        else:
+            # FIXME: PECULARITY: not all parameters of a state (row) need be rejected!
+            chain_accepted = self.chain[tf.reduce_all(is_accepted, axis=1)]
 
         # TODO Posterior Mode
-        sample_mean = tf.reduce_mean(chain_accepted, axis=0)
-        sample_stddev = tf.math.reduce_std(chain_accepted, axis=0)
-        tf.print('sample mean:\t', sample_mean,
-                 '\nsample std: \t', sample_stddev,
-                 '\nacceptance rate: ', rate_accepted)
+        # sample_mean = tf.reduce_mean(chain_accepted, axis=0)
+        # sample_stddev = tf.math.reduce_std(chain_accepted, axis=0)
+        # tf.print('sample mean:\t', sample_mean,
+        #          '\nsample std: \t', sample_stddev,
+        #          '\nacceptance rate: ', rate_accepted)
 
         # FIXME: change sub log_dir for multiple runs!
         # writer = tf.summary.create_file_writer(self.logdir)
@@ -131,6 +137,12 @@ class AdaptiveHMC:
         # TODO (1) point prediction (posterior Mode? max log-prob param-set)
         pass
 
+    # def predict_mean(self):
+    # carefull, model is not defined here!
+    #     meanPost = [tf.reduce_mean(chain, axis=0) for chain in self.chain]
+    #     Ws, bs = bnn.argparser(meanPost)
+    #     y_map = bnn.forward(X, Ws, bs)
+
     def predict_posterior(self):
         # TODO (2) posterior predictive distribution
         #  (log-prob weighted pred for parameter sets of chain_accepted??)
@@ -138,6 +150,28 @@ class AdaptiveHMC:
         # file:///home/tim/PycharmProjects/Thesis/Literature/Bayesian/(Krueger, Lerch)
         # Predictive Inference Based on Markov Chain Monte.pdf
         pass
+
+    def plot_traces(self, var_name, samples, num_chains):
+        """
+        # EXPERIMENTAL Method. not yet adjusted for chain format from adHMC
+        original source code from: for single Tensor! e.g. beta nxp:
+        plot_traces(self,'beta', samples=self.chain, num_chain=p
+        https://colab.research.google.com/github/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Multilevel_Modeling_Primer.ipynb#scrollTo=v0hZwZfQyjsR
+        """
+        # FIXME: do i need to change the values of
+
+        if isinstance(self.chain, tf.Tensor):
+            samples = self.chain.numpy()  # convert to numpy array
+
+        fig, axes = plt.subplots(1, 2, figsize=(14, 1.5), sharex='col', sharey='col')
+        for chain in range(num_chains):
+            axes[0].plot(samples[:, chain], alpha=0.7)
+            axes[0].title.set_text("'{}' trace".format(var_name))
+            sns.kdeplot(samples[:, chain], ax=axes[1], shade=False)
+            axes[1].title.set_text("'{}' distribution".format(var_name))
+            axes[0].set_xlabel('Iteration')
+            axes[1].set_xlabel(var_name)
+        plt.show()
 
     # def eval_metrics(self):
     #     Metrics.__init__(self):
