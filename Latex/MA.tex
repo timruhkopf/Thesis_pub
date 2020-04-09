@@ -113,7 +113,7 @@
 
     MCMC based samplers with random walk behaviour and the necessity to evaluate the entire data set at each sampling step will fail in modern machine learning applications with ever increasing amounts of data or streams of data in conjunction with increasing dimensions of the parameterspace . This is due to the inefficient exploration of the parameterspace in Gibbs \& Metropolis-Hasting, which, even if each sampling step were feasible, would bind computational resources wastefully.
     The vastly more efficient HMC in its classic form is no exception to those objections, as both the gradient computation and the Metropolis-Hastings correction to account for discretization error introduced by the Leapfrog approximations of the Hamiltonian dynamics require an evaluation of the entire data set in form of the likelihood nested in the posterior \citep{zhu2017big}.
-    Most aggravating is the result found by \citep{chen2014stochastic}, that a naive on-line implementation of HMC with stochastic gradients computed on minibatches will approximate the posterior arbitrarily bad, as the preservation of energy in the Hamiltonian dynamics no longer is guaranteed. Adding friction in form of second-order Langevin dynamics to the noisy Hamiltonian system and using a reasonably sized minibatch for gradient computation establishes a CLT on the because of which, the convergence properties required by MCMC are met even with stochastic gradient approximations. \citep{chen2014stochastic}'s resulting algorithm is called Stochastic Gradient Hamiltonian Monte Carlo (SGHMC) and explicitly generalise Stochastic Gradient Langevin Dynamics (SGLD) \citep{welling2011bayesian}'s (Welling \& Teh, 2011) first-order Langevin dynamics.
+    Most aggravating is the result found by \citep{chen2014stochastic}, that a naive on-line implementation of HMC with stochastic gradients computed on minibatches will approximate the posterior arbitrarily bad, as the preservation of energy in the Hamiltonian dynamics no longer is guaranteed. Adding friction in form of second-order Langevin dynamics to the noisy Hamiltonian system and using a reasonably sized minibatch for gradient computation establishes a CLT on the because of which, the convergence properties required by MCMC are met even with stochastic gradient approximations. \citep{chen2014stochastic}'s resulting algorithm is called Stochastic Gradient Hamiltonian Monte Carlo (SGHMC) and explicitly generalise Stochastic Gradient Langevin Dynamics (SGLD) \citep{welling2011bayesian}'s first-order Langevin dynamics.
     Building on this idea of stochastic gradients for MCMC methods, \citep{ma2015complete} deduce a complete framework to derive all samplers, that build on the idea of continuous Markov process and eventually provide samples from the target distribution. As an instance to their method, they derive Stochastic Gradient Riemanian Hamiltonian Monte Carlo (SGRHMC).
 
     % LESE AUFTRAG!!!
@@ -128,10 +128,30 @@
     \clearpage
     \section{Theory}
         \subsection{Generalized Additive Models}
-        On their own, bayesian gam can be estimated using MCMC(IWLS) \citep{}
+        On their own, bayesian gam can be estimated using MCMC(IWLS) \citep{} % FAHRMEIR KNEIB LANG
+
+        % CAREFULL WITH TEXT ORDER!
+        % IN MY SETUP!!!!
+        There is a salient connection between bayesian hidden units, bayesian regression and bayesian GAM:
+        linear regression is a special case of b-hidden unit, being a single unit with identity activation. Further, they share a gaussian indepenent prior for their weights / coefficents respectively. B-GAM essentially is a special case of linear regression, but the prior on its coefficients is highly informative regarding the neighbouring structure.
+
+        Note particularly,
+        \begin{equation}
+            f = Z'\gamma
+        \end{equation}
+
+        and in this szenario, the GAM itself does not carry a likelihood, but only its function approximating capabilities are passed to a joint likelihood of BNN & GAM:
+
+        \begin{equation}
+            \mu = f_{BNN} + f_{GAM}
+        \end{equation}
+
+        %the choice of likelihood is still free, making it applicable to a wide variety of Likelihoods. consider e.g. link functions for binary or multinomial regression.
+
         \subsection{Neural Nets}
         \subsection{Bayesian Neural Nets}
         explicit multilayer BNN formula (with latex): https://www.cs.tufts.edu/comp/150BDL/2018f/assignments/hw2.html
+        for BNN with indep gaussian priors for the Hidden Units' weights & biases
 
         %note on model complexity & Orcam's Razor: \citepp{neal2012bayesian} Bayesian model complexity need not adjust to the amount of available training data (as frequentists would). The concept of bayesian learning via adjusted prior beliefs already incorporates Orcam's preference for simpler models to the degree that is appropriate in the specification. One rather should opt for the computationally feasible and let bayesian learning extract as much information available from the data and express the appropriate amount of care to be taken due to the resulting uncertainty. p 10
 
