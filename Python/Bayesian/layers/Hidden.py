@@ -6,53 +6,54 @@ tfd = tfp.distributions
 
 class Hidden:
     def __init__(self, input_shape, no_units=10, activation='relu'):
-        """create independent normal priors with MVN(0,I)"""
+        """create independent normal priors with MVN(0,tau*I)"""
 
         self.input_shape = input_shape
         self.no_units = no_units
 
-        self.prior_model(no_units, input_shape)
-
         identity = lambda x: x
-        self.activation = {'relu': tf.nn.relu,
-                           'tanh': tf.math.tanh,
-                           'sigmoid':tf.math.sigmoid,
-                           'identity': identity}[activation]
+        self.activation = {
+            'relu': tf.nn.relu,
+            'tanh': tf.math.tanh,
+            'sigmoid': tf.math.sigmoid,
+            'identity': identity}[activation]
 
-    def prior_model(self, no_units, input_shape):
-        # TODO Hyperparam for Variance.
-        # W matrix is drawn with stacked vector
-        self.prior_stackedW = tfd.MultivariateNormalDiag(
-            loc=tf.repeat(0., no_units * input_shape),
-            scale_diag=tf.repeat(1., no_units * input_shape))
-        self.prior_b = tfd.MultivariateNormalDiag(
-            loc=tf.repeat(0., no_units),
-            scale_diag=tf.repeat(1., no_units))
+        self.joint = tfd.JointDistributionNamed(dict(
+            tau=tfd.InverseGamma(1., 1.),
 
-    def init_W_from_prior(self):
-        """initialize W matrix from stacked_prior"""
-        self.W = tf.reshape(self.prior_stackedW.sample(), shape=(self.no_units, self.input_shape))
-        return self.W
+            # sampling a W matrix
+            # Notice: due to tfd.Sample: log_prob looks like this:
+            #  joint.log_prob(W,t,b) == tf.math.reduce_sum(log_prob(W)) +log_prob(t) +log_prob(b)
+            W=lambda tau: tfd.Sample(
+                distribution=tfd.Normal(0., tau),
+                sample_shape=(no_units, input_shape)),
 
-    def init_b_from_prior(self):
-        """initialize bias vector from bias prior"""
-        self.b = self.prior_b.sample()
-        return self.b
+            b=tfd.Normal(loc=tf.repeat(0., no_units), scale=1.)
+            # y
+        ))
 
     @tf.function
-    def dense(self, x, W, b):
-        return self.activation(tf.linalg.matvec(W, x) + b)
+    def dense(self, x, **param):
+        return self.activation(tf.linalg.matvec(param['W'], x) + param['b'])
 
+
+
+class HiddenFinal(Hidden):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.joint = tfd.JointDistributionNamed(dict(
+            tau=tfd.InverseGamma(1., 1.),
+
+            W=lambda tau: tfd.Sample(
+                distribution=tfd.Normal(0., tau),
+                sample_shape=(self.no_units, self.input_shape)),
+        ))
+
+    # FIXME: refactor to HIDDEN STYLE!
     @tf.function
-    def log_prob(self, W, b):
-        """
-        Prior log probability for entire Unit
-        :param W: stacked vector of W matrix
-        :param b: bias vector
-        :return: joined prior log_prob value of the Hidden unit.
-        """
-        # TODO Hyperparam for Variance.
-        return self.prior_stackedW.log_prob(W) + self.prior_b.log_prob(b)
+    def dense(self, x, **param):
+        return self.activation(tf.linalg.matvec(param['W'], x))
 
 
 if __name__ == '__main__':
@@ -63,10 +64,11 @@ if __name__ == '__main__':
             W=tf.constant([[1., 1.], [1., 2.], [3., 4.]]),  # three hidden units
             b=tf.constant([0.5, 1., 1.]))
 
-    # check prior logprob
-    h.init_W_from_prior()
-    h.init_b_from_prior()
-    h.log_prob(W=tf.reshape(h.W, shape=(tf.reduce_prod(h.W.shape),)), b=h.b)
-
+    # check init from prior & dense
+    h.init = h.joint.sample()
+    h.joint.log_prob(**h.init)
+    h.dense(x=tf.constant([1., 2.]),
+            W=h.init['W'],
+            b=h.init['b'])
 
 print('')

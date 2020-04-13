@@ -79,16 +79,23 @@ class AdaptiveHMC:
         This function allows TB integration during training
         based on https://github.com/tensorflow/probability/issues/356
         """
-        # step = kernel_results.step
-        # with tf.summary.record_if(tf.equal(step % summary_freq, 0)):
-        #     name = 'experiment writing during execution'
-        #
-        #     # FIXME: singlevalued CURRENT_STATE
-        #     # tf.summary.scalar(name=name, data=current_state[0], step=tf.cast(step, tf.int64))
-        #
-        #     # FIXME: multivalued CURRENT_STATE
-        #     for variable in current_state:
-        #         tf.summary.histogram(name=name, data=variable, step=tf.cast(step, tf.int64))
+        step = kernel_results.step
+        if step % summary_freq == 0:
+            print('\n\n', step, '\n', current_state)
+
+        with tf.summary.record_if(tf.equal(step % summary_freq, 0)):
+            name = 'experiment writing during execution'
+
+            # singlevalued CURRENT_STATE
+            # if isinstance(current_state, tf.Tensor):
+            #     tf.summary.scalar(
+            #         name=name, data=current_state, step=tf.cast(step, tf.int64))
+
+            # multivalued CURRENT_STATE
+            if isinstance(current_state, list):
+                for variable in current_state:
+                    tf.summary.histogram(
+                        name=name, data=variable, step=tf.cast(step, tf.int64))
 
         return kernel_results.inner_results
 

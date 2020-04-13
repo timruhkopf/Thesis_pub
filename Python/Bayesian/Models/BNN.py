@@ -4,7 +4,7 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 tfb = tfp.bijectors
 
-from Python.Bayesian.layers.Hidden import Hidden
+from Python.Bayesian.layers.Hidden import Hidden, HiddenFinal
 
 
 class BNN:
@@ -29,87 +29,146 @@ class BNN:
         :param activation: activation function for
         """
         self.hunits = hunits
-        self.layers = [Hidden(i, u, activation) for i, u in zip(self.hunits[:-2], self.hunits[1:-1])]
-        self.layers.append(Hidden(input_shape=self.hunits[-2],
-                                  no_units=self.hunits[-1],
-                                  activation='identity'))
+        self.layers = [Hidden(i, u, activation)
+                       for i, u in zip(self.hunits[:-2], self.hunits[1:-1])]
+        self.layers.append(HiddenFinal(input_shape=self.hunits[-2],
+                                       no_units=self.hunits[-1],
+                                       activation='identity'))
 
-    def _initialize_from_prior(self):
-        """
-        initialize the hidden units weights and biases from their priors.
-        This allows
-        """
-        self.Ws = [h.init_W_from_prior() for h in self.layers]
-        self.bs = [h.prior_b.sample() for h in self.layers]
-        self.bs[-1] = tf.constant([0.])  # final layer bs is constant
+    # with @tf.function, forward does not work
+    def prior_draw(self):
+        """init the layer's parameters."""
+        # dist = [h.joint for h in self.layers]
+        return [h.joint.sample() for h in self.layers]
 
     @tf.function
-    def forward(self, X, Ws, bs):
+    def prior_log_prob(self, param):
+        return sum([tf.reduce_sum(h.joint.log_prob(**p))
+                    for h, p in zip(self.layers, param)])
+
+    @tf.function
+    def forward(self, X, param):
         """
-        Evaluate the NN nested in BNN, once random variables are realized.
-        :param X: Batch of x vectors
-        :param Ws: list defining all of NN's weight matrices
-        :param bs: list defining all of NN's bias vectors
-        :return: f(x,w,b)
+        BNN forward path. f(X)
+        :param X: input tensor
+        :param param: list of dicts, each containing the respective layer's
+        parameter tensors. See tfd.JointDistributionNamed(dict()).sample() output
+        :return: Tensor; result of last layer
         """
-        # Consider default arguments for Ws, bs - if already self.Ws and bs exist?
-        # Consider map dense accross all rows of X! (as dense operates on vectors)
-        for h, W, b in zip(self.layers, Ws, bs):
-            X = h.dense(X, W, b)
+        for h, p in zip(self.layers, param):
+            X = h.dense(X, **p)
         return X
 
-    def likelihood_model(self, X, Ws, bs):
-        # CAREFULL CANNOT BE @tf.function, as it would have to return single tensor!
-        mu = self.forward(X, Ws, bs)
-        likelihood = tfd.Normal(loc=mu, scale=1.)  # data independence assumption
-        return likelihood, mu
+    # CAREFULL: cannot be @tf.function as is tfd.Dist not tf.Tensor!
+    def likelihood_model(self, X, param):
+        return tfd.JointDistributionNamed(dict(
+            sigma=tfd.InverseGamma(0.1, 0.1),
+            y=lambda sigma: tfd.Sample(tfd.Independent(
+                tfd.Normal(loc=self.forward(X, param), scale=sigma)))
+        ))
 
     def _closure_log_prob(self, X, y):
-        """A closure, to preset X, y in this model and match HMC's expected model format"""
+        """A closure, to preset X, y in this model and
+        match HMC's expected model format"""
 
-        # @tf.function
-        def BNN_log_prob(*tensorlist):  # Ws, bs
+        @tf.function  # NOTICE: seems to be ignored by autograph ( Cause: expected exactly one node node, found [<gast.gast.FunctionDef object at 0x7f59e006d940>, <gast.gast.Return object at 0x7f59e006da90>] )
+        def BNN_log_prob(*tensorlist):
             """unnormalized log posterior value: log_priors + log_likelihood"""
-            # FIXME: Input Ws, bs must be single list of tensors for AdaptiveHMC initial
-            Ws, bs = self.argparser(tensorlist)
-            likelihood, _ = self.likelihood_model(X, Ws, bs)
 
-            # Carefull: W STACKING: W is matrix, but prior was vector!!!!
-            # notice:  generator statement is not allowed for tf OPs
-            return (tf.reduce_sum(
-                [h.log_prob(tf.reshape(W, (h.no_units * h.input_shape,)), b)
-                 for h, W, b in zip(self.layers, Ws, bs)]) +
-                    tf.reduce_sum(likelihood.log_prob(y)))
+            param = self.argparser(tensorlist[:-1])
+            likelihood = self.likelihood_model(X, param)
+            val = self.prior_log_prob(param) + \
+                  tf.reduce_sum(likelihood.log_prob(sigma=tensorlist[-1], y=y))
+            print('logposterior: {}'.format(val))
+            return val
 
         return BNN_log_prob
 
-    def argparser(self, paramlist):
-        """parse the chain's results, because sample_chain(current_state=
-        (and HMC(initial= )) is either tensor or list of tensors,
-        but not multiple arguments!!!"""
-        Ws = paramlist[:len(self.layers)]
-        bs = paramlist[len(self.layers):2 * len(self.layers)]
-        return Ws, bs
+    def argparser(self, tensorlist):
+        dist = [h.joint for h in self.layers]
+        # nameslist = list(chain(*[d._parameters['model'].keys() for d in dist]))
+        nameslist = list([list(d._parameters['model'].keys()) for d in dist])
+
+        from itertools import accumulate
+        c = [len(b) for b in nameslist]
+        c = list(accumulate(c))
+        c.insert(0, 0)
+
+        return [{k: v for k, v in zip(names, tensorlist[i:j + 1])}
+                for i, j, names in zip(c[:-1], c[1:], nameslist)]
 
 
 if __name__ == '__main__':
-    # # (1 2D) (setting up posterior model) -----------------------
-    # bnn = BNN(hunits=[2, 10, 9, 8, 1], activation='relu')
-    # bnn._initialize_from_prior()
-    #
-    # # (1.1) (sampling NN from priors) ------------------------
-    # y = bnn.forward(X=tf.constant([3., 4.]), Ws=bnn.Ws, bs=bnn.bs)
-    #
-    # # batches work naturally!
-    # mu = bnn.forward(X=tf.constant([[1., 2.], [3., 4.]]), Ws=bnn.Ws, bs=bnn.bs)
-    #
-    # # (1 1D) (setting up posterior model) --------------------
-    # bnn = BNN(hunits=[1, 10, 9, 8, 1], activation='relu')
-    # bnn._initialize_from_prior()
-    #
-    # # (1.1) (sampling NN from priors) ------------------------
-    # y = bnn.forward(X=tf.constant([[3.], [4.]]), Ws=bnn.Ws, bs=bnn.bs)
-    #
+    # (0) check 2d input -----------------------------------------
+    bnn2d = BNN(hunits=[2, 10, 9, 8, 1])
+    param2d = bnn2d.prior_draw()
+    bnn2d.forward(X=tf.constant([[1., 2.], [3., 4.]]), param=param2d)
+    bnn2d.likelihood_model(tf.constant([[1., 2.], [3., 4.]]), param=param2d).sample()
+
+    # (1) (sampling 1d data from prior & fit) --------------------
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    from itertools import chain
+    from Python.Bayesian.Samplers.AdaptiveHMC import AdaptiveHMC
+
+    bnn = BNN(hunits=[1, 10, 1], activation='sigmoid')
+    param_true = bnn.prior_draw()
+    X = tf.reshape(tf.range(-10, 10, 0.01), (2000, 1))
+    n = 2000
+    mu_true = bnn.forward(X=X, param=param_true)
+    y_true = bnn.likelihood_model(X, param=param_true).sample()
+
+    # CAREFULL check that sigma is low value!
+    y_true['sigma']
+    bnn.unnormalized_log_prob = bnn._closure_log_prob(X=X, y=y_true['y'])
+
+    # setting up parameters for estimation
+    param_init = bnn.prior_draw()
+    flattened = list(chain(*[list(d.values()) for d in param_init]))
+    flattened.append(bnn.likelihood_model(X, param_init).sample()['sigma'])
+    print('init_param has log_prob: {}'.format(bnn.unnormalized_log_prob(*flattened)))
+
+    nameslist = [list(h.joint._parameters['model'].keys()) for h in bnn.layers]
+    bnn.likelihood_model(X, param=param_init).sample()
+
+    # fitting with HMC
+    # CAREFULL: PARAMLIST instead of explicit variables!
+    adHMC = AdaptiveHMC(
+        initial=flattened,  # CAREFULL MUST BE FLOAT!
+        bijectors=[tfb.Exp(), tfb.Identity(), tfb.Identity(),  # ['tau', 'W', 'b']
+                   # tfb.Exp(), tfb.Identity(), tfb.Identity(),  # ['tau', 'W', 'b']
+                   # tfb.Exp(), tfb.Identity(), tfb.Identity(),  # ['tau', 'W', 'b']
+                   tfb.Exp(), tfb.Identity(),  # ['tau', 'W']
+                   tfb.Exp()],  # ['sigma'],
+        log_prob=bnn.unnormalized_log_prob)
+
+    samples, traced = adHMC.sample_chain(num_burnin_steps=int(10e2), num_results=int(10e3),
+                                         logdir='/home/tim/PycharmProjects/Thesis/TFResults')
+
+    meanPost = [tf.reduce_mean(chain, axis=0) for chain in samples]
+    param = bnn.argparser(meanPost)
+    y_map = bnn.forward(X, param)
+
+
+    y_init = bnn.forward(X, param_init)
+
+    # FIXME: sns plot dies to to shape error
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    fig.subplots_adjust(hspace=0.5)
+    fig.suptitle('init & true function & sampled points')
+
+    sns.lineplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(mu_true, (n,)).numpy(), ax=ax)
+    # ax.set(title='log_prob' + str(bnn.unnormalized_log_prob(flattened).numpy()))
+
+    sns.lineplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_init, (n,)).numpy(), ax=ax)
+    sns.lineplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_map, (n,)).numpy(), ax=ax)
+    # ax.set(title='log_prob' + str(bnn.unnormalized_log_prob(meanPost).numpy()))
+
+    sns.scatterplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_true['y'], (n,)).numpy(), ax=ax)
+
+    print('')
+
+
     # # (2) sample prior functions -----------------------------------------------
     # # (2.1) (1D Data)
     # from Python.Data.BNN_data import Data_BNN_1D
@@ -134,79 +193,5 @@ if __name__ == '__main__':
     #     ax.set(title='log_prob' + str(bnn.unnormalized_log_prob(bnn.Ws, bnn.bs).numpy()))
 
     # TODO (2.2) (2D Data)
-    from Python.Data.BNN_data import Data_BNN_2D
+    from Python.Data.BNN_data_1D import Data_BNN_2D
 
-    # (3) (fitting to bnn prior data) ------------------------------------------
-    # this allows to ignore variance hyperparam
-    import seaborn as sns
-    import matplotlib.pyplot as plt
-
-    from Python.Bayesian.Samplers.AdaptiveHMC import AdaptiveHMC
-
-    # FIXME: decrease the number of hidden layers to one!
-    #  this allows resampling in adjacent region
-    # the prior, knowing exacly, the linear combination will be in range
-    bnn = BNN(hunits=[1, 100, 10, 1], activation='relu')
-
-    # generate the "true" parameters & store them
-    bnn._initialize_from_prior()
-    trueWs, truebs = bnn.Ws, bnn.bs
-    X = tf.reshape(tf.range(-1., 10., 0.1), (110, 1))
-    true_likelihood, true_mu = bnn.likelihood_model(X, bnn.Ws, bnn.bs)
-    y = true_likelihood.sample()
-
-    # reset the weights, such that they must be estimated
-    bnn._initialize_from_prior()
-    bnn.unnormalized_log_prob = bnn._closure_log_prob(X=X, y=y)
-
-    # calculate the current p
-    y_hat = bnn.forward(X, bnn.Ws, bnn.bs)
-
-    # candidate after reinitializing the weights
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    fig.subplots_adjust(hspace=0.5)
-    fig.suptitle('true function & sampled points')
-
-    sns.lineplot(x=tf.range(-1., 10., 0.1), y=tf.reshape(true_mu, (110,)).numpy(), ax=ax)
-    sns.scatterplot(x=tf.range(-1., 10., 0.1), y=tf.reshape(y, (110,)), ax=ax)
-
-    sns.lineplot(x=tf.range(-1., 10., 0.1), y=tf.reshape(y_hat, (110,)).numpy(), ax=ax)
-    ax.set(title='log_prob' + str(bnn.unnormalized_log_prob([*bnn.Ws, *bnn.bs]).numpy()))
-
-    # (FITTING with HMC)
-    # CAREFULL: PARAMLIST instead of explicit variables!
-    adHMC = AdaptiveHMC(  # FIXME:hmc.initial must be list of tensors, but Ws & bs are already list of tensors!!!
-        # Notice: bnn.Ws already holds the init state, same for bnn.bs
-        initial=[*bnn.Ws, *bnn.bs],  # CAREFULL MUST BE FLOAT!
-        bijectors=[*[tfb.Identity() for i in range(len(bnn.Ws) +len(bnn.bs))] # Ws # bs
-                   ],
-        log_prob=bnn.unnormalized_log_prob)
-
-    samples, traced = adHMC.sample_chain(num_burnin_steps=int(1e3), num_results=int(10e2),
-                                         logdir='/home/tim/PycharmProjects/Thesis/TFResults')
-
-    # (plotting MAP prediction)
-    # FIXME: is MAP: maximum aposteriori
-    meanPost = [tf.reduce_mean(chain, axis=0) for chain in samples]
-    Ws, bs = bnn.argparser(meanPost)
-    y_map = bnn.forward(X, Ws, bs)
-
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    fig.subplots_adjust(hspace=0.5)
-    fig.suptitle('true function & sampled points')
-
-    sns.lineplot(x=tf.range(-1., 10., 0.1), y=tf.reshape(true_mu, (110,)).numpy(), ax=ax)
-    sns.scatterplot(x=tf.range(-1., 10., 0.1), y=tf.reshape(y, (110,)), ax=ax)
-
-    sns.lineplot(x=tf.range(-1., 10., 0.1), y=tf.reshape(y_hat, (110,)).numpy(), ax=ax)
-    ax.set(title='log_prob' + str(bnn.unnormalized_log_prob([*bnn.Ws, *bnn.bs]).numpy()))
-
-    sns.lineplot(x=tf.range(-1., 10., 0.1), y=tf.reshape(y_map, (110,)).numpy(), ax=ax)
-    ax.set(title='log_prob' + str(bnn.unnormalized_log_prob(meanPost).numpy()))
-    # (4) (fitting to GAM data) ------------------
-    # from Python.Data.BNN_data import Data_BNN_1D
-    #
-    # data = Data_BNN_1D(n=100)
-    # bnn.unnormalized_log_prob = bnn._closure_log_prob(X=data.X, y=data.y)
-    #
-    # print('')
