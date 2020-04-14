@@ -1,66 +1,60 @@
+from itertools import accumulate, chain
+from inspect import getfullargspec
 import tensorflow as tf
 import tensorflow_probability as tfp
 
 tfd = tfp.distributions
 
-from Python.Bayesian.layers.Hidden import Hidden
+from Python.Bayesian.layers.Hidden import HiddenFinal
 
 
-class Regression(Hidden):
-    def __init__(self, input_shape):
-        """Homoscedastic Regression"""
+class Regression(HiddenFinal):
 
-        # instantiation of self.prior_model, containing W
-        Hidden.__init__(self, input_shape=input_shape, no_units=1, activation='identity')
-        self.prior_beta = self.prior_stackedW
+    def __init__(self, *args, **kwargs):
+        # self.joint holds the prior model (except for sigma)
+        super().__init__(activation='identity', *args, **kwargs)
+        self.joint = tfd.JointDistributionNamed(dict(
+            tau=tfd.InverseGamma(1., 1.),
 
-        # removing b (as it is constant)
-        self.init_b_from_prior = None
-        self.log_prob = None
-        del self.prior_b
+            W=lambda tau: tfd.Sample(
+                distribution=tfd.Normal(0., tau),
+                sample_shape=(self.no_units, self.input_shape)),
 
-        # for not overwriting dense
-        self.b = tf.repeat(0., input_shape)
+            sigma=tfd.InverseGamma(0.1, 0.1)
+        ))
 
-    @staticmethod
-    @tf.function
-    def dense(X, beta):
-        return tf.linalg.matvec(X, beta)
-
-    def likelihood_model(self, X, beta):
+    def likelihood_model(self, X, W, sigma):
         """distributional assumption"""
-        # mu = tf.linalg.matvec(X, beta)
+        return tfd.Sample(tfd.Independent(
+            tfd.Normal(loc=self.dense(X, W), scale=sigma)))
 
-        mu = self.dense(X, beta)
-        likelihood = tfd.Normal(loc=mu, scale=1.)
-        return likelihood, mu
+    # @tf.function
+    def dense(self, X, W):
+        return self.activation(tf.linalg.matvec(X, W))
+
+    def listparser(self, tensorlist):
+        nameslist = list(self.joint._parameters['model'].keys())
+        return {k: v for k, v in zip(nameslist, tensorlist)}
 
     def _closure_log_prob(self, X, y):
-        """A closure, to set X, y & the priors in this model"""
+        """A closure, to preset X, y in this model and
+        match HMC's expected model format"""
 
-        @tf.function
-        def xbeta_log_prob(beta):
-            likelihood, _ = self.likelihood_model(X, beta)
-            return (self.prior_beta.log_prob(beta) +
-                    tf.reduce_sum(likelihood.log_prob(y)))
+        @tf.function  # NOTICE: seems to be ignored by autograph ( Cause: expected exactly one node node, found [<gast.gast.FunctionDef object at 0x7f59e006d940>, <gast.gast.Return object at 0x7f59e006da90>] )
+        def BNN_log_prob(*tensorlist):
+            """unnormalized log posterior value: log_priors + log_likelihood"""
 
-        return xbeta_log_prob
+            param = self.listparser(tensorlist)
 
+            like_param = {k: param[k] for k in getfullargspec(self.likelihood_model).args[2:]}
+            likelihood = self.likelihood_model(X, **like_param)
 
-class Regression_Data(Regression):
-    def __init__(self, X):
-        """Gaussian indepentent prior on beta (W)"""
-        n, p = X.shape
-        self.X = X
+            val = self.joint.log_prob(**param) + \
+                  tf.reduce_sum(likelihood.log_prob(y))
+            print('logposterior: {}'.format(val))
+            return val
 
-        Regression.__init__(self, input_shape=p)
-        self.beta = self.prior_beta.sample()
-
-        # consider overwrite likelihood_model for e.g. heteroscedasticity
-        likelihood, mu = self.likelihood_model(X, beta=self.beta)
-        self.likelihood = likelihood  # Consider make tfd. accessible
-        self.y = likelihood.sample()
-        self.mu = mu
+        return BNN_log_prob
 
 
 if __name__ == '__main__':
@@ -75,25 +69,79 @@ if __name__ == '__main__':
                 tfd.Uniform(xgrid[0], xgrid[1]).sample((n,))],
         axis=1)
 
-    reg_data = Regression_Data(X)
-
-    # (1) specify model --------------------------------------
+    # no units must correspond to X.shape[1]
     p = X.shape[1]
-    reg = Regression(p)
+    reg = Regression(input_shape=p, no_units=1)
+    param = {'tau': tf.constant(0.5), 'W': tf.constant([-0.5, 2]), 'sigma': tf.constant(0.25)}
+    y = reg.likelihood_model(X, W=param['W'], sigma=param['sigma']).sample()
+
+
+
+    # fixme: reshape y !
+    # y = tf.reshape(y, (100, 1))
+    reg.unnormalized_log_prob = reg._closure_log_prob(X, y)
 
     # check unnormalized log_prob
-    print(reg._closure_log_prob(reg_data.X, reg_data.y)(beta=tf.constant([1.,1.])))
+    XXinv = tf.linalg.inv(tf.linalg.matmul(X, X, transpose_a=True))
+    OLS = tf.linalg.matvec(tf.linalg.matmul(XXinv, X, transpose_b=True), y)
+    print(reg.unnormalized_log_prob(*[tf.constant(0.5), OLS, tf.constant(0.25)]))
+    print(reg._closure_log_prob(X, y)(tf.constant([1.]),  # tau
+                                      tf.constant([1., 1.]),  # W
+                                      tf.constant([1.])))  # sigma
 
-    adHMC = AdaptiveHMC(initial=tf.constant([1., 1.]),  # CAREFULL MUST BE FLOAT!
-                        bijectors=tfb.Identity(),  # [tfb.Identity(), tfb.Identity()]
-                        log_prob=reg._closure_log_prob(reg_data.X, reg_data.y))  # unnorm. log_prob
+    reg.unnormalized_log_prob = reg._closure_log_prob(X, y)
+    adHMC = AdaptiveHMC(initial=list(param.values()),  # CAREFULL MUST BE FLOAT!
+                        bijectors=[tfb.Exp(), tfb.Identity(), tfb.Exp()],  # [tfb.Identity(), tfb.Identity()]
+                        log_prob=reg.unnormalized_log_prob)  # unnorm. log_prob
 
+    samples, traced = adHMC.sample_chain(
+        num_burnin_steps=int(10e1),
+        num_results=int(10e1),
+        logdir='/home/tim/PycharmProjects/Thesis/TFResults')
 
-    samples, traced = adHMC.sample_chain(num_burnin_steps=int(1e3), num_results=int(10e2),
-                                         logdir='/home/tim/PycharmProjects/Thesis/TFResults')
+    reg.listparser(samples)
 
-    # for var, var_samples in pooled_samples._asdict().items():
-    #     plot_traces(var, samples=var_samples, num_chains=4)
-    adHMC.plot_traces('beta', adHMC.chain, 2)
-    print(reg_data.beta)
-    print(tf.reduce_mean(samples, axis=0))
+    # s = [s for s in zip(*samples)]
+    # post = tf.stack(list(map(lambda x: reg.unnormalized_log_prob(*x), [s for s in zip(*samples)])), axis=0)
+    # maxpost_param = s[tf.argmax(post, axis=0).numpy()]
+    # reg.unnormalized_log_prob(*s[0])
+
+    # {getfullargspec(reg.dense).args[2:]}
+
+    n = 100
+    Xlin = tf.stack(
+        values=[tf.ones((n,)),
+                tf.linspace(0., 10., n)], axis=1)
+
+    # MAP & mean aposteriori
+    y_hat = reg.dense(Xlin, reg.listparser(adHMC.predict_mode(reg.unnormalized_log_prob))['W'])
+    y_hat = reg.dense(Xlin, reg.listparser(adHMC.predict_mean())['W'])
+
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    fig.subplots_adjust(hspace=0.5)
+    fig.suptitle('init-, true-, mean function & sampled points')
+
+    sns.scatterplot(
+        x=X[:, 1].numpy(),
+        y=tf.reshape(y, (100,)).numpy(), ax=ax)
+
+    sns.lineplot(Xlin[:, 1], tf.reshape(y_hat, (100,)).numpy(), ax=ax)
+
+    # ax.set(title='log_prob' + str(bnn.unnormalized_log_prob(flattened).numpy()))
+    #
+    # sns.lineplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_init, (n,)).numpy(), ax=ax)
+    # sns.lineplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_map, (n,)).numpy(), ax=ax)
+    # ax.set(title='log_prob' + str(bnn.unnormalized_log_prob(meanPost).numpy()))
+
+    adHMC.predict_mean()
+
+    # DEPREC: plotting the traces - problems:
+    #  parameters in matrix form!
+    #  possibly thousands of parameters
+    # for var, var_samples in reg.listparser(samples).items():  # pooled_samples._asdict().items():
+    #     adHMC.plot_traces(var, samples=var_samples, num_chains=4)
+
+    # adHMC.plot_traces('beta', adHMC.chains, 2)
