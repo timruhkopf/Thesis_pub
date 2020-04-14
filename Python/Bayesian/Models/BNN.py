@@ -1,3 +1,4 @@
+from itertools import accumulate, chain
 import tensorflow as tf
 import tensorflow_probability as tfp
 
@@ -61,6 +62,8 @@ class BNN:
 
     # CAREFULL: cannot be @tf.function as is tfd.Dist not tf.Tensor!
     def likelihood_model(self, X, param):
+        # FIXME: move sigma prior to prior distribution and make this tfd.Sample
+        #  not tfd.JointDist...
         return tfd.JointDistributionNamed(dict(
             sigma=tfd.InverseGamma(0.1, 0.1),
             y=lambda sigma: tfd.Sample(tfd.Independent(
@@ -75,7 +78,7 @@ class BNN:
         def BNN_log_prob(*tensorlist):
             """unnormalized log posterior value: log_priors + log_likelihood"""
 
-            param = self.argparser(tensorlist[:-1])
+            param = self.listparser(tensorlist[:-1])
             likelihood = self.likelihood_model(X, param)
             val = self.prior_log_prob(param) + \
                   tf.reduce_sum(likelihood.log_prob(sigma=tensorlist[-1], y=y))
@@ -84,18 +87,52 @@ class BNN:
 
         return BNN_log_prob
 
-    def argparser(self, tensorlist):
+    def listparser(self, tensorlist):
+        """
+        method to return from sample_chain()'s expected format: list of tensors
+        to hierarchical version, where each layer holds its own set of parameters
+
+        :return: list of dicts, each containing the parameters of the
+        corresponding layer.
+        """
         dist = [h.joint for h in self.layers]
         # nameslist = list(chain(*[d._parameters['model'].keys() for d in dist]))
         nameslist = list([list(d._parameters['model'].keys()) for d in dist])
 
-        from itertools import accumulate
         c = [len(b) for b in nameslist]
         c = list(accumulate(c))
         c.insert(0, 0)
 
         return [{k: v for k, v in zip(names, tensorlist[i:j + 1])}
                 for i, j, names in zip(c[:-1], c[1:], nameslist)]
+
+    def flatten(self, param):
+        """:param param: list of dicts of tensors corresponding to each layer
+        :return: tuple: (list of tensors, corresponding names)"""
+        flat = list(chain(*[list(d.values()) for d in param]))
+        nameslist = list(chain(*[list(h.joint._parameters['model'].keys()) for h in self.layers]))
+
+        return flat, nameslist
+
+    def initialize_full_flat(self, X):
+        """initialize a flat list of tensors from the hierachical prior model
+        for HMC estimation. Additionally generate the flat list of names
+        corresponding to the flat list of tensors. (usable for bijectors)"""
+        # Notice: prior_draw does not include likelihood's sigma prior!
+        param_init = self.prior_draw()
+        flattened, nameslist = self.flatten(param_init)
+
+        # Notice: likelihood sample is dict with y and sigma!
+        like = bnn.likelihood_model(X, param_init).sample()
+        flattened.append(like['sigma'])
+        nameslist.append('sigma')
+
+        print('Prior parameter initialization: {}, sigma: {}'.format(param_init, like['sigma']))
+
+        init_param = param_init
+        init_param.append(like['sigma'])
+
+        return flattened, nameslist, init_param
 
 
 if __name__ == '__main__':
@@ -108,56 +145,51 @@ if __name__ == '__main__':
     # (1) (sampling 1d data from prior & fit) --------------------
     import seaborn as sns
     import matplotlib.pyplot as plt
-    from itertools import chain
     from Python.Bayesian.Samplers.AdaptiveHMC import AdaptiveHMC
 
     bnn = BNN(hunits=[1, 10, 1], activation='sigmoid')
-    param_true = bnn.prior_draw()
-    X = tf.reshape(tf.range(-10, 10, 0.01), (2000, 1))
-    n = 2000
-    mu_true = bnn.forward(X=X, param=param_true)
-    y_true = bnn.likelihood_model(X, param=param_true).sample()
 
-    # CAREFULL check that sigma is low value!
-    y_true['sigma']
-    bnn.unnormalized_log_prob = bnn._closure_log_prob(X=X, y=y_true['y'])
+    # inialize true function from prior
+    n = 2000
+    X = tf.reshape(tf.linspace(-10., 10., n), (n, 1))
+    param_true = bnn.prior_draw()
+    mu_true = bnn.forward(X=X, param=param_true)
+    true = bnn.likelihood_model(X, param=param_true).sample()
+    y_true = true['y']
+    print(true['sigma'])  # CAREFULL check that sigma is low value!
 
     # setting up parameters for estimation
-    param_init = bnn.prior_draw()
-    flattened = list(chain(*[list(d.values()) for d in param_init]))
-    flattened.append(bnn.likelihood_model(X, param_init).sample()['sigma'])
+    flattened, nameslist, param_init = bnn.initialize_full_flat(X)
+    bijectors = {'tau': tfb.Exp(), 'W': tfb.Identity(), 'b': tfb.Identity(),
+                 'sigma': tfb.Exp()}
+    bnn.unnormalized_log_prob = bnn._closure_log_prob(X=X, y=y_true)
     print('init_param has log_prob: {}'.format(bnn.unnormalized_log_prob(*flattened)))
-
-    nameslist = [list(h.joint._parameters['model'].keys()) for h in bnn.layers]
-    bnn.likelihood_model(X, param=param_init).sample()
-
-    # fitting with HMC
-    # CAREFULL: PARAMLIST instead of explicit variables!
-    adHMC = AdaptiveHMC(
-        initial=flattened,  # CAREFULL MUST BE FLOAT!
-        bijectors=[tfb.Exp(), tfb.Identity(), tfb.Identity(),  # ['tau', 'W', 'b']
-                   # tfb.Exp(), tfb.Identity(), tfb.Identity(),  # ['tau', 'W', 'b']
-                   # tfb.Exp(), tfb.Identity(), tfb.Identity(),  # ['tau', 'W', 'b']
-                   tfb.Exp(), tfb.Identity(),  # ['tau', 'W']
-                   tfb.Exp()],  # ['sigma'],
-        log_prob=bnn.unnormalized_log_prob)
-
-    samples, traced = adHMC.sample_chain(num_burnin_steps=int(10e2), num_results=int(10e3),
-                                         logdir='/home/tim/PycharmProjects/Thesis/TFResults')
-
-    meanPost = [tf.reduce_mean(chain, axis=0) for chain in samples]
-    param = bnn.argparser(meanPost)
-    y_map = bnn.forward(X, param)
-
 
     y_init = bnn.forward(X, param_init)
 
-    # FIXME: sns plot dies to to shape error
+    # Fitting with HMC
+    adHMC = AdaptiveHMC(
+        initial=flattened,  # CAREFULL MUST BE FLOAT!
+        bijectors=[bijectors[name] for name in nameslist],
+        log_prob=bnn.unnormalized_log_prob)
+
+    samples, traced = adHMC.sample_chain(
+        num_burnin_steps=int(10e2),
+        num_results=int(10e3),
+        logdir='/home/tim/PycharmProjects/Thesis/TFResults')
+
+    # mean prediction
+    meanPost = adHMC.predict_mean()
+    param = bnn.listparser(meanPost)
+    y_map = bnn.forward(X, param)
+
+    # Plot init, true, mean & sampled
     fig, ax = plt.subplots(nrows=1, ncols=1)
     fig.subplots_adjust(hspace=0.5)
-    fig.suptitle('init & true function & sampled points')
+    fig.suptitle('init-, true-, mean function & sampled points')
 
-    sns.lineplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(mu_true, (n,)).numpy(), ax=ax)
+    sns.lineplot(x=tf.reshape(X, (n,)).numpy(),
+                 y=tf.reshape(mu_true, (n,)).numpy(), ax=ax)
     # ax.set(title='log_prob' + str(bnn.unnormalized_log_prob(flattened).numpy()))
 
     sns.lineplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_init, (n,)).numpy(), ax=ax)
@@ -166,32 +198,4 @@ if __name__ == '__main__':
 
     sns.scatterplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_true['y'], (n,)).numpy(), ax=ax)
 
-    print('')
-
-
-    # # (2) sample prior functions -----------------------------------------------
-    # # (2.1) (1D Data)
-    # from Python.Data.BNN_data import Data_BNN_1D
-    #
-    # data = Data_BNN_1D(n=100)
-    # bnn.unnormalized_log_prob = bnn._closure_log_prob(
-    #     X=tf.reshape(data.X, (100, 1)), y=data.y)
-    #
-    # import seaborn as sns
-    # import matplotlib.pyplot as plt
-    #
-    # fig, axes = plt.subplots(nrows=4, ncols=4)
-    # fig.subplots_adjust(hspace=0.5)
-    # fig.suptitle('Sampling BNN Functions from prior')
-    #
-    # for ax in axes.flatten():
-    #     bnn._initialize_from_prior()
-    #     y = bnn.forward(X=tf.reshape(tf.range(-1., 10., 0.1), (110, 1)), Ws=bnn.Ws, bs=bnn.bs)
-    #
-    #     # evaluate bnn functions drawn from prior
-    #     sns.lineplot(x=tf.range(-1., 10., 0.1), y=tf.reshape(y, (110,)).numpy(), ax=ax)
-    #     ax.set(title='log_prob' + str(bnn.unnormalized_log_prob(bnn.Ws, bnn.bs).numpy()))
-
-    # TODO (2.2) (2D Data)
-    from Python.Data.BNN_data_1D import Data_BNN_2D
-
+print('')
