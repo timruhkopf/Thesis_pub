@@ -33,9 +33,8 @@ class Hidden:
         ))
 
     @tf.function
-    def dense(self, x, **param):
-        return self.activation(tf.linalg.matvec(param['W'], x) + param['b'])
-
+    def dense(self, X, W, b):
+        return self.activation(tf.linalg.matvec(W, X) + b)
 
 
 class HiddenFinal(Hidden):
@@ -52,22 +51,22 @@ class HiddenFinal(Hidden):
 
     # FIXME: refactor to HIDDEN STYLE!
     @tf.function
-    def dense(self, x, **param):
-        return self.activation(tf.linalg.matvec(param['W'], x))
+    def dense(self, X, W):
+        return self.activation(tf.linalg.matvec(W, X))
 
 
 if __name__ == '__main__':
     h = Hidden(input_shape=2, no_units=3, activation='relu')
 
     # check dense functon
-    h.dense(x=tf.constant([1., 2.]),
+    h.dense(X=tf.constant([1., 2.]),
             W=tf.constant([[1., 1.], [1., 2.], [3., 4.]]),  # three hidden units
             b=tf.constant([0.5, 1., 1.]))
 
     # check init from prior & dense
     h.init = h.joint.sample()
     h.joint.log_prob(**h.init)
-    h.dense(x=tf.constant([1., 2.]),
+    h.dense(X=tf.constant([1., 2.]),
             W=h.init['W'],
             b=h.init['b'])
 
