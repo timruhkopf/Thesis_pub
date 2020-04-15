@@ -21,6 +21,7 @@ class AdaptiveHMC:
         assert (all([tensor.dtype == tf.float32 for tensor in initial]))
         self.initial = initial
         self.bijectors = bijectors
+        self.log_prob = log_prob
 
         # FIXME: CHECK DOC OF THESE THREE SAMPLER OBJECTS & PAPERS PROVIDED IN DOC
         bijected_hmc = tfp.mcmc.TransformedTransitionKernel(
@@ -35,12 +36,13 @@ class AdaptiveHMC:
             num_adaptation_steps=int(num_burnin_steps * 0.8))
 
     def sample_chain(self, logdir, num_burnin_steps=int(1e3), num_results=int(10e3)):
-        #@tf.function
+        # @tf.function
         def tfgraph_sample_chain(*args, **kwargs):
             """tf.function wrapped sample_chain. This became necessary, as TB 
             was introduced"""
             return tfp.mcmc.sample_chain(*args, **kwargs)
 
+        self.num_results = num_results
         self.logdir = logdir
 
         # TB wrapper for Runtime (trace_fn) TB writing!
@@ -61,15 +63,15 @@ class AdaptiveHMC:
             tf.summary.trace_export(name='graphingit', step=0)
             tf.summary.trace_off()
 
-        self.chain = chain
+        self.chains = chain
         self.traced = traced
 
         self._sample_chain_staticsummary_toTB()
 
-        return self.chain, traced
+        return self.chains, traced
 
     #@tf.function
-    def _sample_chain_trace_fn(self, current_state, kernel_results, summary_freq=10):
+    def _sample_chain_trace_fn(self, current_state, kernel_results, summary_freq=100):
         """
         Trace function has a "current" look inside the state of the chain and
         the inner_kernels result and allows choosing which values to build
@@ -81,7 +83,9 @@ class AdaptiveHMC:
         """
         step = kernel_results.step
         if step % summary_freq == 0:
-            print('\n\n', step, '\n', current_state)
+            print('\n\nStep {}, Logposterior:{}\n{}'.format(
+                step, self.log_prob(*current_state), current_state))  # '\n'.join(current_state)
+
 
         with tf.summary.record_if(tf.equal(step % summary_freq, 0)):
             name = 'experiment writing during execution'
@@ -112,11 +116,11 @@ class AdaptiveHMC:
         #  parameter tensors (list of tensors)
         if len(is_accepted.shape) == 1:
             # chain_accepted = self.chain[is_accepted]
-            if isinstance(self.chain, list):
-                chain_accepted = [chain[is_accepted] for chain in self.chain]
+            if isinstance(self.chains, list):
+                chain_accepted = [chain[is_accepted] for chain in self.chains]
         else:
             # FIXME: PECULARITY: not all parameters of a state (row) need be rejected!
-            chain_accepted = self.chain[tf.reduce_all(is_accepted, axis=1)]
+            chain_accepted = self.chains[tf.reduce_all(is_accepted, axis=1)]
 
         # TODO Posterior Mode
         # sample_mean = tf.reduce_mean(chain_accepted, axis=0)
@@ -140,15 +144,28 @@ class AdaptiveHMC:
         #         for step, proposal in enumerate(col):
         #             tf.summary.scalar(name=name, data=proposal, step=step)
 
-    def predict_mode(self):
+    def predict_mode(self, logpost):
+        """get parameter set of the max log_posterior value
+         estimating the log_posterior probability of all samples
+        :param logpost: the models log posterior function
+        :return tuple: parameter set of max logposterior."""
         # TODO (1) point prediction (posterior Mode? max log-prob param-set)
-        pass
+        paramsets = [s for s in zip(*self.chains)]
+        post = tf.stack(list(
+            map(lambda x: logpost(*x), paramsets)), axis=0)
+        return paramsets[tf.argmax(post, axis=0).numpy()]
 
     # def predict_mean(self):
     # carefull, model is not defined here!
     #     meanPost = [tf.reduce_mean(chain, axis=0) for chain in self.chain]
     #     Ws, bs = bnn.argparser(meanPost)
     #     y_map = bnn.forward(X, Ws, bs)
+
+    def predict_mean(self):
+        if isinstance(self.chains, list):
+            return [tf.reduce_mean(chain, axis=0) for chain in self.chains]
+        else:
+            tf.reduce_mean(self.chains, axis=0)
 
     def predict_posterior(self):
         # TODO (2) posterior predictive distribution
@@ -158,27 +175,29 @@ class AdaptiveHMC:
         # Predictive Inference Based on Markov Chain Monte.pdf
         pass
 
-    def plot_traces(self, var_name, samples, num_chains):
-        """
-        # EXPERIMENTAL Method. not yet adjusted for chain format from adHMC
-        original source code from: for single Tensor! e.g. beta nxp:
-        plot_traces(self,'beta', samples=self.chain, num_chain=p
-        https://colab.research.google.com/github/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Multilevel_Modeling_Primer.ipynb#scrollTo=v0hZwZfQyjsR
-        """
-        # FIXME: do i need to change the values of
+    # def plot_traces(self, samples):
+    #     """
+    #     # EXPERIMENTAL Method. not yet adjusted for chain format from adHMC
+    #     original source code from: for single Tensor! e.g. beta nxp:
+    #     plot_traces(self,'beta', samples=self.chain, num_chain=p
+    #     https://colab.research.google.com/github/tensorflow/probability/blob/master/tensorflow_probability/examples/jupyter_notebooks/Multilevel_Modeling_Primer.ipynb#scrollTo=v0hZwZfQyjsR
+    #     """
+    #     # FIXME: do i need to change the values of
+    #
+    #     if isinstance(self.chains, tf.Tensor):
+    #         samples = self.chains.numpy()  # convert to numpy array
+    #
+    #     # DEPREC: plotting the traces - problems:
+    #     #  parameters in matrix form!
+    #     #  possibly thousands of parameters
+    #     # if isinstance(self.chains, list):
+    #     #     dim = int(tf.sqrt(len(self.chains)))
+    #     #     fig, axes = plt.subplots(dim, dim, sharex='col', sharey='col')
+    #     #     x = range(self.num_results)
+    #     #
+    #     #     for chain, ax in zip(self.chains, axes):
+    #     #         sns.lineplot(x, y=tf.chain)
+    #     #
+    #     #     plt.show()
+    #
 
-        if isinstance(self.chain, tf.Tensor):
-            samples = self.chain.numpy()  # convert to numpy array
-
-        fig, axes = plt.subplots(1, 2, figsize=(14, 1.5), sharex='col', sharey='col')
-        for chain in range(num_chains):
-            axes[0].plot(samples[:, chain], alpha=0.7)
-            axes[0].title.set_text("'{}' trace".format(var_name))
-            sns.kdeplot(samples[:, chain], ax=axes[1], shade=False)
-            axes[1].title.set_text("'{}' distribution".format(var_name))
-            axes[0].set_xlabel('Iteration')
-            axes[1].set_xlabel(var_name)
-        plt.show()
-
-    # def eval_metrics(self):
-    #     Metrics.__init__(self):
