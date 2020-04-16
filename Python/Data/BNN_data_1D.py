@@ -97,10 +97,10 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
     meanPost = [tf.reduce_mean(chain, axis=0) for chain in samples]
-    param = bnn.argparser(meanPost)
+    param = bnn.listparser(meanPost)
     y_map = bnn.forward(tf.reshape(data.X, (n, 1)), param)
 
-    param_true = bnn.argparser(flattened)
+    param_true = bnn.listparser(flattened)
     y = bnn.forward(tf.reshape(data.X, (n, 1)), param)
 
     # FIXME: sns plot dies to to shape error

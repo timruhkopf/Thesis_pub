@@ -82,7 +82,7 @@ class BNN:
             likelihood = self.likelihood_model(X, param)
             val = self.prior_log_prob(param) + \
                   tf.reduce_sum(likelihood.log_prob(sigma=tensorlist[-1], y=y))
-            print('logposterior: {}'.format(val))
+            # print('logposterior: {}'.format(val))
             return val
 
         return BNN_log_prob
@@ -196,6 +196,6 @@ if __name__ == '__main__':
     sns.lineplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_map, (n,)).numpy(), ax=ax)
     # ax.set(title='log_prob' + str(bnn.unnormalized_log_prob(meanPost).numpy()))
 
-    sns.scatterplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_true['y'], (n,)).numpy(), ax=ax)
+    sns.scatterplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_true, (n,)).numpy(), ax=ax)
 
 print('')

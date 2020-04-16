@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import tensorflow as tf
 import tensorflow_probability as tfp
 
@@ -18,18 +19,18 @@ class Hidden:
             'sigmoid': tf.math.sigmoid,
             'identity': identity}[activation]
 
-        self.joint = tfd.JointDistributionNamed(dict(
-            tau=tfd.InverseGamma(1., 1.),
+        tau = tf.constant([5.])
+        self.joint = tfd.JointDistributionNamed(OrderedDict(
+            #tau=tfd.InverseGamma(1., 1.),
 
             # sampling a W matrix
             # Notice: due to tfd.Sample: log_prob looks like this:
             #  joint.log_prob(W,t,b) == tf.math.reduce_sum(log_prob(W)) +log_prob(t) +log_prob(b)
-            W=lambda tau: tfd.Sample(
+            W= tfd.Sample(  #lambda tau:
                 distribution=tfd.Normal(0., tau),
                 sample_shape=(no_units, input_shape)),
 
             b=tfd.Normal(loc=tf.repeat(0., no_units), scale=1.)
-            # y
         ))
 
     @tf.function
@@ -41,10 +42,11 @@ class HiddenFinal(Hidden):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        tau = tf.constant([5.])
         self.joint = tfd.JointDistributionNamed(dict(
-            tau=tfd.InverseGamma(1., 1.),
+            # tau=tfd.InverseGamma(1., 1.),
 
-            W=lambda tau: tfd.Sample(
+            W= tfd.Sample(  # lambda tau:
                 distribution=tfd.Normal(0., tau),
                 sample_shape=(self.no_units, self.input_shape)),
         ))
