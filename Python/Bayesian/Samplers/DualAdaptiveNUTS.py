@@ -1,14 +1,12 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 from Python.Bayesian.Samplers.Samplers import Samplers
-
+from Python.Util import setkwargs
 
 class DualAdaptiveNUTS(Samplers):
+    @setkwargs
     def __init__(self, initial, bijectors, log_prob, num_adaptation_steps=500):
         assert (all([tensor.dtype == tf.float32 for tensor in initial]))
-        self.initial = initial
-        self.bijectors = bijectors
-        self.log_prob = log_prob
 
         self.kernel = tfp.mcmc.DualAveragingStepSizeAdaptation(
             inner_kernel=tfp.mcmc.NoUTurnSampler(
