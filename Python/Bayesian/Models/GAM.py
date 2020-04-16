@@ -121,8 +121,8 @@ if __name__ == '__main__':
 
     f_true = f(true_param)
     f_init = f(init_param)
-    f_mean = f(gam.listparser(meanPost))
-    f_mode = f(gam.listparser(modePost))
+    f_mean = f(gam.joint_parser(meanPost))
+    f_mode = f(gam.joint_parser(modePost))
 
     import seaborn as sns
     import matplotlib.pyplot as plt

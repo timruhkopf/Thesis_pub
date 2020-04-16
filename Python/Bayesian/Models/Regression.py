@@ -30,18 +30,17 @@ class Regression(HiddenFinal):
         return tfd.Sample(tfd.Independent(
             tfd.Normal(loc=self.dense(X, W), scale=sigma)))
 
-
     @tf.function
     def dense(self, X, W):
         # CAREFULL: due to shapes of W & X in Regression & GAM,
         #  this must overwrite Hidden.dense
         return self.activation(tf.linalg.matvec(X, W))
 
-    def OLS(self, X,y):
+    def OLS(self, X, y):
         XXinv = tf.linalg.inv(tf.linalg.matmul(X, X, transpose_a=True))
         return tf.linalg.matvec(tf.linalg.matmul(XXinv, X, transpose_b=True), y)
 
-    def listparser(self, tensorlist):
+    def joint_parser(self, tensorlist):
         """
         parses a tensorlist based on the self.joint's model parameters
         # CAREFULL a modification of joint (removing sigma prior for instance)
@@ -54,29 +53,29 @@ class Regression(HiddenFinal):
         nameslist = list(self.joint._parameters['model'].keys())
         return {k: v for k, v in zip(nameslist, tensorlist)}
 
+    def likelihood_parser(self, param):
+        """given a dict of parameters
+        :return stripped dict, containing only parameters valid for self.likelihood_model"""
+        likenames = getfullargspec(self.likelihood_model).args[2:]
+        return {k: param[k] for k in likenames}
 
     def _closure_log_prob(self, X, y):
         """A closure, to preset X, y in this model and
         match HMC's expected model format"""
 
-
-
         @tf.function  # NOTICE: seems to be ignored by autograph ( Cause: expected exactly one node node, found [<gast.gast.FunctionDef object at 0x7f59e006d940>, <gast.gast.Return object at 0x7f59e006da90>] )
         def log_prob(*tensorlist):
             """unnormalized log posterior value: log_priors + log_likelihood"""
 
-            param = self.listparser(tensorlist)
+            param = self.joint_parser(tensorlist)
 
             # consider moving like_param argspec to decorator as it is always the same
             # parameter names for likelihood function
-            likenames = getfullargspec(self.likelihood_model).args[2:]
-            like_param = {k: param[k] for k in likenames}
+            like_param = self.likelihood_parser(param)
             likelihood = self.likelihood_model(X, **like_param)
-            print(self.joint.log_prob(**param) + \
-                  tf.reduce_sum(likelihood.log_prob(y)))
 
             return self.joint.log_prob(**param) + \
-                  tf.reduce_sum(likelihood.log_prob(y))
+                   tf.reduce_sum(likelihood.log_prob(y))
 
         return log_prob
 
@@ -99,8 +98,6 @@ if __name__ == '__main__':
     param = {'tau': tf.constant(0.5), 'W': tf.constant([-0.5, 2]), 'sigma': tf.constant(0.25)}
     y = reg.likelihood_model(X, W=param['W'], sigma=param['sigma']).sample()
 
-
-
     # fixme: reshape y !
     # y = tf.reshape(y, (100, 1))
     reg.unnormalized_log_prob = reg._closure_log_prob(X, y)
@@ -115,7 +112,8 @@ if __name__ == '__main__':
 
     param_init = reg.joint.sample().values()
     reg.unnormalized_log_prob = reg._closure_log_prob(X, y)
-    adHMC = AdaptiveHMC(initial=  [tf.constant(0.45), OLS, tf.constant(0.3)], # list(param.values()),  # CAREFULL MUST BE FLOAT!
+    adHMC = AdaptiveHMC(initial=[tf.constant(0.45), OLS, tf.constant(0.3)],
+                        # list(param.values()),  # CAREFULL MUST BE FLOAT!
                         bijectors=[tfb.Exp(), tfb.Identity(), tfb.Exp()],
                         log_prob=reg.unnormalized_log_prob)
 
@@ -124,7 +122,7 @@ if __name__ == '__main__':
         num_results=int(10e2),
         logdir='/home/tim/PycharmProjects/Thesis/TFResults')
 
-    reg.listparser(samples)
+    reg.joint_parser(samples)
 
     # s = [s for s in zip(*samples)]
     # post = tf.stack(list(map(lambda x: reg.unnormalized_log_prob(*x), [s for s in zip(*samples)])), axis=0)
@@ -139,8 +137,8 @@ if __name__ == '__main__':
                 tf.linspace(0., 10., n)], axis=1)
 
     # MAP & mean aposteriori
-    y_mode = reg.dense(Xlin, reg.listparser(adHMC.predict_mode(reg.unnormalized_log_prob))['W'])
-    y_mean = reg.dense(Xlin, reg.listparser(adHMC.predict_mean())['W'])
+    y_mode = reg.dense(Xlin, reg.joint_parser(adHMC.predict_mode(reg.unnormalized_log_prob))['W'])
+    y_mean = reg.dense(Xlin, reg.joint_parser(adHMC.predict_mean())['W'])
     y_true = reg.dense(Xlin, param['W'])
 
     import seaborn as sns
@@ -159,8 +157,6 @@ if __name__ == '__main__':
     sns.lineplot(Xlin[:, 1], tf.reshape(y_mean, (100,)).numpy(), ax=ax)
 
     print('')
-
-
 
     # DEPREC: plotting the traces - problems:
     #  parameters in matrix form!
