@@ -39,7 +39,7 @@ class GAM_RW:
             sample_shape=1)
 
     def _closure_log_prob(self, X, y):
-        def GAM_RW_log_prob(W, sigma, tau):
+        def GAM_RW_log_prob(tau, W, sigma): # precise arg ordering as sample!
             likelihood = self.likelihood_model(X, W, sigma)
             return likelihood.log_prob(y) + \
                    self.rw.log_prob(gamma=W, tau=tau) + \
@@ -56,7 +56,9 @@ if __name__ == '__main__':
     from Python.Bayesian.Samplers.AdaptiveHMC import AdaptiveHMC
     no_basis = 20
     gam_rw = GAM_RW(no_basis=no_basis)
-    s_true = gam_rw.sample()
+
+    # (0) SETTING UP THE DATA
+    true_param = gam_rw.sample()
 
     n = 200
     Z = tf.convert_to_tensor(
@@ -64,9 +66,23 @@ if __name__ == '__main__':
                    degree=2, no_basis=no_basis),
         tf.float32)
 
-    gam_rw.likelihood_model(Z, s_true['W'])
+    likelihood = gam_rw.likelihood_model(Z, true_param['W'], true_param['sigma'])
+    y = likelihood.sample()
 
-    s_init = gam_rw.sample()
+    # (1) SETTING UP THE ESTIMATION
+    init_param = gam_rw.sample()
+    gam_rw.unnormalized_log_prob = gam_rw._closure_log_prob(Z, y)
+
+    adHMC = AdaptiveHMC(
+        initial=list(init_param.values()),  # CAREFULL MUST BE FLOAT!
+        bijectors=[gam_rw.bijectors[k] for k in init_param.keys()],
+        log_prob=gam_rw.unnormalized_log_prob)
+
+    # FIXME: sample_chain has no y
+    samples, traced = adHMC.sample_chain(
+        num_burnin_steps=int(1 * 10e2),
+        num_results=int(10e2),
+        logdir='/home/tim/PycharmProjects/Thesis/TFResults')
 
 
 
