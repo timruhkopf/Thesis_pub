@@ -49,8 +49,8 @@ class RandomWalkPrior:
         is associated with the measurement error ". We can then refer to \lambda
         as the noise-to-signal ratio."""
         ZZ = tf.matmul(Z, Z, transpose_a=True)
-        Zy = tf.linalg.matvec(Z, y, transpose_a=True)
-        return tf.linalg.matvec(tf.linalg.inv(ZZ + lam * self.K), Zy)
+        Zy = tf.linalg.matmul(Z, y, transpose_a=True)
+        return tf.reshape(tf.linalg.matmul(tf.linalg.inv(ZZ + lam * self.K), Zy), (self.K.shape[0],))
 
     def log_prob(self, gamma, tau):
         # In contrast, when having a large variance \tau^2 , neighboring
@@ -91,12 +91,13 @@ if __name__ == '__main__':
                    degree=2, no_basis=no_basis),
         tf.float32)
     param = rw.joint.sample()
-    tau, gamma = param['tau'], param['W']
+    tau, W, W0 = param['tau'], param['W'], param['W0']
+    gamma = tf.concat([tf.reshape(W0, (1,)), W], axis=0)
 
     mu = tf.linalg.matvec(Z, gamma)
     sigma = 1.
     lam = sigma / tau
-    y = tfd.Normal(mu, sigma).sample()
+    y = tfd.Normal(tf.reshape(mu,(Z.shape[0],1)), sigma).sample()
 
     # test the functions
     rw.log_prob(gamma, tau)
