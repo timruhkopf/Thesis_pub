@@ -1,39 +1,46 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
+from Python.Util import setkwargs
+
+
 # traceplot
 # import seaborn as sns
 # import matplotlib.pyplot as plt
+
 
 class Samplers:
     """a metaclass for samplers, to provide basic functionality and a consistent
     interface."""
 
+    # @setkwargs
+    # def __init__(self, kernel, initial, log_prob):
+    #     pass
+
+    # @tf.function
+    def tfgraph_sample_chain(self, *args, **kwargs):
+        """tf.function wrapped sample_chain. This became necessary, as TB
+        was introduced"""
+        return tfp.mcmc.sample_chain(*args, **kwargs)
+
+    @setkwargs
     def sample_chain(self, logdir, num_burnin_steps=int(1e3), num_results=int(10e3)):
-        # @tf.function
-        def tfgraph_sample_chain(*args, **kwargs):
-            """tf.function wrapped sample_chain. This became necessary, as TB
-            was introduced"""
-            return tfp.mcmc.sample_chain(*args, **kwargs)
-
-        self.num_results = num_results
-        self.logdir = logdir
-
+        # TODO continue the chain: https://www.tensorflow.org/probability/api_docs/python/tfp/mcmc/sample_chain
         # TB wrapper for Runtime (trace_fn) TB writing!
         # Tracing graph: https://github.com/tensorflow/tensorboard/issues/1961
         # profiling in TB https://www.tensorflow.org/tensorboard/tensorboard_profiling_keras
         # with tf.python.eager.profiler.Profiler('logdir_path'): # not working as tf.python does not exist
 
-        writer = tf.summary.create_file_writer(self.logdir)
+        writer = tf.summary.create_file_writer(logdir)
         with writer.as_default():
             tf.summary.trace_on(graph=True)
-            chain, traced = tfgraph_sample_chain(
+            chain, traced = self.tfgraph_sample_chain(
                 num_results=num_results,
                 num_burnin_steps=num_burnin_steps,
                 current_state=self.initial,
                 kernel=self.kernel,
                 trace_fn=self._sample_chain_trace_fn  # functools.partial(trace_fn, summary_freq=20)
-            # TODO :previous_kernel_results
+                # TODO :previous_kernel_results
             )
             tf.summary.trace_export(name='graphingit', step=0)
             tf.summary.trace_off()
@@ -45,7 +52,7 @@ class Samplers:
 
         return self.chains, traced
 
-    #@tf.function
+    # @tf.function
     def _sample_chain_trace_fn(self, current_state, kernel_results, summary_freq=100):
         """
         Trace function has a "current" look inside the state of the chain and
@@ -144,27 +151,58 @@ class Samplers:
             map(lambda x: logpost(*x), paramsets)), axis=0)
         return paramsets[tf.argmax(post, axis=0).numpy()]
 
-    # def predict_mean(self):
-    # carefull, model is not defined here!
-    #     meanPost = [tf.reduce_mean(chain, axis=0) for chain in self.chain]
-    #     Ws, bs = bnn.argparser(meanPost)
-    #     y_map = bnn.forward(X, Ws, bs)
-
     def predict_mean(self):
         if isinstance(self.chains, list):
             return [tf.reduce_mean(chain, axis=0) for chain in self.chains]
         else:
             tf.reduce_mean(self.chains, axis=0)
 
-    def predict_posterior(self):
+    def posterior_predictive(self):
         # TODO (2) posterior predictive distribution
         #  (log-prob weighted pred for parameter sets of chain_accepted??)
         # Consider posterior predictive distribution estimation, writing in TF
-        # file:///home/tim/PycharmProjects/Thesis/Literature/Bayesian/(Krueger, Lerch)
-        # Predictive Inference Based on Markov Chain Monte.pdf
+        # (Krueger, Lerch) Predictive Inference Based on Markov Chain Monte.pdf
+
+        # This generic MCMC algorithm allows for two general options for estimating the pos-
+        # terior predictive distribution F 0 in (1), namely,
+        # • Option A: Based on parameter draws (θ_i)^m _{i=1} ,
+        # • Option B: Based on a sample (X_i)^m _{i=1}
+        #  (A) mixture of parameters
+
+        # Overall, our findings support the use of the
+        # mixture-of-parameters estimator at (2) in order to approximate the
+        # posterior predictive distribution of interest. If this estimator is
+        # unavailable, the (B) ECDF estimator at (3) is a simple and appealing alternative.
+
+        # (a) comparative vs (b) absolute assesment:
+        # (a) comparing the out-of-sample predictive performance of multiple
+        # model specifications. the specification with the smallest "SCORE"
+        # - log score or CRPS (continous ranged probability score) is the better
+        # (b) diagnosing misspecification via Probability integral transform
+
         pass
 
-    # def plot_traces(self, samples):
+    def probability_int_inv_transform(self):
+        # CONSIDER probability integral transform historgram
+        # source : (Krueger, Lerch) Predictive Inference Based on Markov Chain Monte.pdf
+        # ABSOLUTE ASSESMENT:
+        # It is possible for an inconsistent approximation to a misspecified
+        # posterior predictive distribution F 0 to yield better forecasts than
+        # a consistent approximation that approaches the misguided F 0 .
+        # However, the misspecification can be detected by diagnostic tools such
+        # as probability integral transform histograms; see Dawid (1984) and
+        # Diebold et al. (1998). The appropriate remedy thus is to improve the
+        # model specification. Once a well-specified model has been found, the
+        # use of a consistent approximation improves the predictive performance
+        # further
+        # WIKIPEDIA In statistics, the probability integral transform or transformation
+        # relates to the result that data values that are modelled as being
+        # random variables from any given continuous distribution can be
+        # converted to random variables having a standard uniform distribution.
+        #  This holds exactly provided that the distribution being used is the true distribution of the random variables;
+        pass
+
+# def plot_traces(self, samples):
     #     """
     #     # EXPERIMENTAL Method. not yet adjusted for chain format from adHMC
     #     original source code from: for single Tensor! e.g. beta nxp:
@@ -305,4 +343,3 @@ class Samplers:
     #     """https://tensorflow.org/probability/api_docs/python/tfp/mcmc/potential_scale_reduction
     #     """
     #     return [tfp.mcmc.diagnostic.potential_scale_reduction(t) for t in tensors]
-

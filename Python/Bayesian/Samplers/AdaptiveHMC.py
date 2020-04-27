@@ -7,7 +7,7 @@ from Python.Util import setkwargs
 class AdaptiveHMC(Samplers):
     @setkwargs
     def __init__(self, initial, bijectors, log_prob,
-                 num_burnin_steps=int(1e3), num_leapfrog_steps=3):
+                 num_adaptation_steps=int(1e3), num_leapfrog_steps=3):
         assert (all([tensor.dtype == tf.float32 for tensor in initial]))
 
         # FIXME: CHECK DOC OF THESE THREE SAMPLER OBJECTS & PAPERS PROVIDED IN DOC
@@ -20,7 +20,7 @@ class AdaptiveHMC(Samplers):
 
         self.kernel = tfp.mcmc.SimpleStepSizeAdaptation(
             inner_kernel=bijected_hmc,
-            num_adaptation_steps=int(num_burnin_steps * 0.8))
+            num_adaptation_steps=num_adaptation_steps)
 
 if __name__ == '__main__':
     from Python.Bayesian.Models.Regression import Regression
@@ -48,7 +48,13 @@ if __name__ == '__main__':
     adHMC = AdaptiveHMC(initial= list(param.values()),  # CAREFULL MUST BE FLOAT!
                         bijectors=[tfb.Exp(), tfb.Identity(), tfb.Exp()],
                         log_prob=reg.unnormalized_log_prob,
-                        num_burnin_steps=int(1e3),
                         num_leapfrog_steps=3)
+
+    samples, traced = adHMC.sample_chain(
+        num_burnin_steps=int(1 * 10e2),
+        num_results=int(10e2),
+        logdir='/home/tim/PycharmProjects/Thesis/TFResults')
+
+
 
     print()
