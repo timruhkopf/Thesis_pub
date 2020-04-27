@@ -23,8 +23,7 @@ class Samplers:
         was introduced"""
         return tfp.mcmc.sample_chain(*args, **kwargs)
 
-    @setkwargs
-    def sample_chain(self, logdir, num_burnin_steps=int(1e3), num_results=int(10e3)):
+    def sample_chain(self, logdir, num_burnin_steps=int(1e3), num_results=int(10e3), *args, **kwargs):
         # TODO continue the chain: https://www.tensorflow.org/probability/api_docs/python/tfp/mcmc/sample_chain
         # TB wrapper for Runtime (trace_fn) TB writing!
         # Tracing graph: https://github.com/tensorflow/tensorboard/issues/1961
@@ -39,8 +38,9 @@ class Samplers:
                 num_burnin_steps=num_burnin_steps,
                 current_state=self.initial,
                 kernel=self.kernel,
-                trace_fn=self._sample_chain_trace_fn  # functools.partial(trace_fn, summary_freq=20)
+                trace_fn=self._sample_chain_trace_fn,  # functools.partial(trace_fn, summary_freq=20)
                 # TODO :previous_kernel_results
+                *args, **kwargs
             )
             tf.summary.trace_export(name='graphingit', step=0)
             tf.summary.trace_off()

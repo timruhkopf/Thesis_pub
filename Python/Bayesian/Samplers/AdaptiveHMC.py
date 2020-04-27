@@ -45,15 +45,16 @@ if __name__ == '__main__':
     # y = tf.reshape(y, (100, 1))
     reg.unnormalized_log_prob = reg._closure_log_prob(X, y)
 
-    adHMC = AdaptiveHMC(initial= list(param.values()),  # CAREFULL MUST BE FLOAT!
+    adHMC = AdaptiveHMC(initial=list(param.values()),  # CAREFULL MUST BE FLOAT!
                         bijectors=[tfb.Exp(), tfb.Identity(), tfb.Exp()],
                         log_prob=reg.unnormalized_log_prob,
                         num_leapfrog_steps=3)
 
     samples, traced = adHMC.sample_chain(
-        num_burnin_steps=int(1 * 10e2),
-        num_results=int(10e2),
-        logdir='/home/tim/PycharmProjects/Thesis/TFResults')
+        num_burnin_steps=int(1 * 10e0),
+        num_results=int(10e1),
+        logdir='/home/tim/PycharmProjects/Thesis/TFResults',
+        parallel_iterations=10)
 
 
 
