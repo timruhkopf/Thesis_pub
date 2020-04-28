@@ -106,7 +106,7 @@ class Samplers:
         # seriously depending on trace_fn
         is_accepted = self.traced.inner_results.is_accepted
 
-        rate_accepted = tf.reduce_mean(tf.cast(is_accepted, tf.float32), axis=0)
+        self.rate_accepted = tf.reduce_mean(tf.cast(is_accepted, tf.float32), axis=0)
 
         # FIXME!!!!! look at shapes of chain - depending on chain of single or multiple
         #  parameter tensors (list of tensors)
@@ -119,11 +119,13 @@ class Samplers:
             chain_accepted = self.chains[tf.reduce_all(is_accepted, axis=1)]
 
         # TODO Posterior Mode
-        # sample_mean = tf.reduce_mean(chain_accepted, axis=0)
-        # sample_stddev = tf.math.reduce_std(chain_accepted, axis=0)
-        # tf.print('sample mean:\t', sample_mean,
-        #          '\nsample std: \t', sample_stddev,
-        #          '\nacceptance rate: ', rate_accepted)
+        sample_mean = [tf.reduce_mean(c_accepted, axis=0)
+                       for c_accepted in chain_accepted]
+        sample_stddev = [tf.math.reduce_std(c_accepted, axis=0)
+                         for c_accepted in chain_accepted]
+        tf.print('sample mean:\t', sample_mean,
+                 '\nsample std: \t', sample_stddev,
+                 '\nacceptance rate: ', self.rate_accepted)
 
         # FIXME: change sub log_dir for multiple runs!
         # writer = tf.summary.create_file_writer(self.logdir)
