@@ -1,5 +1,4 @@
 from Python.Effects.bspline import get_design, diff_mat1D
-# from Python.Bayesian.Models.Regression import Regression
 from Python.Bayesian.RandomWalkPrior import RandomWalkPrior
 
 import tensorflow as tf
@@ -10,7 +9,7 @@ tfb = tfp.bijectors
 
 
 class GAM_RW:
-    def __init__(self, no_basis, no_units=1, activation='identity', *args, **kwargs):
+    def __init__(self, no_basis, activation='identity'):
         """:param input_shape: is number of basis! = dim of gamma"""
         self.rw = RandomWalkPrior(no_basis)
         self.prior_sigma = tfd.InverseGamma(1., 1., name='sigma')
@@ -32,14 +31,13 @@ class GAM_RW:
         return s
 
     def likelihood_model(self, Z, W, sigma):
-        # W = tf.concat([tf.reshape(W0, (1,)), W], axis=0)
+        """W = tf.concat([tf.reshape(W0, (1,)), W], axis=0)"""
         return tfd.Sample(tfd.Normal(
             loc=self.dense(Z, W),  # mu
             scale=sigma, name='y'),
             sample_shape=1)
 
     def _closure_log_prob(self, X, y):
-
         @tf.function
         def GAM_RW_log_prob(tau, W, sigma):  # precise arg ordering as sample!
             likelihood = self.likelihood_model(X, W, sigma)
@@ -53,14 +51,17 @@ class GAM_RW:
     def dense(self, X, W):
         return self.activation(tf.linalg.matvec(X, W))
 
+    @tf.function
     def OLS(self, X, y):
         XXinv = tf.linalg.inv(tf.linalg.matmul(X, X, transpose_a=True))
-        return tf.linalg.matvec(tf.linalg.matmul(XXinv, X, transpose_b=True), y)
-
+        Xy = tf.linalg.matmul(X, y, transpose_a=True)
+        ols = tf.linalg.matmul(XXinv, Xy)
+        return tf.reshape(ols, (ols.shape[0],))
 
 
 if __name__ == '__main__':
     from Python.Bayesian.Samplers.AdaptiveHMC import AdaptiveHMC
+    from Python.Bayesian.plot1d import plot1d_functions
 
     no_basis = 20
     gam_rw = GAM_RW(no_basis=no_basis)
@@ -84,42 +85,19 @@ if __name__ == '__main__':
     print(gam_rw.unnormalized_log_prob(**init_param))
     print(gam_rw.unnormalized_log_prob(**true_param))
 
-    # look at init
+    # look at functions
     f_true = gam_rw.dense(Z, true_param['W'])
     f_init = gam_rw.dense(Z, init_param['W'])
+    f_ols = gam_rw.dense(Z, gam_rw.OLS(Z, y))
+    plot1d_functions(X, y, **{'ols': f_ols, 'true': f_true, 'init': f_init})
 
-    # CAREFULL! the true pls_estimate is not known!!! as we do not know sigma & tau
-    # pls_param = true_param
-    # pls_param['W'] = gam_rw.rw.PLS_estimate(
-    #     Z, y, true_param['sigma'] / true_param['tau'])
-    #
-    # f_pls = gam_rw.dense(Z, pls_param['W'])
 
-    import seaborn as sns
-    import matplotlib.pyplot as plt
-
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    fig.subplots_adjust(hspace=0.5)
-    fig.suptitle('init-, true-, mean function & sampled points')
-
-    sns.lineplot(
-        x=X.numpy(),
-        y=tf.reshape(f_true, (X.shape[0],)).numpy(), ax=ax)
-    sns.lineplot(
-        x=X.numpy(),
-        y=tf.reshape(f_init, (X.shape[0],)).numpy(), ax=ax)
-    sns.scatterplot(
-        x=X.numpy(),
-        y=tf.reshape(y, (X.shape[0],)).numpy(), ax=ax)
-
-    # sns.lineplot(
-    #     x=X.numpy(),
-    #     y=tf.reshape(f_pls, (X.shape[0],)).numpy(), ax=ax)
-
-    plt.plot()
+    # ols_init:
+    ols_param = init_param
+    ols_param['W'] = gam_rw.OLS(Z, y)
 
     adHMC = AdaptiveHMC(
-        initial=list(init_param.values()),
+        initial=list(ols_param.values()) , #list(init_param.values()),
         bijectors=[gam_rw.bijectors[k] for k in init_param.keys()],
         log_prob=gam_rw.unnormalized_log_prob)
 
@@ -136,30 +114,11 @@ if __name__ == '__main__':
     modePost = adHMC.predict_mode(gam_rw.unnormalized_log_prob)
 
     # plotting
-    f_true =  gam_rw.dense(Z, true_param['W'])
+    f_true = gam_rw.dense(Z, true_param['W'])
     f_init = gam_rw.dense(Z, init_param['W'])
     f_mean = gam_rw.dense(Z, meanPost[1])
     f_mode = gam_rw.dense(Z, modePost[1])
 
-    import seaborn as sns
-    import matplotlib.pyplot as plt
-
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    fig.subplots_adjust(hspace=0.5)
-    fig.suptitle('init-, true-, mean function & sampled points')
-
-    sns.lineplot(
-        x=X.numpy(),
-        y=tf.reshape(f_true, (X.shape[0],)).numpy(), ax=ax)
-    sns.lineplot(
-        x=X.numpy(),
-        y=tf.reshape(f_init, (X.shape[0],)).numpy(), ax=ax)
-    sns.scatterplot(
-        x=X.numpy(),
-        y=tf.reshape(y, (X.shape[0],)).numpy(), ax=ax)
-    sns.lineplot(
-        x=X.numpy(),
-        y=tf.reshape(f_mean, (X.shape[0],)).numpy(), ax=ax)
-    sns.lineplot(
-        x=X.numpy(),
-        y=tf.reshape(f_mode, (X.shape[0],)).numpy(), ax=ax)
+    plot1d_functions(X, y, **{
+        'ols': f_ols, 'true': f_true, 'init': f_init,
+        'post. mean': f_mean, 'post. mode': f_mode})
