@@ -91,13 +91,12 @@ if __name__ == '__main__':
     f_ols = gam_rw.dense(Z, gam_rw.OLS(Z, y))
     plot1d_functions(X, y, **{'ols': f_ols, 'true': f_true, 'init': f_init})
 
-
     # ols_init:
     ols_param = init_param
     ols_param['W'] = gam_rw.OLS(Z, y)
 
     adHMC = AdaptiveHMC(
-        initial=list(ols_param.values()) , #list(init_param.values()),
+        initial=list(ols_param.values()),  # list(init_param.values()),
         bijectors=[gam_rw.bijectors[k] for k in init_param.keys()],
         log_prob=gam_rw.unnormalized_log_prob)
 
@@ -107,7 +106,7 @@ if __name__ == '__main__':
         num_results=int(10e2),
         logdir='/home/tim/PycharmProjects/Thesis/TFResults')
 
-    acceptance = tf.reduce_mean(tf.cast(traced.inner_results.is_accepted, tf.float32), axis=0)
+    print(adHMC.rate_accepted)
 
     # prediction
     meanPost = adHMC.predict_mean()
@@ -122,3 +121,38 @@ if __name__ == '__main__':
     plot1d_functions(X, y, **{
         'ols': f_ols, 'true': f_true, 'init': f_init,
         'post. mean': f_mean, 'post. mode': f_mode})
+
+    # SAMPLED FUNCTIONS:
+    from random import sample
+
+    # TODO FILTER FOR ACCEPTED ONLY!!
+    paramsets = [s for s in zip(*samples)]
+    plot1d_functions(
+        X, y, true=f_true,
+        **{str(i): gam_rw.dense(Z, W) for i, (tau, W, sigma) in enumerate(
+            sample(paramsets, k=20))})
+
+    # empirical posterior predictive:
+    # get conditional cdfs (cond. on x --> Z i.e. at x's position)
+    paramsets = [s for s in zip(*samples)]
+    predictive = [gam_rw.likelihood_model(Z, W, sigma)
+                  for tau, W, sigma in sample(paramsets, k=102)]
+
+    predictive_sample = tf.concat([likelihood.sample(100) for likelihood in predictive], axis=2)
+    # (no. obs, no.chains, no.likelihoodsamples)
+    # not yet implemented method:
+    # empiricals = tfp.distributions.Empirical(predictive_sample).quantile(0.5)
+    quantiles = tfp.stats.quantiles(predictive_sample, num_quantiles=10, axis=0)
+    ten, ninety = tf.reduce_mean(quantiles[1], axis=1), tf.reduce_mean(quantiles[9], axis=1)
+
+    sortorder = tf.argsort(X).numpy()
+    plot1d_functions(
+    X, y, true = f_true, confidence = {
+        'x': X.numpy()[sortorder],
+        'y1': ten.numpy()[sortorder],
+        'y2': ninety.numpy()[sortorder]})
+
+    #
+    # x = [0.,  1.,   2.,   3.,   4.,   5.,   6.,   7.,   8.,   9.,  10.]
+    #
+    # tfp.stats.quantiles(x, num_quantiles=10, interpolation='nearest')
