@@ -52,25 +52,20 @@ def plot1d_functions(X, y, confidence=None, **kwargs):
 
     # convert to seaborn format
     df = pd.DataFrame({'X': tf.reshape(X, (X.shape[0],)).numpy()})
-
     for name, var in kwargs.items():
         df[name] = tf.reshape(var, (var.shape[0],)).numpy()
-
     df = df.melt('X', value_name='vals')
     df = df.rename(columns={'variable': 'functions'})
 
+    # plot the functions
     fig, ax = plt.subplots(nrows=1, ncols=1)
     fig.subplots_adjust(hspace=0.5)
-
     sns.scatterplot(
-        x=X.numpy(),
+        x=tf.reshape(X, (X.shape[0],)).numpy(),
         y=tf.reshape(y, (y.shape[0],)).numpy(), ax=ax)
-
-    sns.lineplot('X', y='vals', hue='functions', data=df, ax=ax)
-
-    if confidence is not None:
+    sns.lineplot('X', y='vals', hue='functions', alpha = 0.5, data=df, ax=ax)
+    if confidence is not None:  # plot (optional) confidence bands
         ax.fill_between(**confidence, alpha =0.4, facecolor='lightblue')
-
     fig.suptitle('Functions of the data')
     plt.plot()
 
