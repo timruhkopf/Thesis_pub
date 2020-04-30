@@ -7,14 +7,13 @@ from numpy import pi
 
 pi = tf.constant(pi)
 tfd = tfp.distributions
+tfb = tfp.bijectors
 
 
 class RandomWalkPrior:
-    """A RandomWalkPrior of degree one"""
-
     def __init__(self, no_basis):
+        """A RandomWalkPrior of degree one"""
         self.K = tf.convert_to_tensor(diff_mat1D(no_basis, order=1)[1], tf.float32)
-
         self.order = tf.cast(tf.linalg.matrix_rank(self.K), tf.float32)
 
         # for drawing only:
@@ -24,6 +23,7 @@ class RandomWalkPrior:
 
         # \gamma_0: use Uniform in relevant area
         # \gamma_{d-1} vector: multivariate normal with K[1:,1:]
+        # TODO sample conditionally on Uniform W0 draw!
         self.joint = tfd.JointDistributionNamed(OrderedDict(
             # Spline model
             tau=tfd.InverseGamma(1., 1., name='tau'),
@@ -34,7 +34,43 @@ class RandomWalkPrior:
                 name='w')
         ))
 
-    # TODO sample conditionally on Uniform W0 draw!
+        # Notice: the variable name W0 is hidden from public, to get a unique
+        # interface for dense.
+        self.parameters = list(self.joint._parameters['model'].keys())
+        self.parameters.remove('W0')
+        self.bijectors = {
+            'tau': tfb.Exp(),
+            'W': tfb.Identity()}
+
+    def sample(self, *args, **kwargs):
+        """sample from priors"""
+        s = self.joint.sample(*args, **kwargs)
+        W = tf.concat([tf.reshape(s['W0'], (1,)), s['W']], axis=0)
+        del s['W0']
+        s['W'] = W
+        return s
+
+    def prior_log_prob(self, param):
+        # In contrast, when having a large variance \tau^2 , neighboring
+        # coefficients are able to deviate from each other, which in turn leads
+        # to a rough estimated function.
+        # The proportionality sign (this is only proportional log prob
+        # results from the flat prior for the first regression coefficient
+        # \gamma_1 , which we did not specify exactly but only up to a
+        # proportionality constant
+        # flat prior corresponds to a constant vector representing the
+        # level of function f . With the partially
+        # improper prior, we define a flat prior for this level.
+        # Although the joint prior distribution is partially improper,
+        # we obtain a proper multivariate normal posterior distribution for \gamma.
+        # parse input
+        W, tau = param['W'], param['tau']
+
+        constant = tf.math.log(2 * pi * tau) * self.order / 2
+        Kw = tf.linalg.matvec(self.K, W)
+        wKw = tf.reduce_sum(tf.multiply(W, Kw))
+        kernel = (2 * tau) ** -1 * wKw
+        return -constant - kernel
 
     def PLS_estimate(self, Z, y, lam):
         """estiamte the gamma hat under PLS
@@ -52,33 +88,6 @@ class RandomWalkPrior:
         Zy = tf.linalg.matmul(Z, y, transpose_a=True)
         return tf.reshape(tf.linalg.matmul(tf.linalg.inv(ZZ + lam * self.K), Zy), (self.K.shape[0],))
 
-    def log_prob(self, gamma, tau):
-        # In contrast, when having a large variance \tau^2 , neighboring
-        # coefficients are able to deviate from each other, which in turn leads
-        # to a rough estimated function.
-        # The proportionality sign (this is only proportional log prob
-        # results from the flat prior for the first regression coefficient
-        # \gamma_1 , which we did not specify exactly but only up to a
-        # proportionality constant
-        # flat prior corresponds to a constant vector representing the
-        # level of function f . With the partially
-        # improper prior, we define a flat prior for this level.
-        # Although the joint prior distribution is partially improper,
-        # we obtain a proper multivariate normal posterior distribution for \gamma.
-
-        constant = tf.math.log(2 * pi * tau) * self.order / 2
-        Kg = tf.linalg.matvec(self.K, gamma)
-        gKg = tf.reduce_sum(tf.multiply(gamma, Kg))
-        kernel = (2 * tau) ** -1 * gKg
-        return -constant - kernel
-
-    def sample(self, *args, **kwargs):
-        s = self.joint.sample(*args, **kwargs)
-        W = tf.concat([tf.reshape(s['W0'], (1,)), s['W']], axis=0)
-        del s['W0']
-        s['W'] = W
-        return s
-
 
 if __name__ == '__main__':
     # Setting it up
@@ -90,6 +99,8 @@ if __name__ == '__main__':
         get_design(tfd.Uniform(-10., 10.).sample(n).numpy(),
                    degree=2, no_basis=no_basis),
         tf.float32)
+
+    # deprec: joint shall no longer be addressed immediately!
     param = rw.joint.sample()
     tau, W, W0 = param['tau'], param['W'], param['W0']
     gamma = tf.concat([tf.reshape(W0, (1,)), W], axis=0)
@@ -97,12 +108,12 @@ if __name__ == '__main__':
     mu = tf.linalg.matvec(Z, gamma)
     sigma = 1.
     lam = sigma / tau
-    y = tfd.Normal(tf.reshape(mu,(Z.shape[0],1)), sigma).sample()
+    y = tfd.Normal(tf.reshape(mu, (Z.shape[0], 1)), sigma).sample()
 
     # test the functions
-    rw.log_prob(gamma, tau)
     pls = rw.PLS_estimate(Z, y, lam)
 
     print(gamma - pls)
 
-    rw.sample()
+    s = rw.sample()
+    rw.prior_log_prob(s)
