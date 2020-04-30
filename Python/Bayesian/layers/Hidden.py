@@ -18,7 +18,7 @@ class Hidden:
             'sigmoid': tf.math.sigmoid,
             'identity': identity}[activation]
 
-        tau = tf.constant([5.])
+        tau = tf.constant([1.])
         self.joint = tfd.JointDistributionNamed(OrderedDict(
             # tau=tfd.InverseGamma(1., 1.),
 

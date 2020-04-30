@@ -5,7 +5,8 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 tfb = tfp.bijectors
 
-from Python.Bayesian.layers.Hidden import Hidden, HiddenFinal
+from Python.Bayesian.layers.Hidden import Hidden
+from Python.Bayesian.layers.HiddenFinal import HiddenFinal
 
 
 class BNN:
@@ -65,7 +66,7 @@ class BNN:
         # FIXME: move sigma prior to prior distribution and make this tfd.Sample
         #  not tfd.JointDist...
         return tfd.JointDistributionNamed(dict(
-            sigma=tfd.InverseGamma(0.1, 0.1),
+            sigma=tfd.InverseGamma(1., 1.),
             y=lambda sigma: tfd.Sample(tfd.Independent(
                 tfd.Normal(loc=self.forward(X, param), scale=sigma)))
         ))
@@ -143,11 +144,10 @@ if __name__ == '__main__':
     bnn2d.likelihood_model(tf.constant([[1., 2.], [3., 4.]]), param=param2d).sample()
 
     # (1) (sampling 1d data from prior & fit) --------------------
-    import seaborn as sns
-    import matplotlib.pyplot as plt
+    from Python.Bayesian.plot1d import plot1d_functions
     from Python.Bayesian.Samplers.AdaptiveHMC import AdaptiveHMC
 
-    bnn = BNN(hunits=[1, 10, 1], activation='sigmoid')
+    bnn = BNN(hunits=[1, 50, 10, 1], activation='sigmoid')
 
     # inialize true function from prior
     n = 2000
@@ -167,6 +167,7 @@ if __name__ == '__main__':
 
     y_init = bnn.forward(X, param_init)
 
+    plot1d_functions(X, y_true, **{'init': y_init, 'true': mu_true})
     # Fitting with HMC
     adHMC = AdaptiveHMC(
         initial=flattened,  # CAREFULL MUST BE FLOAT!
@@ -183,19 +184,11 @@ if __name__ == '__main__':
     param = bnn.listparser(meanPost)
     y_map = bnn.forward(X, param)
 
-    # Plot init, true, mean & sampled
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    fig.subplots_adjust(hspace=0.5)
-    fig.suptitle('init-, true-, mean function & sampled points')
-
-    sns.lineplot(x=tf.reshape(X, (n,)).numpy(),
-                 y=tf.reshape(mu_true, (n,)).numpy(), ax=ax)
-    # ax.set(title='log_prob' + str(bnn.unnormalized_log_prob(flattened).numpy()))
-
-    sns.lineplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_init, (n,)).numpy(), ax=ax)
-    sns.lineplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_map, (n,)).numpy(), ax=ax)
-    # ax.set(title='log_prob' + str(bnn.unnormalized_log_prob(meanPost).numpy()))
-
-    sns.scatterplot(x=tf.reshape(X, (n,)).numpy(), y=tf.reshape(y_true, (n,)).numpy(), ax=ax)
+    modePost = adHMC.predict_mode(bnn.unnormalized_log_prob)
+    param = bnn.listparser(modePost)
+    y_mode = bnn.forward(X, param)
+    plot1d_functions(X, y_true, **{
+        'init': y_init, 'true': mu_true,
+        'posterior mean': y_map, 'posterior mode': y_mode})
 
 print('')
