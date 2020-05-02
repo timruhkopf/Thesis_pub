@@ -140,7 +140,9 @@ if __name__ == '__main__':
     # EMPIRICAL CONDITIONAL PREDICTIVE POSTERIOR:
     # CAREFULL this is not a joint distribution,
     # get conditional cdfs (cond. on x --> Z i.e. at x's position)
-    paramsets = [s for s in zip(*samples)]
+    # paramsets = [s for s in zip(*samples)]
+    paramsets = [s for s, accepted in zip(
+        zip(*samples), traced.inner_results.is_accepted.numpy()) if accepted]
     # predictive = [gam_rw.likelihood_model(Z, param={'W': W, 'sigma': sigma})  # FIXME: NASTY
     #               for tau, W, sigma in sample(paramsets, k=2)]
 
