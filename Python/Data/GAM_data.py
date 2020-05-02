@@ -70,7 +70,6 @@ if __name__ == '__main__':
 
     import functools
     import seaborn as sns
-    import matplotlib.pyplot as plt
 
     unnormalized_posterior_log_prob = functools.partial(
         gam.joint_log_prob,
