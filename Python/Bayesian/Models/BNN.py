@@ -1,4 +1,5 @@
-from itertools import accumulate, chain
+from itertools import chain
+from collections import OrderedDict
 import tensorflow as tf
 import tensorflow_probability as tfp
 
@@ -37,16 +38,25 @@ class BNN:
                                        no_units=self.hunits[-1],
                                        activation='identity'))
 
-    # with @tf.function, forward does not work
-    def prior_draw(self):
-        """init the layer's parameters."""
-        # dist = [h.joint for h in self.layers]
-        return [h.joint.sample() for h in self.layers]
+        # to meet sample_chain's flat tensorlist format. (Layers)
+        self.layer_index = list(chain(*[[i] * len(h.parameters)
+                                        for i, h in enumerate(self.layers)]))
+        self.parameters_list = list(chain(*[list(h.parameters) for h in self.layers]))
+        self.bijectors = list(chain(*[h.bijectors_list for h in self.layers]))
+        # self.parameters = [h.parameters for h in self.layers]
+
+        # to meet sample_chain's flat tensorlist format. (Likelihood)
+        self.parameters_list.append('sigma')
+        self.bijectors.append(tfb.Exp())
+
+    def _layer_sample(self):
+        # draw each layers prior!
+        return [h.sample() for h in self.layers]
 
     @tf.function
-    def prior_log_prob(self, param):
-        return sum([tf.reduce_sum(h.joint.log_prob(**p))
-                    for h, p in zip(self.layers, param)])
+    def _layer_log_prob(self, tensorlist):
+        return sum([tf.reduce_sum(h.prior_log_prob(p))
+                    for h, p in zip(self.layers, tensorlist)])
 
     @tf.function
     def forward(self, X, param):
@@ -61,134 +71,139 @@ class BNN:
             X = h.dense(X, **p)
         return X
 
-    # CAREFULL: cannot be @tf.function as is tfd.Dist not tf.Tensor!
     def likelihood_model(self, X, param):
-        # FIXME: move sigma prior to prior distribution and make this tfd.Sample
-        #  not tfd.JointDist...
-        return tfd.JointDistributionNamed(dict(
-            sigma=tfd.InverseGamma(1., 1.),
-            y=lambda sigma: tfd.Sample(tfd.Independent(
+        return tfd.JointDistributionNamed(OrderedDict(
+            sigma=tfd.Gamma(0.5, 0.5),
+            y=lambda sigma: tfd.Sample(
                 tfd.Normal(loc=self.forward(X, param), scale=sigma)))
-        ))
+        )
 
     def _closure_log_prob(self, X, y):
         """A closure, to preset X, y in this model and
         match HMC's expected model format"""
 
-        @tf.function  # NOTICE: seems to be ignored by autograph ( Cause: expected exactly one node node, found [<gast.gast.FunctionDef object at 0x7f59e006d940>, <gast.gast.Return object at 0x7f59e006da90>] )
+        # @tf.function  # NOTICE: seems to be ignored by autograph ( Cause: expected exactly one node node, found [<gast.gast.FunctionDef object at 0x7f59e006d940>, <gast.gast.Return object at 0x7f59e006da90>] )
         def BNN_log_prob(*tensorlist):
-            """unnormalized log posterior value: log_priors + log_likelihood"""
+            paramdicts = self.parse_tensorlist(tensorlist)
 
-            param = self.listparser(tensorlist[:-1])
-            likelihood = self.likelihood_model(X, param)
-            val = self.prior_log_prob(param) + \
-                  tf.reduce_sum(likelihood.log_prob(sigma=tensorlist[-1], y=y))
-            # print('logposterior: {}'.format(val))
-            return val
+            likelihood = self.likelihood_model(X, paramdicts)
+            return self._layer_log_prob(param) + \
+                   tf.reduce_sum(likelihood.log_prob(y=y, sigma=tensorlist[-1]))
 
         return BNN_log_prob
 
-    def listparser(self, tensorlist):
-        """
-        method to return from sample_chain()'s expected format: list of tensors
-        to hierarchical version, where each layer holds its own set of parameters
+    def flat_initialize(self):
+        self.layer_init = self._layer_sample()
+        paramlist = list(chain(*[list(hparam.values()) for hparam in self.layer_init]))
+        paramlist.append(self.likelihood_model(X, self.layer_init).sample()['sigma'])
+        return paramlist
 
-        :return: list of dicts, each containing the parameters of the
-        corresponding layer.
-        """
-        dist = [h.joint for h in self.layers]
-        # nameslist = list(chain(*[d._parameters['model'].keys() for d in dist]))
-        nameslist = list([list(d._parameters['model'].keys()) for d in dist])
-
-        c = [len(b) for b in nameslist]
-        c = list(accumulate(c))
-        c.insert(0, 0)
-
-        return [{k: v for k, v in zip(names, tensorlist[i:j + 1])}
-                for i, j, names in zip(c[:-1], c[1:], nameslist)]
-
-    def flatten(self, param):
-        """:param param: list of dicts of tensors corresponding to each layer
-        :return: tuple: (list of tensors, corresponding names)"""
-        flat = list(chain(*[list(d.values()) for d in param]))
-        nameslist = list(chain(*[list(h.joint._parameters['model'].keys()) for h in self.layers]))
-
-        return flat, nameslist
-
-    def initialize_full_flat(self, X):
-        """initialize a flat list of tensors from the hierachical prior model
-        for HMC estimation. Additionally generate the flat list of names
-        corresponding to the flat list of tensors. (usable for bijectors)"""
-        # Notice: prior_draw does not include likelihood's sigma prior!
-        param_init = self.prior_draw()
-        flattened, nameslist = self.flatten(param_init)
-
-        # Notice: likelihood sample is dict with y and sigma!
-        like = bnn.likelihood_model(X, param_init).sample()
-        flattened.append(like['sigma'])
-        nameslist.append('sigma')
-
-        print('Prior parameter initialization: {}, sigma: {}'.format(param_init, like['sigma']))
-
-        init_param = param_init
-        init_param.append(like['sigma'])
-
-        return flattened, nameslist, init_param
+    def parse_tensorlist(self, tensorlist):
+        paramdicts = [dict() for i in range(len(self.layers))]
+        for i, (l, name) in enumerate(zip(self.layer_index, self.parameters_list)):
+            paramdicts[l][name] = tensorlist[i]
+        return paramdicts
 
 
 if __name__ == '__main__':
-    # (0) check 2d input -----------------------------------------
-    bnn2d = BNN(hunits=[2, 10, 9, 8, 1])
-    param2d = bnn2d.prior_draw()
-    bnn2d.forward(X=tf.constant([[1., 2.], [3., 4.]]), param=param2d)
-    bnn2d.likelihood_model(tf.constant([[1., 2.], [3., 4.]]), param=param2d).sample()
-
-    # (1) (sampling 1d data from prior & fit) --------------------
     from Python.Bayesian.plot1d import plot1d_functions
     from Python.Bayesian.Samplers.AdaptiveHMC import AdaptiveHMC
 
-    bnn = BNN(hunits=[1, 50, 10, 1], activation='sigmoid')
+    # (0) 1D Example
+    bnn = BNN(hunits=[1, 5, 10, 1], activation='relu')
+    n = 200
+    # X = tf.reshape(tf.linspace(-10., 10., n), (n, 1))
+    X = tfd.Uniform(-10., 10.).sample((n, 1))
 
-    # inialize true function from prior
-    n = 2000
-    X = tf.reshape(tf.linspace(-10., 10., n), (n, 1))
-    param_true = bnn.prior_draw()
-    mu_true = bnn.forward(X=X, param=param_true)
-    true = bnn.likelihood_model(X, param=param_true).sample()
-    y_true = true['y']
-    print(true['sigma'])  # CAREFULL check that sigma is low value!
+    # check sampling layers & forward work
+    param = bnn._layer_sample()
+    bnn.forward(X, param)
 
-    # setting up parameters for estimation
-    flattened, nameslist, param_init = bnn.initialize_full_flat(X)
-    bijectors = {'tau': tfb.Exp(), 'W': tfb.Identity(), 'b': tfb.Identity(),
-                 'sigma': tfb.Exp()}
-    bnn.unnormalized_log_prob = bnn._closure_log_prob(X=X, y=y_true)
-    print('init_param has log_prob: {}'.format(bnn.unnormalized_log_prob(*flattened)))
+    # check likelihood works
+    likelihood = bnn.likelihood_model(X, param)
+    likelihood_true = likelihood.sample()
+    y, sigma = likelihood_true['y'], likelihood_true['sigma']
 
-    y_init = bnn.forward(X, param_init)
+    # check flat_initialize & BNN_log_prob work
+    tensorlist = bnn.flat_initialize()
+    bnn.unnormalized_log_prob = bnn._closure_log_prob(X, y)
+    bnn.unnormalized_log_prob(*tensorlist)
 
-    plot1d_functions(X, y_true, **{'init': y_init, 'true': mu_true})
-    # Fitting with HMC
+    # check parser:
+    print(bnn.layer_init == bnn.parse_tensorlist(tensorlist))
+
+    # plot the funcitions
+    true = bnn.forward(X, param)
+    init = bnn.forward(X, bnn.layer_init)
+
+    plot1d_functions(X, y, **{'true': true, 'init': init})
+
+    # TODO: FIND A REASONABLE INIT FOR SIGMA! e.g. by local mean & local variance
+    #   for a local subsample of the data. (assuming homoscedasticity)
+    # sampling
     adHMC = AdaptiveHMC(
-        initial=flattened,  # CAREFULL MUST BE FLOAT!
-        bijectors=[bijectors[name] for name in nameslist],
+        initial=tensorlist,
+        bijectors=bnn.bijectors,
         log_prob=bnn.unnormalized_log_prob)
 
     samples, traced = adHMC.sample_chain(
         num_burnin_steps=int(10e2),
-        num_results=int(10e3),
+        num_results=int(5*10e1),
         logdir='/home/tim/PycharmProjects/Thesis/TFResults')
 
     # mean prediction
     meanPost = adHMC.predict_mean()
-    param = bnn.listparser(meanPost)
+    param = bnn.parse_tensorlist(meanPost)
     y_map = bnn.forward(X, param)
 
     modePost = adHMC.predict_mode(bnn.unnormalized_log_prob)
-    param = bnn.listparser(modePost)
+    param = bnn.parse_tensorlist(modePost)
     y_mode = bnn.forward(X, param)
-    plot1d_functions(X, y_true, **{
-        'init': y_init, 'true': mu_true,
+
+    plot1d_functions(X, y, **{
+        'true': true, 'init': init,
         'posterior mean': y_map, 'posterior mode': y_mode})
 
-print('')
+    # plot multiple function realizations
+    from random import sample
+
+
+    # TODO FILTER FOR ACCEPTED ONLY!!
+    paramsets = [s for s, accepted in zip(
+        zip(*samples), traced.inner_results.is_accepted.numpy()) if accepted]
+    plot1d_functions(
+        X, y, true=true,
+        **{str(i): bnn.forward(X, bnn.parse_tensorlist(param)) for i, param in enumerate(
+            sample(paramsets, k=20))})  # [-1] is sigma chain!
+
+    # plot confidence intervals
+    # paramsets = [s for s in zip(*samples)]
+    predictive = [
+        tfd.Normal(loc=bnn.forward(X, bnn.parse_tensorlist(paramlist[:-1])),
+                   scale=paramlist[-1])
+        for i, paramlist in enumerate(sample(paramsets, k=60))]
+
+    predictive_sample = tf.stack([likelihood.sample(100) for likelihood in predictive], axis=-1)
+    quantiles = tfp.stats.quantiles(predictive_sample, num_quantiles=10, axis=0)
+    ten, ninety = tf.reduce_mean(quantiles[1], axis=1), tf.reduce_mean(quantiles[9], axis=1)
+
+    # CAREFULL: next step is not necessary with GAM_RW!!!
+    ten, ninety = tf.reduce_mean(ten, axis = 1), tf.reduce_mean(ninety, axis=1)
+
+    D = tf.reshape(X, (X.shape[0],)).numpy()
+    ynumpy = tf.reshape(y, (y.shape[0],)).numpy()
+    sortorder = tf.argsort(D).numpy()
+    plot1d_functions(
+        D, y, true=true, confidence={
+            'x': D[sortorder],
+            'y1': ten.numpy()[sortorder],
+            'y2': ninety.numpy()[sortorder]})
+
+    # (1) check 2d input -----------------------------------------
+    bnn2d = BNN(hunits=[2, 10, 9, 8, 1])
+    X = tf.constant([[1., 2.], [3., 4.]])
+    param2d = bnn2d._layer_sample()
+    bnn2d.forward(X=X, param=param2d)
+    bnn2d.likelihood_model(X, param=param2d).sample()
+
+print()

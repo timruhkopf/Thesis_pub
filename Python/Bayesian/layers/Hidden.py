@@ -4,6 +4,7 @@ import tensorflow_probability as tfp
 from Python.Util import setkwargs
 
 tfd = tfp.distributions
+tfb = tfp.bijectors
 
 
 class Hidden:
@@ -32,33 +33,27 @@ class Hidden:
             b=tfd.Normal(loc=tf.repeat(0., no_units), scale=1.)
         ))
 
+        self.parameters = self.joint._parameters['model'].keys()
+        self.bijectors = {'W': tfb.Identity(), 'b': tfb.Identity()}
+        self.bijectors_list = [self.bijectors[k] for k in self.parameters]
+
     @tf.function
     def dense(self, X, W, b):
         return self.activation(tf.linalg.matvec(W, X) + b)
 
-
-class HiddenFinal(Hidden):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        tau = tf.constant([5.])
-        self.joint = tfd.JointDistributionNamed(dict(
-            # tau=tfd.InverseGamma(1., 1.),
-
-            W=tfd.Sample(  # lambda tau:
-                distribution=tfd.Normal(0., tau),
-                sample_shape=(self.no_units, self.input_shape)),
-        ))
-
-    # FIXME: refactor to HIDDEN STYLE!
     @tf.function
-    def dense(self, X, W):
-        return self.activation(tf.linalg.matvec(W, X))
+    def sample(self):
+        """wrapper for unified format"""
+        return self.joint.sample()
+
+    @tf.function
+    def prior_log_prob(self, param):
+        """prior_log_prob wrapper for unified format"""
+        return tf.reduce_sum(self.joint.log_prob(**param))
 
 
 if __name__ == '__main__':
     h = Hidden(input_shape=2, no_units=3, activation='relu')
-
 
     # check dense functon
     h.dense(X=tf.constant([1., 2.]),
@@ -66,8 +61,8 @@ if __name__ == '__main__':
             b=tf.constant([0.5, 1., 1.]))
 
     # check init from prior & dense
-    h.init = h.joint.sample()
-    h.joint.log_prob(**h.init)
+    h.init = h.sample()
+    h.prior_log_prob(h.init)
     h.dense(X=tf.constant([1., 2.]),
             W=h.init['W'],
             b=h.init['b'])
