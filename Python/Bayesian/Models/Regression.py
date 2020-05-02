@@ -9,7 +9,11 @@ from Python.Bayesian.layers.Hidden import HiddenFinal
 
 
 class Regression(HiddenFinal):
-
+    # shrinkage prior literatur: posterior of a normal regression:
+    # CAREFULL:
+    #  lambda & sigma are part of the prior p(β |σ^2 , λ) to ensure unmodality!
+    #  p(β_0 , β , σ^2 , λ|y , X) ∝ p(y |X, β_0 , β , σ^2 )p(β_0 )p(β |σ^2 , λ)p(σ 2 )p(λ).
+    #  they use λ, i.e., λ ∼ half-Cauchy(0, 1) in the entire paper for fully bayes
     def __init__(self, *args, **kwargs):
         # self.joint holds the prior model (except for sigma)
         super().__init__(*args, **kwargs)
