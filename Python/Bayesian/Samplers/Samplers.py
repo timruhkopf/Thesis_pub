@@ -148,6 +148,7 @@ class Samplers:
         :param logpost: the models log posterior function
         :return tuple: parameter set of max logposterior."""
         # TODO (1) point prediction (posterior Mode? max log-prob param-set)
+        # TODO (2) logpost is actually self.log_prob! refactor!
         paramsets = [s for s in zip(*self.chains)]
         post = tf.stack(list(
             map(lambda x: logpost(*x), paramsets)), axis=0)
@@ -185,7 +186,7 @@ class Samplers:
         pass
 
     def probability_int_inv_transform(self):
-        # CONSIDER probability integral transform historgram
+        # CONSIDER probability integral transf,θ,γorm historgram
         # source : (Krueger, Lerch) Predictive Inference Based on Markov Chain Monte.pdf
         # ABSOLUTE ASSESMENT:
         # It is possible for an inconsistent approximation to a misspecified
