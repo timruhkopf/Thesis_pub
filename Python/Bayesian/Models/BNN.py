@@ -3,6 +3,9 @@ from collections import OrderedDict
 import tensorflow as tf
 import tensorflow_probability as tfp
 
+from inspect import getfullargspec
+from itertools import chain
+
 tfd = tfp.distributions
 tfb = tfp.bijectors
 
@@ -38,27 +41,37 @@ class BNN:
                                        no_units=self.hunits[-1],
                                        activation='identity'))
 
-        # to meet sample_chain's flat tensorlist format. (Layers)
-        self.layer_index = list(chain(*[[i] * len(h.parameters)
-                                        for i, h in enumerate(self.layers)]))
-        self.parameters_list = list(chain(*[list(h.parameters) for h in self.layers]))
-        self.bijectors = list(chain(*[h.bijectors_list for h in self.layers]))
-        # self.parameters = [h.parameters for h in self.layers]
+    # SINCE BNN is a composition of layers, keeping track of layer based attributes
+    # may become tedious
+    @property
+    def parameters(self):
+        l = list(chain(*[list(h.parameters) for h in self.layers]))  # prior:
+        l.append('sigma')  # likelihood:
+        return l
 
-        # to meet sample_chain's flat tensorlist format. (Likelihood)
-        self.parameters_list.append('sigma')
-        self.bijectors.append(tfb.Exp())
+    @property
+    def layer_index(self):
+        # to meet sample_chain's flat tensorlist format. (Layers)
+        return list(chain(*[[i] * len(h.parameters)
+                            for i, h in enumerate(self.layers)]))
+
+    @property
+    def bijectors(self):
+        # to meet sample_chain's flat tensorlist format. (Likelihood's sigma)
+        bij = list(chain(*[h.bijectors for h in self.layers]))
+        bij.append(tfb.Exp())
+        return bij
 
     def _layer_sample(self):
         # draw each layers prior!
         return [h.sample() for h in self.layers]
 
-    @tf.function
-    def _layer_log_prob(self, tensorlist):
+    # @tf.function
+    def _layer_log_prob(self, paramdicts):
         return sum([tf.reduce_sum(h.prior_log_prob(p))
-                    for h, p in zip(self.layers, tensorlist)])
+                    for h, p in zip(self.layers, paramdicts)])
 
-    @tf.function
+    # @tf.function
     def forward(self, X, param):
         """
         BNN forward path. f(X)
@@ -87,22 +100,45 @@ class BNN:
             paramdicts = self.parse_tensorlist(tensorlist)
 
             likelihood = self.likelihood_model(X, paramdicts)
-            return self._layer_log_prob(param) + \
+            return self._layer_log_prob(paramdicts) + \
                    tf.reduce_sum(likelihood.log_prob(y=y, sigma=tensorlist[-1]))
 
         return BNN_log_prob
 
-    def flat_initialize(self):
-        self.layer_init = self._layer_sample()
-        paramlist = list(chain(*[list(hparam.values()) for hparam in self.layer_init]))
-        paramlist.append(self.likelihood_model(X, self.layer_init).sample()['sigma'])
-        return paramlist
-
     def parse_tensorlist(self, tensorlist):
         paramdicts = [dict() for i in range(len(self.layers))]
-        for i, (l, name) in enumerate(zip(self.layer_index, self.parameters_list)):
+        for i, (l, name) in enumerate(zip(self.layer_index, self.parameters)):
             paramdicts[l][name] = tensorlist[i]
         return paramdicts
+
+    def flat_initialize(self, X):
+        self.layer_init = self._layer_sample()
+
+        # Carefull getfullargspec does not work with @tf.function decorator (on dense!)
+        # Carefull self.likelihood calls self.forward which calls self.dense of each layer with the
+        #  param dictionary of each layer -- however, not all parameters are used in dense
+        #  e.g. hyperparameters --> this causes to fail dense operation! --NEED TO FILTER ARGUMENTS!
+
+        paramlist = list(chain(*[list(hparam.values()) for hparam in self.layer_init]))
+        paramlist.append(
+            self.likelihood_model(
+                # assuming that only W, b are only part in dense
+                X, param=[{k: v for k, v in hparam.items() if k in ['W', 'b']}
+                          for hparam in self.layer_init]
+            ).sample()['sigma'])
+        return paramlist
+
+    @staticmethod
+    def init_likelihood_sigma(X, y, cube=1.):
+        """assuming homoscedasticity, find a Reasonable init for the data's
+        stddev by local estimate"""
+        m = tf.reduce_mean(X, axis=0)
+        lower, upper = m - tf.constant([cube]), m + tf.constant([cube])
+        mask = tf.reshape(tf.reduce_all(tf.concat([lower < X, X < upper], axis=1), axis=1), y.shape)
+        local_ys = tf.boolean_mask(y, mask=mask)
+        local_sigma = tfp.stats.stddev(local_ys)
+
+        return local_sigma
 
 
 if __name__ == '__main__':
@@ -110,7 +146,7 @@ if __name__ == '__main__':
     from Python.Bayesian.Samplers.AdaptiveHMC import AdaptiveHMC
 
     # (0) 1D Example
-    bnn = BNN(hunits=[1, 5, 10, 1], activation='relu')
+    bnn = BNN(hunits=[1, 5, 10, 1], activation='sigmoid')
     n = 200
     # X = tf.reshape(tf.linspace(-10., 10., n), (n, 1))
     X = tfd.Uniform(-10., 10.).sample((n, 1))
@@ -125,7 +161,8 @@ if __name__ == '__main__':
     y, sigma = likelihood_true['y'], likelihood_true['sigma']
 
     # check flat_initialize & BNN_log_prob work
-    tensorlist = bnn.flat_initialize()
+    tensorlist = bnn.flat_initialize(X)
+    tensorlist[-1] = bnn.init_likelihood_sigma(X, y, cube=0.5)
     bnn.unnormalized_log_prob = bnn._closure_log_prob(X, y)
     bnn.unnormalized_log_prob(*tensorlist)
 
@@ -136,10 +173,11 @@ if __name__ == '__main__':
     true = bnn.forward(X, param)
     init = bnn.forward(X, bnn.layer_init)
 
-    plot1d_functions(X, y, **{'true': true, 'init': init})
+    true = tf.reshape(true, (n, 1))
+    init = tf.reshape(init, (n, 1))
 
-    # TODO: FIND A REASONABLE INIT FOR SIGMA! e.g. by local mean & local variance
-    #   for a local subsample of the data. (assuming homoscedasticity)
+    plot1d_functions(X, y=tf.reshape(y, (n,)), **{'true': true, 'init': init})
+
     # sampling
     adHMC = AdaptiveHMC(
         initial=tensorlist,
@@ -147,8 +185,8 @@ if __name__ == '__main__':
         log_prob=bnn.unnormalized_log_prob)
 
     samples, traced = adHMC.sample_chain(
-        num_burnin_steps=int(10e2),
-        num_results=int(5*10e1),
+        num_burnin_steps=int(10e1),
+        num_results=int(10e1),
         logdir='/home/tim/PycharmProjects/Thesis/TFResults')
 
     # mean prediction
@@ -160,13 +198,21 @@ if __name__ == '__main__':
     param = bnn.parse_tensorlist(modePost)
     y_mode = bnn.forward(X, param)
 
-    plot1d_functions(X, y, **{
+    y_map = tf.reshape(y_map, (n,1))
+    y_mode = tf.reshape(y_mode, (n, 1))
+
+    plot1d_functions(X, y=tf.reshape(y, (n,)), **{
         'true': true, 'init': init,
         'posterior mean': y_map, 'posterior mode': y_mode})
 
+
+
+
+
+
+    # CAREFULL CHECK plot1d_functions tensor shapes!!!! -----------------------------------------
     # plot multiple function realizations
     from random import sample
-
 
     # TODO FILTER FOR ACCEPTED ONLY!!
     paramsets = [s for s, accepted in zip(
@@ -188,7 +234,7 @@ if __name__ == '__main__':
     ten, ninety = tf.reduce_mean(quantiles[1], axis=1), tf.reduce_mean(quantiles[9], axis=1)
 
     # CAREFULL: next step is not necessary with GAM_RW!!!
-    ten, ninety = tf.reduce_mean(ten, axis = 1), tf.reduce_mean(ninety, axis=1)
+    ten, ninety = tf.reduce_mean(ten, axis=1), tf.reduce_mean(ninety, axis=1)
 
     D = tf.reshape(X, (X.shape[0],)).numpy()
     ynumpy = tf.reshape(y, (y.shape[0],)).numpy()
