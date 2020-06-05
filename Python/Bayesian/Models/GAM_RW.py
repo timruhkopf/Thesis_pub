@@ -20,10 +20,11 @@ class GAM_RW:
             'identity': identity}[activation]
 
         self.rw = RandomWalkPrior(no_basis)
+
         self.parameters = self.rw.parameters + ['sigma']
         self.bijectors = self.rw.bijectors
         self.bijectors.update({'sigma': tfb.Exp()})
-        self.bijectors_list = [self.bijectors[k] for k in self.parameters]
+        self.bijectors = [self.bijectors[k] for k in self.parameters]
 
     @tf.function
     def dense(self, X, W):
@@ -54,6 +55,18 @@ class GAM_RW:
         Xy = tf.linalg.matmul(X, y, transpose_a=True)
         ols = tf.linalg.matmul(XXinv, Xy)
         return tf.reshape(ols, (ols.shape[0],))
+
+    @staticmethod
+    def init_likelihood_sigma(X, y, cube=1.):
+        """assuming homoscedasticity, find a reasonable init for the data's
+        stddev by local estimate on data lying within the cuboid with edge"""
+        m = tf.reduce_mean(X, axis=0)
+        lower, upper = m - tf.constant([cube]), m + tf.constant([cube])
+        mask = tf.reduce_all(tf.stack([lower < X, X < upper], axis=1), axis=1)
+        local_ys = tf.boolean_mask(y, mask=mask)
+        local_sigma = tfp.stats.stddev(local_ys)
+
+        return local_sigma
 
     def sample_model(self, Z):
         """
@@ -89,20 +102,23 @@ if __name__ == '__main__':
     init_param, _ = gam_rw.sample_model(Z)
     ols_param = init_param.copy()
     ols_param['W'] = gam_rw.OLS(Z, y)
+    ols_param['sigma'] = gam_rw.init_likelihood_sigma(X,y, cube=1.)
 
     gam_rw.unnormalized_log_prob = gam_rw._closure_log_prob(Z, y)
     print(gam_rw.unnormalized_log_prob(*init_param.values()))
     print(gam_rw.unnormalized_log_prob(*true_param.values()))
 
     # look at functions
+    # TODO change output format to (n,1)
     f_true = gam_rw.dense(Z, true_param['W'])
     f_init = gam_rw.dense(Z, init_param['W'])
     f_ols = gam_rw.dense(Z, gam_rw.OLS(Z, y))
     plot1d_functions(X, y, **{'ols': f_ols, 'true': f_true, 'init': f_init})
 
+
     adHMC = AdaptiveHMC(
         initial=list(ols_param.values()),  # list(init_param.values()),
-        bijectors=gam_rw.bijectors_list,
+        bijectors=gam_rw.bijectors,
         log_prob=gam_rw.unnormalized_log_prob)
 
     # FIXME: sample_chain has no y
@@ -175,7 +191,6 @@ if __name__ == '__main__':
             'x': X.numpy()[sortorder],
             'y1': ten.numpy()[sortorder],
             'y2': ninety.numpy()[sortorder]})
-
 
     # x = [0.,  1.,   2.,   3.,   4.,   5.,   6.,   7.,   8.,   9.,  10.]
     #
