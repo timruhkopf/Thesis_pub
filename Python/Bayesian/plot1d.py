@@ -1,6 +1,9 @@
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
+
+import matplotlib.tri as mtri  # for trisurface with irregular grid
 
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -11,7 +14,11 @@ tfd = tfp.distributions
 def plot_tfd_1D(dist, support=tf.range(0., 20., 0.05)):
     """plotting a 1D tfp.distribution on support (x)"""
     var = dist.prob(support).numpy()
-    sns.lineplot(support, var)
+
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    fig.subplots_adjust(hspace=0.5)
+    sns.lineplot(support, var, ax = ax)
+    plt.plot()
 
 
 def plot1d_functions(X, y, confidence=None, **kwargs):
@@ -49,7 +56,7 @@ def plot1d_functions(X, y, confidence=None, **kwargs):
                      **{'ols': f_ols, 'true': f_true, 'init': f_init})
 
     """
-
+    # TODO tensorshape inference ( product(*z.shape) ) für jede dieser variablen
     # convert to seaborn format
     df = pd.DataFrame({'X': tf.reshape(X, (X.shape[0],)).numpy()})
     for name, var in kwargs.items():
@@ -70,24 +77,34 @@ def plot1d_functions(X, y, confidence=None, **kwargs):
     plt.plot()
 
 
+def triangulate_remove_artifacts(x, y, xl=0.1, xu=9.9, yl=0.1, yu=9.9, plot=True):
+    # remove artifacts from triangulation method with some boundary
+    triang = mtri.Triangulation(x, y)
+    isBad = np.where((x < xl) | (x > xu) | (y < yl) | (y > yu), True, False)
+
+    mask = np.any(isBad[triang.triangles], axis=1)
+    triang.set_mask(mask)
+
+    if plot:
+        # look at the triangulation result
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+
+        ax.triplot(triang, c="#D3D3D3", marker='.', markerfacecolor="#DC143C", markeredgecolor="black",
+                   markersize=10)
+
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        plt.show()
+
+    return triang
+
 if __name__ == '__main__':
-    plot_tfd_1D(dist=tfd.InverseGamma(1., 1., name='tau'),
-                support=tf.range(0., 20., 0.05))
+    # plot_tfd_1D(dist=tfd.InverseGamma(0.1, 0.1, name='tau'),
+    #             support=tf.range(0., 20., 0.05))
+    plot_tfd_1D(dist=tfd.Gamma(6,20))
+    plot_tfd_1D(dist=tfd.HalfCauchy(0, 1))
 
     plot_tfd_1D(dist=tfd.InverseGamma(1., 1.))
+    plot_tfd_1D(dist= tfd.Gamma((2 + 1) / 2., tfd.HalfCauchy(0, 1).sample() ** 2 / 2.))
 
-    # 2D example
-    # from Python.Effects.bspline import diff_mat1D
-    # precision = diff_mat1D(dim=20, order=1)[1][1:, 1:]
-    # precision = tf.convert_to_tensor(precision, tf.float32)
-    # # print(tf.linalg.matrix_rank(self.precision))
-    #
-    # # due to lack of numerical precision, casting and rounding
-    # cov = tf.cast(tf.cast(tf.linalg.inv(precision), tf.float16), tf.float32)
-    # cov_cholesky = tf.linalg.cholesky(cov)
-    #
-    # tau = tfd.InverseGamma(0.01, 0.01).sample()
-    # plot_tfd_1D(tfd.MultivariateNormalTriL(
-    #     loc=tf.repeat([0.], cov.shape[0]),
-    #     scale_tril=tau * cov_cholesky,  # fixme: tau or tau **-1
-    #     name='w'))
