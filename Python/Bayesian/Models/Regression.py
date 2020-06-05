@@ -5,7 +5,7 @@ import tensorflow_probability as tfp
 
 tfd = tfp.distributions
 
-from Python.Bayesian.layers.Hidden import HiddenFinal
+from Python.Bayesian.layers.HiddenFinal import HiddenFinal
 
 
 class Regression(HiddenFinal):
