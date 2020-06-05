@@ -19,37 +19,37 @@ class Hidden:
             'sigmoid': tf.math.sigmoid,
             'identity': identity}[activation]
 
-        tau = tf.constant([1.])
+        tau = tf.constant([5.])  # TODO CONSIDER TAU increased - or reference GIBBS, making it truely hierarchical
         self.joint = tfd.JointDistributionNamed(OrderedDict(
             # tau=tfd.InverseGamma(1., 1.),
+            # W=tfd.Normal(tf.zeros((no_units, input_shape)), tau),
+            # b=tfd.Normal(loc=tf.zeros(no_units,1), scale=1.)
 
-            # sampling a W matrix
-            # Notice: due to tfd.Sample: log_prob looks like this:
-            #  joint.log_prob(W,t,b) == tf.math.reduce_sum(log_prob(W)) +log_prob(t) +log_prob(b)
-            W=tfd.Sample(  # lambda tau:
-                distribution=tfd.Normal(0., tau),
-                sample_shape=(no_units, input_shape)),
-
-            b=tfd.Normal(loc=tf.repeat(0., no_units), scale=1.)
+            W=tfp.distributions.Sample(
+                tfd.Normal(0., tau), sample_shape=(no_units, input_shape), validate_args=False, name=None),
+            b=tfp.distributions.Sample(tfd.Normal(loc=0., scale=1.), sample_shape=no_units)
         ))
+
 
         self.parameters = self.joint._parameters['model'].keys()
         self.bijectors = {'W': tfb.Identity(), 'b': tfb.Identity()}
-        self.bijectors_list = [self.bijectors[k] for k in self.parameters]
+        self.bijectors = [self.bijectors[k] for k in self.parameters]
 
-    @tf.function
+    #@tf.function
     def dense(self, X, W, b):
-        return self.activation(tf.linalg.matvec(W, X) + b)
+        return self.activation(tf.matmul(X, W, transpose_b=True) + b)
 
     @tf.function
     def sample(self):
         """wrapper for unified format"""
         return self.joint.sample()
 
-    @tf.function
+    #@tf.function
     def prior_log_prob(self, param):
         """prior_log_prob wrapper for unified format"""
         return tf.reduce_sum(self.joint.log_prob(**param))
+
+    # self.layers[0].joint.log_prob(self.layers[0].joint.sample())
 
 
 if __name__ == '__main__':

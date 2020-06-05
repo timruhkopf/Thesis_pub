@@ -73,10 +73,10 @@ class HiddenGroupLasso(Hidden):
         # self.input_shape  == m_g
 
         self.no_shrinked = 1  # in this implementation only one shrinked variable is considered!
-        tau = tf.constant([1.])
+        tau = tf.constant([5.])
         self.joint = tfd.JointDistributionNamed(OrderedDict(
-            lam=tfd.HalfCauchy(0, 1),
-            tausq_group=lambda lam: tfd.Gamma((input_shape + 1) / 2, lam ** 2 / 2),
+            lam=tfd.HalfCauchy(0., 1.),
+            tausq_group=lambda lam: tfd.Gamma((input_shape + 1) / 2., lam ** 2 / 2.),
 
             # FIXME: SIGMA does not exist here (likelihood's sigma) but by
             #  literature should be to ensure unimodality! would be:
@@ -86,10 +86,18 @@ class HiddenGroupLasso(Hidden):
 
             # the rest is usual Hidden Unit
             # tau=tfd.InverseGamma(1., 1.),
-            W=tfd.Sample(  # consider lambda tau:
-                distribution=tfd.Normal(0., tau),
-                sample_shape=(no_units, input_shape - self.no_shrinked)),
-            b=tfd.Normal(loc=tf.repeat(0., no_units), scale=1.)
+
+            # deprec
+            # W=tfd.Sample(  # consider lambda tau:
+            #     distribution=tfd.Normal(0., tau),
+            #     sample_shape=(no_units, input_shape - self.no_shrinked)),
+            # b=tfd.Normal(loc=tf.repeat(0., no_units), scale=1.)
+
+            W=tfp.distributions.Sample(
+                tfd.Normal(0., tau), sample_shape=(no_units, input_shape - self.no_shrinked), validate_args=False,
+                name=None),
+            b=tfp.distributions.Sample(tfd.Normal(loc=0., scale=1.), sample_shape=no_units)
+
         ), name='GroupLasso')
 
         # notice, that W_shrinked is not available to "public" to ensure a
@@ -103,7 +111,7 @@ class HiddenGroupLasso(Hidden):
             'tausq_group': tfb.Exp(),
             'W': tfb.Identity(),
             'b': tfb.Identity()}
-        self.bijectors_list = [self.bijectors[k] for k in self.parameters]
+        self.bijectors = [self.bijectors[k] for k in self.parameters]
 
     @tf.function
     def sample(self):
@@ -114,13 +122,37 @@ class HiddenGroupLasso(Hidden):
         del param['W_shrinked']
         return param
 
-    @tf.function
+    # @tf.function
     def prior_log_prob(self, param):
         # notice the argument parsing of param!
-        return tf.reduce_sum(self.joint.log_prob(
-            W_shrinked=param['W'][:, :, self.no_shrinked],
-            W=param['W'][:, :, self.no_shrinked:],
-            **{k: v for k, v in param.items() if k not in ['W_shrinked', 'W']}))
+        param = self.parse(param)
+        return tf.reduce_sum(self.joint.log_prob(**param))
+
+    def parse(self, param):
+        """Since W_shrinked is incorporated in W for outer 'appearence' - i.e.
+        all models, that employ HiddenGroupLasso layer, this method provides the
+        means to split W in its components for log_prob"""
+        param['W_shrinked'] = param['W'][:, :, self.no_shrinked]
+        param['W'] = param['W'][:, :, self.no_shrinked:]
+
+        return param
+
+    # @tf.function
+    def dense(self, X, **kwargs):
+        return self.activation(
+            tf.linalg.matmul(
+                a=X,
+                b=kwargs['W'][0],
+                transpose_b=True) + \
+                kwargs['b']
+
+        )
+
+        # deprec
+        # + tf.reshape(kwargs['b'], (*kwargs['b'].shape, 1))
+
+        # tf.concat(
+        #     [kwargs['W'], tf.reshape(kwargs['W_shrinked'], (*kwargs['W_shrinked'].shape, 1))], axis=2),
 
 
 if __name__ == '__main__':
