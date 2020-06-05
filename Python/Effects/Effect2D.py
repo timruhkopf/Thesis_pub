@@ -192,25 +192,6 @@ class Effects2D(SamplerPrecision):
 
         plt.show()
 
-    def plot_y2D(self, xgrid, ygrid, effectsurface):
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        # ax.plot_wireframe(meshx, meshy, fxy.surface(gridxy))
-        ax.scatter(xs=self.X[:, 0], ys=self.X[:, 1], zs=self.y, alpha=0.3)
-        ax.set_title('N(f(x,y), ...) = z')
-
-        # plot mu
-        (xmesh, ymesh), gridvec = Effects2D._generate_grid(self, xgrid, ygrid)
-        gridmu = effectsurface.surface(gridvec)  # fixme: call from self.surface instead!
-        # ax.plot_surface(X=xmesh, Y=ymesh, Z=gridmu.reshape(xmesh.shape) ,facecolors=np.repeat('b', 100).reshape(xmesh.shape), linewidth=0)
-        ax.plot_trisurf(xmesh.reshape(gridmu.shape), ymesh.reshape(gridmu.shape), gridmu, alpha=0.3, linewidth=0.2,
-                        antialiased=True)
-
-        # ax1 = fig.add_subplot(222, projection='3d')
-        # ax1.scatter(xs=self.X[:,0], ys=self.X[:,1], zs=self.mu, alpha=0.3)
-        # ax1.set_title('mu')
-
-        plt.show()
 
     # (Rejection Sampling gmrf density) ----------------------------------------
     def sample_from_surface_density(self, n, q=(0.05, 0.95), factor=2):

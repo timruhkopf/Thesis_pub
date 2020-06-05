@@ -138,7 +138,7 @@ class SamplerPrecision:
 #     return x + mu
 
 
-def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
+def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3, plot = False):
     """
     Nullspace penalty for rank deficient Precision matrix, to get rank sufficent Covariance matrix
 
@@ -167,18 +167,19 @@ def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
     print('Eigenvalues: ', eigval, '\n')
     print('Nullspace Matrix: ', U0)
 
-    fig = plt.figure()
-    ax1 = fig.add_subplot(221)
-    ax1.scatter(np.arange(eigval.size), eigval)
-    ax1.set_title('eigenvalues of Q')
+    if plot:
+        fig = plt.figure()
+        ax1 = fig.add_subplot(221)
+        ax1.scatter(np.arange(eigval.size), eigval)
+        ax1.set_title('eigenvalues of Q')
 
-    ax2 = fig.add_subplot(222)
-    ax2.imshow(penSIGMA, cmap='hot', interpolation='nearest')
-    ax2.set_title('penSIGMA')
+        ax2 = fig.add_subplot(222)
+        ax2.imshow(penSIGMA, cmap='hot', interpolation='nearest')
+        ax2.set_title('penSIGMA')
 
-    ax3 = fig.add_subplot(223)
-    ax3.imshow(Q, cmap='hot', interpolation='nearest')
-    ax3.set_title('Q')
-    plt.show()
+        ax3 = fig.add_subplot(223)
+        ax3.imshow(Q, cmap='hot', interpolation='nearest')
+        ax3.set_title('Q')
+        plt.show()
 
     return penSIGMA, penQ
