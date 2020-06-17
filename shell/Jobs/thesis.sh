@@ -31,8 +31,8 @@ module load R/3.6.1
 
 echo "#### Starting my duties ####"
 # manually installed python verison:
-#$HOME/build/Python-3.6.8/python -m pip freeze
-#$HOME/build/Python-3.6.8/python /home/uni08/truhkop/Masterthesis/Python/test_server_main.py &> /home/uni08/truhkop/results & wait
+#$HOME/build/Tensorflow-3.6.8/python -m pip freeze
+#$HOME/build/Tensorflow-3.6.8/python /home/uni08/truhkop/Masterthesis/Tensorflow/test_server_main.py &> /home/uni08/truhkop/results & wait
 
 # virtualenviroment
 
