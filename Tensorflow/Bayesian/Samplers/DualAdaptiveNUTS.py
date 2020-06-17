@@ -1,7 +1,7 @@
 from Tensorflow.Bayesian.Samplers.Samplers import Samplers
 from Tensorflow.Util import setkwargs
 
-
+# CAREFULL NOT YET DEBUGGED!
 class DualAdaptiveNUTS(Samplers):
     @setkwargs
     def __init__(self, initial, bijectors, log_prob, num_adaptation_steps=500):
