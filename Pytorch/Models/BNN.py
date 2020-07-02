@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.distributions as td
-import torch.distributions.transforms as bij
 
 from itertools import chain
 from functools import partial
@@ -36,9 +35,7 @@ class BNN(nn.Module):
         self.module_layers = nn.ModuleList(self.layers)
         # self.Ls = nn.Sequential(*self.layers) # DEPREC
 
-        # Variance Prior model
-        self.SIGMA = td.TransformedDistribution(td.Gamma(0.1, 0.1), bij.ExpTransform())
-        self.sigma = nn.Parameter(self.SIGMA.sample())
+
 
         self.log_prob = None  # placeholder for closure to be set
 
@@ -56,7 +53,7 @@ class BNN(nn.Module):
         return torch.stack([l.prior_log_prob() for l in self.layers], dim=0).sum(dim=0)
 
     def likelihood(self, X, sigmasq):
-        return td.MultivariateNormal(self.forward(X), sigmasq * torch.eye(X.shape[0]))
+        return td.Normal(self.forward(X), sigmasq)
 
     def closure_log_prob(self, X=None, y=None):
         """
@@ -68,6 +65,9 @@ class BNN(nn.Module):
         supplied, the added log_prob function requires X & y's for every call on
         log_prob. However, this enables the SG behaviour of the log_prob function.
         """
+        # Variance Prior model
+        self.SIGMA = td.TransformedDistribution(td.Gamma(0.1, 0.1), td.ExpTransform())
+        self.sigma = nn.Parameter(self.SIGMA.sample())
 
         def log_prob(self, X, y, theta):
             """By default works as an SG flavour, can be fixed using self.fix_log_prob(X,y)
