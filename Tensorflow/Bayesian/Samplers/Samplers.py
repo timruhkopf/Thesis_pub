@@ -67,7 +67,7 @@ class Samplers:
         This function allows TB integration during training
         based on https://github.com/tensorflow/probability/issues/356
         """
-        step = kernel_results.step
+        step = kernel_results._step
 
         with tf.summary.record_if(tf.equal(step % summary_freq, 0)):
             print('\n\nStep {}, Logposterior:{}\n{}'.format(
