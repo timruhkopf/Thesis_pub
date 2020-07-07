@@ -38,8 +38,8 @@ class Hidden(nn.Module):
         self.bias = bias
         self.activation = activation
 
+        # Add the prior model
         self.tau_w = 1.
-
         self.dist = [td.MultivariateNormal(
             torch.zeros(self.no_in * self.no_out),
             self.tau_w * torch.eye(self.no_in * self.no_out))]
@@ -47,12 +47,15 @@ class Hidden(nn.Module):
         self.W_ = nn.Parameter(torch.Tensor(no_out, no_in))
         self.W = None
 
+        # add optional bias
         if bias:
             self.b_ = nn.Parameter(torch.Tensor(self.no_out))
+            self.b = None
             self.tau_b = 1.
             self.b = None
             self.dist.append(td.Normal(0., 1.))
 
+        # initialize the parameters
         self.reset_parameters()
 
         # occupied space in 1d vector
@@ -60,13 +63,28 @@ class Hidden(nn.Module):
         self.n_tensors = len(list(self.parameters()))  # parsing tensorlist
 
     @property
+    def parameters_list(self):
+        """due to the differentiation of surrogates e.g. self.W_ and self.W, with
+        the former not being updated, but referencing self.parameters(), this function
+        serves as self.parameters on the current state parameters self.W"""
+        print(self, id(self))
+        return [self.__getattribute__(name) for name in self.p_names]
+
+    @property
+    def parameters_dict(self):
+        return {name: self.__getattribute__(name) for name in self.p_names}
+
+    @property
     def p_names(self):
         return [p[:-1] for p in self._parameters]
 
     def reset_parameters(self):
+        """Use only at init"""
         nn.init.xavier_normal_(self.W_)
+        self.W = self.W_.data
         if self.bias:
             nn.init.normal_(self.b_)
+            self.b = self.b_.data
 
     def forward(self, X):
         XW = X @ self.W.t()
@@ -126,6 +144,12 @@ if __name__ == '__main__':
     y = reg.likelihood(X).sample()
     y.detach()
     y.requires_grad_()
+
+    # check helper functions
+    reg.parameters_list
+    reg.p_names
+    reg.parameters_dict
+    reg.n_tensors
 
     # create 1D vector from nn.Parameters as Init + SG-Mode
     init_theta = flatten(reg)
