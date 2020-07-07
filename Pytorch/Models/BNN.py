@@ -2,137 +2,141 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 
-from itertools import chain
+from hamiltorch.util import flatten, unflatten
 from functools import partial
-import Pytorch.utils as utils
-from Pytorch.Layer.Hidden import Hidden
+from itertools import accumulate
+
+from Pytorch.Layer import *
 
 
 class BNN(nn.Module):
-    # coding example of BNN with MCMC
-    # https://github.com/OscarJHernandez/bayesian_neural_networks/blob/master/Code/BNN.py
-    activ = Hidden.activ
-
-    def __init__(self, hunits=[1, 10, 5], activation='relu', final_activation='identity'):
+    def __init__(self, hunits=[1, 10, 5, 1], activation=nn.ReLU(), final_activation=nn.Identity(), heteroscedast=False):
         """
         Bayesian Neural Network, consisting of hidden layers.
         :param hunits: list of integers, specifying the input dimensions of hidden units
         :param activation: each layers activation function (except the last)
         :param final_activation: activation function of the final layer.
-        :remark: see Hidden.activ for available activation functions
+        :param heteroscedast: bool: indicating, whether or not y's conditional
+        variance y|x~N(mu, sigma²) is to be estimated as well
+        :remark: see Hidden.activation doc for available activation functions
         """
-        super().__init__();
+
+        super().__init__()
+        self.heteroscedast = heteroscedast
         self.hunits = hunits
+        self.layers = nn.Sequential(
+            *[Hidden(no_in, no_units, True, activation)
+              for no_in, no_units in zip(self.hunits[:-2], self.hunits[1:-1])],
+            Hidden(hunits[-2], hunits[-1], bias=False, activation=final_activation))
 
-        # LAYER PRIOR MODEL
-        # for the definition of adaptive layer sizes, consult
-        # https://discuss.pytorch.org/t/when-should-i-use-nn-modulelist-and-when-should-i-use-nn-sequential/5463/19
-        # on ModuleList & Sequential to register the parameters
-        self.layers = [Hidden(no_in, no_units, activation)
-                       for no_in, no_units in zip(self.hunits[:-2], self.hunits[1:-1])]
-        self.layers.append(Hidden(no_in=hunits[-2], no_units=hunits[-1],
-                                  bias=False, activation=final_activation))
-        self.module_layers = nn.ModuleList(self.layers)
-        # self.Ls = nn.Sequential(*self.layers) # DEPREC
+        if self.heteroscedast:
+            self.sigma_ = nn.Parameter(torch.Tensor(1))
+            self.dist_sigma = td.TransformedDistribution(td.Gamma(0.01, 0.01), td.ExpTransform())
+            self.sigma = self.dist_sigma.sample()
+        else:
+            self.sigma = torch.tensor(1.)
 
-
-
-        self.log_prob = None  # placeholder for closure to be set
-
-    def sample(self):
-        """delegate the sampling of parameters to each layer"""
-        for h in self.layers:
-            h.sample()
-
-    def forward(self, X):
-        for h in self.module_layers:
-            X = h(X)  # call to "dense method XW' "
-        return X
+    def __call__(self, *args, **kwargs):
+        return self.layers(*args, **kwargs)
 
     def prior_log_prob(self):
-        return torch.stack([l.prior_log_prob() for l in self.layers], dim=0).sum(dim=0)
+        """surrogate for the hidden layers' prior log prob"""
+        p_log_prob = sum([h.prior_log_prob().sum() for h in self.layers])
 
-    def likelihood(self, X, sigmasq):
-        return td.Normal(self.forward(X), sigmasq)
+        if self.heteroscedast:
+            p_log_prob += self.dist_sigma.log_prob(self.sigma)
+
+        return p_log_prob
+
+    def likelihood(self, X):
+        """:returns the conditional distribution of y | X"""
+        return td.Normal(self(X), scale=self.sigma)
+
+    def log_prob(self, X, y, vec):
+        """SG flavour of Log-prob: any batches of X & y can be used"""
+        self.vec_to_attrs(vec)  # parsing to attributes
+        return self.prior_log_prob() + \
+               self.likelihood(X).log_prob(y).sum()
 
     def closure_log_prob(self, X=None, y=None):
-        """
+        """log_prob factory, to fix X & y for samplers operating on the entire
+        dataset.
+        :returns None. changes inplace attribute log_prob"""
+        print('Setting up "Full Dataset" mode')
+        self.log_prob = partial(self.log_prob, X, y)
 
-        :param X: (Optional) Batched Tensor.
-        :param y: (Optional) Batched Tensor.
-        :return: if both X & y are provided, a log_prob function is added to bnn,
-        which has pre set X & y, making it a full-dataset log_prob. If neither are
-        supplied, the added log_prob function requires X & y's for every call on
-        log_prob. However, this enables the SG behaviour of the log_prob function.
-        """
-        # Variance Prior model
-        self.SIGMA = td.TransformedDistribution(td.Gamma(0.1, 0.1), td.ExpTransform())
-        self.sigma = nn.Parameter(self.SIGMA.sample())
+    def vec_to_attrs(self, vec):
+        """surrogate for Hidden Layers' vec_to_attrs, but actually needs to sett a
+        BNN.attribute in case of e.g. heteroscedasticity,
+        i.e. where sigma param is in likelihood"""
 
-        def log_prob(self, X, y, theta):
-            """By default works as an SG flavour, can be fixed using self.fix_log_prob(X,y)
-            to make it a full dataset sampler"""
+        # delegate the vector parts to the layers
+        lengths = list(accumulate([0] +[h.n_params for h in self.layers]))
+        for i, j, h in zip(lengths, lengths[1:], self.layers):
+            h.vec_to_attrs(vec[i:j])
 
-            # INPLACE ASSIGNMENT OF THETA ON NET WEIGHTS & param
-            utils.unflatten(vec=theta, model=self)
-
-            return self.likelihood(X, self.sigma).log_prob(y).sum() + \
-                   self.SIGMA.log_prob(self.sigma) + \
-                   self.prior_log_prob()
-
-        if isinstance(X, torch.Tensor) and isinstance(y, torch.Tensor):
-            print('"Full Dataset" log prob is being set up...')
-            if any([X is None, y is None]):
-                raise ValueError('"Full Dataset" modus requires specification of X & y')
-            self.log_prob = partial(log_prob, self, X, y)
-        else:
-            print('SG log prob is being set up...')
-            self.log_prob = partial(log_prob, self)
+        if self.heteroscedast:
+            self.__setattr__('sigma', vec[-1])
 
 
 if __name__ == '__main__':
-    # check bnn functions on simple regression data
-    # data pre-setup
-    from Pytorch.Layer.Hidden import Hidden
-    from Pytorch.utils import flatten, unflatten
+    bnn = BNN(hunits=[1,10,5,1])
 
-    reg = Hidden(no_in=2, no_units=1, bias=True, activation='identity')
-    X_dist = td.Uniform(torch.tensor([-10., -10]), torch.tensor([10., 10]))
-    X = X_dist.sample(torch.Size([100]))
-    beta = torch.tensor([[1., 2.]])
-    reg.linear.weight = nn.Parameter(beta)
-    mu = reg(X)
+    # generate data
+    X_dist = td.Uniform(torch.tensor(-10.), torch.tensor(10.))
+    X = X_dist.sample(torch.Size([100])).view(100, 1)
+    X.detach()
+    X.requires_grad_()
 
-    bnn = BNN(hunits=[2, 10, 1], activation='relu', final_activation='identity')
+    y = bnn.likelihood(X).sample()
 
-    # generate y!
-    y = td.Normal(mu, torch.tensor(1.)).sample()
+    # check forward path
+    bnn.layers(X)
+    bnn(X)
 
-    bnn.forward(X)
-    l = bnn.likelihood(X, torch.tensor(1.))
-    l.log_prob(y).sum()
+    # check vec_to_attrs
+    bnn.vec_to_attrs(torch.ones(80))
+    bnn(X)
 
-    # test full dataset log_prob
+    # check accumulation of parameters & parsing
+    bnn.log_prob(X, y, flatten(bnn))
+
+    # check log_prob "full dataset"
     bnn.closure_log_prob(X, y)
-    bnn.sample()
-    theta = flatten(bnn)
-    # theta = torch.ones(41) *2
-    print(bnn.log_prob(theta))
+    bnn.log_prob(flatten(bnn))
 
-    # TODO: test sg log_prob:
-    #   check that each and every sg sampler accepts this format
-    #   particularly that theta can be at the last postion!
-    bnn.closure_log_prob()
-    bnn.log_prob(X=X, y=y, theta=theta)
+    # check estimation
+    import hamiltorch
+    import hamiltorch.util
 
-    # PARTIAL FUNCTION EXAMPLE
-    # from functools import partial
-    # # A normal function
-    # def f(a, b, c, x):
-    #     return 1000 * a + 100 * b + 10 * c + x
-    # # A partial function that calls f with
-    # # a as 3, b as 1 and c as 4.
-    # g = partial(f, 3, 1, 4)
-    #
-    # # Calling g()
-    # print(g(5))
+    N = 200
+    step_size = .3
+    L = 5
+
+    init_theta = hamiltorch.util.flatten(bnn)
+    params_hmc = hamiltorch.sample(
+        log_prob_func=bnn.log_prob, params_init=init_theta, num_samples=N,
+        step_size=step_size, num_steps_per_sample=L)
+
+
+    # check heteroscedastic case
+    het_bnn = BNN(heteroscedast=True)
+    het_bnn(X)
+    het_bnn.closure_log_prob(X, y)
+    het_bnn.log_prob(flatten(het_bnn))
+
+    N = 3000
+    step_size = .3
+    L = 5
+
+    init_theta = hamiltorch.util.flatten(bnn)
+    params_hmc = hamiltorch.sample(
+        log_prob_func=bnn.log_prob, params_init=init_theta, num_samples=N,
+        step_size=step_size, num_steps_per_sample=L)
+
+    print()
+
+
+
+
+

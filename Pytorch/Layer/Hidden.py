@@ -40,7 +40,7 @@ class Hidden(nn.Module):
 
         # Add the prior model
         self.tau_w = 1.
-        self.dist = [td.MultivariateNormal(
+        self.dist = [td.MultivariateNormal( # consider making this a dictionary
             torch.zeros(self.no_in * self.no_out),
             self.tau_w * torch.eye(self.no_in * self.no_out))]
 
@@ -67,11 +67,12 @@ class Hidden(nn.Module):
         """due to the differentiation of surrogates e.g. self.W_ and self.W, with
         the former not being updated, but referencing self.parameters(), this function
         serves as self.parameters on the current state parameters self.W"""
-        print(self, id(self))
+        print(self, 'id:', id(self))
         return [self.__getattribute__(name) for name in self.p_names]
 
     @property
     def parameters_dict(self):
+        print(self)
         return {name: self.__getattribute__(name) for name in self.p_names}
 
     @property
