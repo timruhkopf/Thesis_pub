@@ -1,102 +1,151 @@
 import torch
-import torch.distributions as td
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.distributions as td
+
+from hamiltorch.util import flatten, unflatten
+from functools import partial
 
 
-class Hidden(nn.Module): # (nn.Module):
-    # TODO : see how to subclass torch layer
-    activ = {'identity': lambda x: x,
-             'relu': lambda x: F.relu(x),
-             'sigmoid': lambda x: F.sigmoid(x),
-             'tanh': lambda x: F.tanh(x)}
+class Hidden(nn.Module):
 
-    def __init__(self, no_in, no_units, bias=True, activation='relu'):
-        # super(Hidden, self).__init__()
+    def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU()):
+        """
+        Hidden Layer, that provides its prior_log_prob model
+
+        :param no_in:
+        :param no_out:
+        :param bias: bool, whether or not to use bias in the computation
+        :param activation: Any "nn.activation function" instance. Examine
+        https://pytorch.org/docs/stable/nn.html?highlight=nn%20relu#torch.nn.ReLU
+        should work with their functional correspondance e.g. F.relu. Notably,
+        A final Layer in Regression setup looks like
+        Hidden(10, 1, bias=False, activation=nn.Identity())
+
+        :notice Due to the inability of writing inplace to nn.Parameters via
+        vector_to_parameter(vec, model) whilst keeping the gradients. Using
+        vector_to_parameter fails with the sampler.
+        The currently expected Interface of log_prob is to recieve a 1D vector
+        and use nn.Module & nn.Parameter (surrogate parameters trailing an
+        underscore) merely as a skeleton for parsing the 1D
+        vector using hamiltorch.util.unflatten (not inplace) - yielding a
+        list of tensors. Using the property p_names, the list of tensors can
+        be setattr-ibuted and accessed as attribute
+        """
+
         super().__init__()
         self.no_in = no_in
-        self.no_units = no_units
+        self.no_out = no_out
         self.bias = bias
+        self.activation = activation
 
-        self.activation = self.activ[activation]
-        self.linear = nn.Linear(no_in, no_units, bias)
+        self.tau_w = 1.
 
-        # self.parameters = ['W']
-        # self.bijectors = ['Identity']  FIXME Bijectors: has Torch functionals?
+        self.dist = [td.MultivariateNormal(
+            torch.zeros(self.no_in * self.no_out),
+            self.tau_w * torch.eye(self.no_in * self.no_out))]
 
-        # fixme: check implementation with hyperparam tau & joint density!
-        self.W_prior = td.Normal(torch.zeros(no_units * no_in),
-                                 torch.tensor([1.]))
+        self.W_ = nn.Parameter(torch.Tensor(no_out, no_in))
+        self.W = None
 
-        self.tau_b = 1.
-        if self.bias is not None:
-            # self.parameters.append('b')
-            # self.bijectors.append('Identity')
-            self.b_prior = td.Normal(torch.zeros(no_units), self.tau_b)
+        if bias:
+            self.b_ = nn.Parameter(torch.Tensor(self.no_out))
+            self.tau_b = 1.
+            self.b = None
+            self.dist.append(td.Normal(0., 1.))
 
-        # Initialize the layer
-        self.sample()
+        self.reset_parameters()
 
-    def sample(self):
-        """Sampling the weight and biases from standard Normal distributions
-        sampling a model causes the history to be removed potentially."""
-        self.linear.weight = nn.Parameter(
-            self.W_prior.sample().view(self.no_units, self.no_in))
+        # occupied space in 1d vector
+        self.n_params = sum([tensor.nelement() for tensor in self.parameters()])
+        self.n_tensors = len(list(self.parameters()))  # parsing tensorlist
+
+    @property
+    def p_names(self):
+        return [p[:-1] for p in self._parameters]
+
+    def reset_parameters(self):
+        nn.init.xavier_normal_(self.W_)
         if self.bias:
-            self.linear.bias = nn.Parameter(self.b_prior.sample())
+            nn.init.normal_(self.b_)
+
+    def forward(self, X):
+        XW = X @ self.W.t()
+        if self.bias:
+            XW += self.b
+        return self.activation(XW)
 
     def prior_log_prob(self):
-        log_prob = self.W_prior.log_prob(self.linear.weight.view(self.no_in * self.no_units)).sum()
+        params = [self.W]
         if self.bias:
-            log_prob += self.b_prior.log_prob(self.linear.bias).sum()
+            params.append(self.b)
+        return sum([dist.log_prob(tensor.view(tensor.nelement()))
+                    for tensor, dist in zip(params, self.dist)])
 
-        return log_prob
+    def likelihood(self, X):
+        """:returns the conditional distribution of y | X"""
+        return td.Normal(self.forward(X), scale=torch.tensor(1.))
 
-    def __call__(self, X):
-        """:returns the mean i.e. XW^T """
-        return self.activation(self.linear(X))
+    def log_prob(self, X, y, vec):
+        """SG flavour of Log-prob: any batches of X & y can be used"""
+        self.vec_to_attrs(vec)  # parsing to attributes
+        return self.prior_log_prob().sum() + \
+               self.likelihood(X).log_prob(y).sum()
+
+    def closure_log_prob(self, X=None, y=None):
+        """log_prob factory, to fix X & y for samplers operating on the entire
+        dataset.
+        :returns None. changes inplace attribute log_prob"""
+        print('Setting up "Full Dataset" mode')
+        self.log_prob = partial(self.log_prob, X, y)
+
+    def vec_to_attrs(self, vec):
+        """parsing a 1D tensor according to self.parameters & setting them
+        as attributes"""
+        tensorlist = unflatten(self, vec)
+        for name, tensor in zip(self.p_names, tensorlist):
+            self.__setattr__(name, tensor)
 
 
 if __name__ == '__main__':
-    # replacing Parameters after Sampling values for them.
-    x = nn.Linear(10, 1)
-    x(torch.ones(10))
-    x.bias = nn.Parameter(torch.tensor([1.]), True)
-    x(torch.ones(10))
-    x.weight.sum() + 1.  # (+ bias)
+    no_in = 2
+    no_out = 10
 
-    # Regression example (only prior model) -------------------------------------------------
-    reg = Hidden(no_in=2, no_units=1, bias=True, activation='identity')
-
-    X_dist = td.Uniform(torch.tensor([-10., -10]), torch.tensor([10., 10]))
-    X = X_dist.sample(torch.Size([100]))
-    beta = torch.tensor([[1., 2.]])
-    reg.linear.weight = nn.Parameter(beta)
-    mu = reg(X)
-
-    # test log prob
+    # single Hidden Unit Example
+    reg = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
+    reg.W = reg.W_.data
+    reg.b = reg.b_.data
+    reg.forward(X=torch.ones(100, 2))
     reg.prior_log_prob()
 
-    # 2 consecutive Hidden Unit example --------------------------------------------------------------
+    # generate data X, y
     X_dist = td.Uniform(torch.tensor([-10., -10]), torch.tensor([10., 10]))
     X = X_dist.sample(torch.Size([100]))
+    X.detach()
+    X.requires_grad_()
 
-    first_layer = Hidden(no_in=2, no_units=10, bias=True, activation='relu')
+    y = reg.likelihood(X).sample()
+    y.detach()
+    y.requires_grad_()
 
-    W = torch.ones(10,2)
-    first_layer.linear.weight = nn.Parameter(W)
-    first_out = first_layer(X)
+    # create 1D vector from nn.Parameters as Init + SG-Mode
+    init_theta = flatten(reg)
+    print(reg.log_prob(X, y, init_theta))
 
-    second_layer = Hidden(no_in=first_out.shape[1], no_units=1, bias=True, activation='identity')
-    mu = second_layer(first_out)
+    # setting the log_prob to full dataset mode
+    reg.closure_log_prob(X, y)
+    print(reg.log_prob(init_theta))
 
-    # prior model log_prob
-    first_layer.prior_log_prob()
-    second_layer.prior_log_prob()
+    # Estimation example
+    import hamiltorch
+    import hamiltorch.util
 
-    # check the sampling function once more
-    first_layer.sample()
-    second_layer.sample()
-    first_layer.prior_log_prob()
-    second_layer.prior_log_prob()
+    N = 200
+    step_size = .3
+    L = 5
 
+    init_theta = hamiltorch.util.flatten(reg)
+    params_hmc = hamiltorch.sample(
+        log_prob_func=reg.log_prob, params_init=init_theta, num_samples=N,
+        step_size=step_size, num_steps_per_sample=L)
+
+    print()
