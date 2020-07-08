@@ -1,8 +1,8 @@
 import torch
 import torch.distributions as td
 import torch.nn as nn
+from hamiltorch.util import flatten, unflatten
 
-import Pytorch.utils as utils
 from Pytorch.Layer.Hidden import Hidden
 
 import numpy as np
@@ -12,7 +12,7 @@ from Tensorflow.Effects.Cases1D.Bspline_cum import Bspline_cum
 
 
 class GAM(Hidden):
-    def __init__(self, order=1, no_basis=10, no_out=1, activation=nn.Identity(), ):
+    def __init__(self, xgrid=(0, 10, 0.5), order=1, no_basis=10, no_out=1, activation=nn.Identity(), ):
         """
         RandomWalk Prior Model on Gamma (W) vector.
         Be carefull to transform the Data beforehand with some DeBoor Style algorithm.
@@ -22,6 +22,7 @@ class GAM(Hidden):
         :param order: difference order to create the Precision (/Penalty) matrix K
         """
         super().__init__(no_basis, no_out, bias=False, activation=activation)
+        self.xgrid = xgrid
         self.order = order
         self.no_basis = no_basis
         self.no_in = no_basis
@@ -33,7 +34,7 @@ class GAM(Hidden):
 
         self.sample()
 
-    def sample(self, xgrid=(0, 10, 0.5), tau=1., mode='K'):
+    def sample(self, tau=1., mode='K'):
         """
         Sample the prior model, instantiating the data model
         :param xgrid: defining space for the Bspline expansion. Notice, that
@@ -46,7 +47,7 @@ class GAM(Hidden):
         :return: None. Inplace self.W, self.tau
         """
 
-        if int((xgrid[1] - xgrid[0]) // 0.5) != self.no_basis:
+        if int((self.xgrid[1] - self.xgrid[0]) // 0.5) != self.no_basis:
             raise ValueError('The Specified range(*xgrid) does not imply '
                              'no_basis (len(range) must be equal to no_basis)')
         if tau is None:
@@ -57,12 +58,13 @@ class GAM(Hidden):
 
         # FIXME: need to specify tau / variance)
         if mode == 'K':
-            bspline_k = Bspline_K(xgrid, no_coef=self.no_basis, order=1, sig_Q=0.1, sig_Q0=0.01, threshold=10 ** -3)
+            bspline_k = Bspline_K(self.xgrid, no_coef=self.no_basis, order=1, sig_Q=0.1, sig_Q0=0.01, threshold=10 **
+                                                                                                                -3)
             self.W = torch.tensor(bspline_k.z, dtype=torch.float32).view(self.no_out, self.no_basis)
             self.W_.data = self.W
 
         elif mode == 'cum':
-            bspline_cum = Bspline_cum(xgrid, coef_scale=0.3)
+            bspline_cum = Bspline_cum(self.xgrid, coef_scale=0.3)
             self.W = torch.tensor(bspline_cum.z, dtype=torch.float32).view(self.no_out, self.no_basis)
             self.W_.data = self.W
 
@@ -84,9 +86,11 @@ class GAM(Hidden):
         returns: log_probability sum of gamma & tau and is calculating the
          RandomWalkPrior
         """
-        const = torch.log(torch.tensor(torch.sqrt(2 * np.pi * self.tau)))  # fixme: check if tau is correct here!
+
+        # FIXME: CHECK IF IDENTIFIABILITY CAN BE HELPED IF SELF.K where penalized
+        const = - 0.5 * torch.log(torch.tensor(2 * np.pi * self.tau))  # fixme: check if tau is correct here!
         kernel = (2 * self.tau) ** -1 * self.W @ self.K @ self.W.t()
-        return sum(-const - kernel + self.dist_tau.log_prob(self.tau))
+        return sum(const - kernel + self.dist_tau.log_prob(self.tau))
 
 
 if __name__ == '__main__':
@@ -110,13 +114,17 @@ if __name__ == '__main__':
     gam.prior_log_prob()
 
     # log_prob sg example
-    theta = utils.flatten(gam)
+    theta = flatten(gam)
     # gam.closure_log_prob()
     # gam.log_prob(Z, y, theta)
 
     # log_prob full dataset example
     gam.closure_log_prob(Z, y)
     gam.log_prob(theta)
+
+    gam.n_params
+    gam.p_names
+    unflatten(gam, flatten(gam))
 
     # plot 1D
 
@@ -138,3 +146,6 @@ if __name__ == '__main__':
         step_size=step_size, num_steps_per_sample=L, sampler=hamiltorch.Sampler.RMHMC,
         integrator=hamiltorch.Integrator.IMPLICIT, fixed_point_max_iterations=1000,
         fixed_point_threshold=1e-05)
+
+    # Todo
+    #   use penalized K in GAM for prior_log_prob to improve identifiably
