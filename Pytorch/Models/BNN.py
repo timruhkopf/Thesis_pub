@@ -95,7 +95,9 @@ if __name__ == '__main__':
     bnn(X)
 
     # check vec_to_attrs
-    bnn.vec_to_attrs(torch.ones(80))
+    bnn.vec_to_attrs(torch.cat([i*torch.ones(h.n_params) for i, h in enumerate(bnn.layers)]))
+    [h.W for h in bnn.layers] # notice this does not cover the optional bias
+    bnn.vec_to_attrs(torch.cat(torch.ones(80)))
     bnn(X)
 
     # check accumulation of parameters & parsing
