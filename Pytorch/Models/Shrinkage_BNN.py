@@ -1,34 +1,60 @@
+import torch
+import torch.distributions as td
+import torch.nn as nn
+from functools import partial
+
 from Pytorch.Models.BNN import BNN
 from Pytorch.Models.GAM import GAM
 import Pytorch.Layer as layer
 
 
-class Shrinkage_BNN(BNN):
-    # Inheritance allows to reuse layer tailored forward & log_prob & properties of parameters & bijectors
+class Shrinkage_BNN(nn.Module):
+    # hard inheritance due to init & bnn & Shrinkage_BNN with nn.Module resolvement issue
+    # furthermore, avoiding inheritance avoids BNN.layers to register to parameters
+    vec_to_attrs = BNN.vec_to_attrs
+    likelihood= BNN.likelihood
+    log_prob = BNN.log_prob
+    prior_log_prob = BNN.prior_log_prob
+    __call__ = BNN.__call__
+
+    # available shrinkage layers
     shrinkage = {
         'glasso': layer.Group_lasso,
         'gspike': layer.Group_SpikeNSlab,
         'ghorse': layer.Group_HorseShoe
     }
 
-    def __init__(self, hunits=[2,10,1], activation='relu', shrinkage='glasso',
-                 **gam_param):
+    def __init__(self, hunits=[2, 10, 1], activation=nn.ReLU(), final_activation=nn.Identity(),
+                 shrinkage='glasso', **gam_param):
         """
-        by default, it is to be decided whether the first input is to be estimated by
-        bnn or gam!
-        :param hunits:
-        :param activation:
-        :param shrinkage:
+        Shrinkage BNN is a regular BNN, but uses a shrinkage layer, which in the
+        current implementation shrinks the first variable in the X vector,
+        depending on whether or not it helps predictive performance.
+
+        :param hunits: hidden units per layer
+        :param activation: nn.ActivationFunction instance
+        :param final_activation: nn.ActivationFunction instance
+        :param shrinkage: 'glasso', 'gsplike', 'ghorse' each of which specifies the
+        grouped shrinkage version of lasso, spike & slab & horseshoe respectively.
+        See detailed doc in the respective layer. All of which assume the first variable
+        to be shrunken; i.e. provide a prior log prob model on the first column of W
         :param gam_param:
         """
-        super(Shrinkage_BNN, self).__init__(hunits, activation)
-        self.layers[0] = self.shrinkage[shrinkage](no_in=hunits[0]-1, no_units=hunits[1], activation=activation)
+        super().__init__()
+        self.hunits = hunits
+        self.activation = activation
+        self.final_activation = final_activation
 
-        self.gam = GAM(**gam_param)
+        self.layers = nn.Sequential(self.shrinkage[shrinkage](hunits[0], hunits[1], True, activation),
+            *[layer.Hidden(no_in, no_units, True, activation)
+              for no_in, no_units in zip(self.hunits[1:-2], self.hunits[2:-1])],
+            layer.Hidden(hunits[-2], hunits[-1], bias=False, activation=final_activation))
+
     def sample(self, seperate=True):
         """
         Sample the entire Prior Model
-        :param seperate: True indicates whether or not, the
+        :param seperate: True indicates whether or not, the true underlying model
+        has a joint or disjoint effect (i.e. shrinkage or no shrinkage)
         :return: list of randomly sampled parameters
         """
         if seperate:
@@ -36,13 +62,19 @@ class Shrinkage_BNN(BNN):
         else:
             pass
 
-    def forward(self, X, param_bnn, param_gam):
-        # param_bnn contains the
-        self.gam.dense(X[:, 0], param_gam)
-        self.bnn.forward(X[:, 1:], bnn_param)
-
 
 if __name__ == '__main__':
-    from Pytorch.Models.Likelihood import Like_NormalHomo
+    sbnn = Shrinkage_BNN()
 
-    Like_NormalHomo(model_mean=Shrinkage_BNN())
+    # sampling with effect
+    sbnn.sample(seperate=True)
+    sbnn.sample(seperate=False)
+
+    X_dist = td.Uniform(torch.tensor([-10., -10]), torch.tensor([10., 10]))
+    X = X_dist.sample(torch.Size([100]))
+    X.detach()
+    X.requires_grad_()
+
+    y = sbnn.likelihood(X).sample()
+    y.detach()
+    y.requires_grad_()
