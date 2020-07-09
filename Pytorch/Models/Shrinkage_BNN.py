@@ -44,10 +44,11 @@ class Shrinkage_BNN(nn.Module):
         self.hunits = hunits
         self.activation = activation
         self.final_activation = final_activation
+        self.heteroscedast = False
 
         self.layers = nn.Sequential(self.shrinkage[shrinkage](hunits[0], hunits[1], True, activation),
             *[layer.Hidden(no_in, no_units, True, activation)
-              for no_in, no_units in zip(self.hunits[1:-2], self.hunits[2:-1])],
+              for no_in, no_units in    zip(self.hunits[1:-2], self.hunits[2:-1])],
             layer.Hidden(hunits[-2], hunits[-1], bias=False, activation=final_activation))
 
     def sample(self, seperate=True):
