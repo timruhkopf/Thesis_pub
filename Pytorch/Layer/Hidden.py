@@ -42,9 +42,9 @@ class Hidden(nn.Module):
         self.tau_w = 1.
         self.dist = [td.MultivariateNormal( # consider making this a dictionary
             torch.zeros(self.no_in * self.no_out),
-            self.tau_w * torch.eye(self.no_in * self.no_out))]
+            self.tau_w * torch.eye(self.no_in * self.no_out))] # todo refactor this to td.Normal()
 
-        self.W_ = nn.Parameter(torch.Tensor(no_out, no_in))
+        self.W_ = nn.Parameter(torch.Tensor(no_in, no_out))
         self.W = None
 
         # add optional bias
@@ -88,7 +88,7 @@ class Hidden(nn.Module):
             self.b = self.b_.data
 
     def forward(self, X):
-        XW = X @ self.W.t()
+        XW = X @ self.W
         if self.bias:
             XW += self.b
         return self.activation(XW)
@@ -102,6 +102,9 @@ class Hidden(nn.Module):
 
     def likelihood(self, X):
         """:returns the conditional distribution of y | X"""
+        # TODO update likelihood to become an attribute distribution,
+        # which is updated via self.likelihood.__init__(newloc, scale)
+        # or even use self.likelihood.loc = newloc
         return td.Normal(self.forward(X), scale=torch.tensor(1.))
 
     def log_prob(self, X, y, vec):

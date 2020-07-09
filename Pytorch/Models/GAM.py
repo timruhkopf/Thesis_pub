@@ -60,7 +60,7 @@ class GAM(Hidden):
         if mode == 'K':
             bspline_k = Bspline_K(self.xgrid, no_coef=self.no_basis, order=1, sig_Q=0.1, sig_Q0=0.01, threshold=10 **
                                                                                                                 -3)
-            self.W = torch.tensor(bspline_k.z, dtype=torch.float32).view(self.no_out, self.no_basis)
+            self.W = torch.tensor(bspline_k.z, dtype=torch.float32).view(self.no_basis,self.no_out)
             self.W_.data = self.W
 
         elif mode == 'cum':
@@ -89,7 +89,7 @@ class GAM(Hidden):
 
         # FIXME: CHECK IF IDENTIFIABILITY CAN BE HELPED IF SELF.K where penalized
         const = - 0.5 * torch.log(torch.tensor(2 * np.pi * self.tau))  # fixme: check if tau is correct here!
-        kernel = (2 * self.tau) ** -1 * self.W @ self.K @ self.W.t()
+        kernel = (2 * self.tau) ** -1 * self.W.t() @ self.K @ self.W
         return sum(const - kernel + self.dist_tau.log_prob(self.tau))
 
 
