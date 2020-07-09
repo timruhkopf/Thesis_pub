@@ -33,6 +33,7 @@ class Group_lasso(Hidden):
         self.W_ = nn.Parameter(torch.Tensor(no_in, self.no_out))
         self.W = None
         self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_in), self.tau)
+        # FIXME: check sigma dependence in W_shrinked: \beta_g | tau²_g, sigma² ~ MVN
         self.dist['W'] = td.Normal(torch.zeros(self.no_in * (self.no_out - 1)), 1.)
 
         # add optional bias
@@ -46,7 +47,9 @@ class Group_lasso(Hidden):
         self.reset_parameters()
 
     def update_distributions(self):
-        """due to the hierarchical stucture, the distributions parameters must be updated"""
+        """due to the hierarchical stucture, the distributions parameters must be updated
+        Note, that this function is intended to be called immediately after vec_to_attr
+        in order to get thr correct log prob. This function does not """
         # self.dist['tau'].__init__((self.m + 1) / 2, self.lamb ** 2)
         # self.dist['W_shrinked'].__init__(torch.zeros(self.no_in), self.tau)
 
@@ -56,13 +59,18 @@ class Group_lasso(Hidden):
     def reset_parameters(self, seperated=False):
         """sampling method to instantiate the parameters"""
         self.lamb = self.dist['lamb'].sample()
+        self.dist['tau'].rate = self.lamb ** 2 / 2
+
         if seperated:
             raise NotImplementedError('still need to figure this out')
         else:
             self.tau = self.dist['tau'].sample()
+
+        self.dist['W_shrinked'].scale = self.tau
         self.W = torch.cat([self.dist['W_shrinked'].sample().view(self.no_in, 1),
                             self.dist['W'].sample().view(self.no_in, self.no_out - 1)],
                            dim=1)
+
         self.b = self.dist['b'].sample()
 
         # setting the nn.Parameters's starting value
@@ -71,9 +79,6 @@ class Group_lasso(Hidden):
         self.W_.data = self.W
         self.b_.data = self.b
 
-        # update the hierarical distribution structure, to get correct log_prob
-        self.update_distributions()
-
     def vec_to_attrs(self, vec):
         Hidden.vec_to_attrs(self, vec)
 
@@ -81,9 +86,13 @@ class Group_lasso(Hidden):
         self.update_distributions()
 
     def prior_log_prob(self):
-        # evaluate each parameter in respective distrib.
+        """evaluate each parameter in respective distrib."""
+
+        param_names = self.p_names
+        param_names.remove('W')
+
         value = torch.tensor(0.)
-        for name in ['lamb', 'tau']:
+        for name in param_names:
             value += self.dist[name].log_prob(self.__getattribute__(name)).sum()
 
         # W's split & vectorized priors
@@ -92,6 +101,12 @@ class Group_lasso(Hidden):
 
         return value
 
+    @property
+    def alpha(self):
+        """attribute in interval [0,1], which decides upon the degree of how much
+        weight gam gets in likelihoods'mu= bnn() + alpha *gam()"""
+        # FIXME alpha value for mu in likelihood depending on used shrinkage layer
+        raise NotImplementedError('glasso\'s alpha is not yet implemented')
 
 if __name__ == '__main__':
     glasso = Group_lasso(3, 10)
@@ -125,6 +140,11 @@ if __name__ == '__main__':
     # value of log prob changed due to change in variance
     print(glasso.dist['W_shrinked'].log_prob(0.))
     print(glasso.dist['W_shrinked'].cdf(0.))  # location still 0
+
+    # check alpha value
+    # glasso.alpha
+
+    # check
 
     # check "shrinkage_regression" example on being samplable
     import hamiltorch
