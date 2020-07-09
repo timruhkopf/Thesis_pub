@@ -29,21 +29,33 @@ class Structured_BNN(Shrinkage_BNN):
         else:
             pass
 
-    def __call__(self, X, Z):
-        return self.layers(X) + self.gam(Z)
+    def __call__(self, X, Z, alpha=1.):
+        """
+
+        :param X: Designmatrix (batch shaped tensor)
+        :param Z: Bspline Design matrix expansion of the first column in X
+        (batch shaped tensor)
+        :param alpha:
+        :return:
+        """
+        if alpha < 0. or alpha > 1.:
+            raise ValueError('alpha exceeded (0,1) interval')
+        return self.layers(X) + alpha * self.gam(Z)
 
     def prior_log_prob(self):
         """surrogate for the hidden layers' prior log prob"""
         bnn_log_prob = sum([h.prior_log_prob().sum() for h in self.layers])
         return bnn_log_prob + sum(self.gam.prior_log_prob())
 
-    def likelihood(self, X, Z, sigma=torch.tensor(1.)):
-        return td.Normal(self(X, Z), sigma)
+    def likelihood(self, X, Z, alpha, sigma=torch.tensor(1.)):
+        return td.Normal(self(X, Z, alpha), sigma)
 
     def log_prob(self, X, Z, y, vec):
         """SG log_prob"""
         self.vec_to_attrs_structured()
-        return self.prior_log_prob() + self.likelihood(X, Z).log_prob(y)
+
+
+        return self.prior_log_prob() + self.likelihood(X, Z, self.layers[0].alpha).log_prob(y)
 
     def closure_log_prob(self, X=None, Z=None, y=None):
         """full_dataset log_prob decorator"""
