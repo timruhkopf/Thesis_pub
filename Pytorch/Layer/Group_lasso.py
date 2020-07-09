@@ -108,6 +108,9 @@ class Group_lasso(Hidden):
         # FIXME alpha value for mu in likelihood depending on used shrinkage layer
         raise NotImplementedError('glasso\'s alpha is not yet implemented')
 
+
+
+
 if __name__ == '__main__':
     glasso = Group_lasso(3, 10)
     # generate data

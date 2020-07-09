@@ -2,20 +2,21 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 
-
 from Pytorch.Layer.Hidden import Hidden
 from Pytorch.Layer.Group_lasso import Group_lasso
 
 
-class Group_SpikeNSlab(Hidden):
+class Group_SpikeNSlab_Ishwaran(Hidden):
     prior_log_prob = Group_lasso.prior_log_prob
     vec_to_attrs = Group_lasso.vec_to_attrs
 
     def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU()):
         """
-        George & Mc Culloch (1993)
-        Spike & Slab distributional assumption on beta:
-        p(beta_j| delta_j, sigma²) = (1-delta_j) N(0, v_0 sigma²) + delta_j N(0,sigma²)
+        Ishwaran & Rao (2005)
+        Spike & Slab distributional assumption on tau instead of beta, since
+        beta | tau², sigma² ~ N(0, tau² sigma²) tends to zero if tau² --> 0
+
+        p(tau²_j| delta_j) = (1-delta_j) IG(a, v0*b) + delta_j IG(a, b)
         delta_j | theta ~iid B(1, theta)
         v0 chosen very close to zero
         """
@@ -54,19 +55,3 @@ class Group_SpikeNSlab(Hidden):
         """attribute in interval [0,1], which decides upon the degree of how much
         weight gam gets in likelihoods'mu= bnn() + alpha *gam()"""
         raise NotImplementedError('spikeNslab\'s alpha is not yet implemented')
-
-
-
-if __name__ == '__main__':
-    gspike = Group_SpikeNSlab( 3, 10)
-    X_dist = td.Uniform(torch.tensor([-10., -10., -10.]), torch.tensor([10., 10., 10.]))
-    X = X_dist.sample(torch.Size([100])).view(100, 3)
-    X.detach()
-    X.requires_grad_()
-
-    # y = gspike.likelihood(X).sample()
-
-    # check vec_to_attrs
-    gspike.vec_to_attrs(vec=torch.tensor(1.))
-
-    # check prior_log_prob from Group_lasso works propperly
