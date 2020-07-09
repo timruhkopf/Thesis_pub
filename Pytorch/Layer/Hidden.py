@@ -63,6 +63,15 @@ class Hidden(nn.Module):
         self.n_tensors = len(list(self.parameters()))  # parsing tensorlist
 
     @property
+    def vec(self):
+        """vectorize provides the view of all of the object's parameters in form
+        of a single vector. essentially it is hamiltorch.util.flatten, but without
+        dependence to the nn.Parameters. instead it works on the """
+        return torch.cat([self.__getattribute__(name).view(
+            self.__getattribute__(name).nelement())
+            for name in self.p_names])
+
+    @property
     def parameters_list(self):
         """due to the differentiation of surrogates e.g. self.W_ and self.W, with
         the former not being updated, but referencing self.parameters(), this function
@@ -152,6 +161,8 @@ if __name__ == '__main__':
     y.requires_grad_()
 
     # check helper functions
+    reg.vec
+
     reg.parameters_list
     reg.p_names
     reg.parameters_dict
