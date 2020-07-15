@@ -42,19 +42,20 @@ class Group_HorseShoe(Hidden):
 
         self.reset_parameters()
 
-    def update_distributions(self, tau):
-        self.dist['W'].scale = tau
+    def update_distributions(self):
+        self.dist['W_shrinked'].scale = self.tau
 
     def reset_parameters(self, seperated=False):
 
         if seperated:
-            raise NotImplementedError('still need to figure this out')
+            self.tau = torch.tensor(0.01)
         else:
             self.tau = self.dist['tau'].sample()
 
-        self.tau = self.dist['tau'].sample()
         self.dist['W_shrinked'].scale = self.tau
 
+        # TODO notice, that depending on the application, W can be get / set as
+        #  either vec or matrix - which could be handled graciously via getters / setters
         self.W = torch.cat([self.dist['W_shrinked'].sample().view(self.no_in, 1),
                             self.dist['W'].sample().view(self.no_in, self.no_out - 1)],
                            dim=1)
@@ -63,11 +64,8 @@ class Group_HorseShoe(Hidden):
             self.b = self.dist['b'].sample()
             self.b_.data = self.b
 
-        self.tau_ = self.tau
+        self.tau_.data = self.tau
         self.W_.data = self.W
-
-    def prior_log_prob(self):
-        pass
 
     @property
     def alpha(self):
@@ -82,3 +80,23 @@ if __name__ == '__main__':
 
     # single Hidden Unit Example
     ghorse = Group_HorseShoe(no_in, no_out, bias=True, activation=nn.Identity())
+
+    X_dist = td.Uniform(torch.tensor([-10., -10.]), torch.tensor([10., 10.]))
+    X = X_dist.sample(torch.Size([100])).view(100, 2)
+    X.detach()
+    X.requires_grad_()
+
+    y = ghorse.likelihood(X).sample()
+
+    ghorse.parameters_dict
+    ghorse.vec_to_attrs(torch.cat([i * torch.ones(ghorse.__getattribute__(p).nelement())
+                                   for i, p in enumerate(ghorse.p_names)]))
+    ghorse.parameters_dict
+    ghorse(X)
+
+    ghorse.reset_parameters()
+    ghorse.parameters_dict
+    ghorse(X)
+
+    ghorse
+
