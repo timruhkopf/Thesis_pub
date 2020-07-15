@@ -77,7 +77,8 @@ class Group_lasso(Hidden):
         self.lamb_.data = self.lamb
         self.tau_.data = self.tau
         self.W_.data = self.W
-        self.b_.data = self.b
+        if self.bias:
+            self.b_.data = self.b
 
     def vec_to_attrs(self, vec):
         Hidden.vec_to_attrs(self, vec)
