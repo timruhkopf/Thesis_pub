@@ -15,7 +15,7 @@ class Shrinkage_BNN(nn.Module):
     likelihood= BNN.likelihood
     log_prob = BNN.log_prob
     prior_log_prob = BNN.prior_log_prob
-    __call__ = BNN.__call__
+    forward = BNN.forward
 
     # available shrinkage layers
     shrinkage = {

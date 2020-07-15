@@ -125,6 +125,11 @@ structure of the sampling process can be encoded:
 typically, you would want to call this function at the end of init
 or when sampling a prior data model.
 
+**forward(X)** is the actual forward path in the nn.Module, which defines, 
+how the layer converts its inputs to outputs usually (activation(XW + b), with
+optional bias term) which is already predefined in Hidden.forward.
+
+
 ## (2) Posterior log_prob
 
 #### (2.1) SG- & full dataset log_prob
@@ -134,8 +139,7 @@ allows to formulate a (**stochastic gradient capable**) log_prob model:
 
     def likelihood(self, X):
         """:returns the conditional distribution of y | X"""
-        # notice self(X) is self.__call__(X) and defines the forward path
-        return td.Normal(self(X), scale=self.sigma)
+        return td.Normal(self.forward(X), scale=self.sigma)
  
     def log_prob(self, X, y, vec):
         """SG flavour of Log-prob: any batches of X & y can be used"""

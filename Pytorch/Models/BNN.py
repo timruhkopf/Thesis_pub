@@ -36,7 +36,7 @@ class BNN(nn.Module):
         else:
             self.sigma = torch.tensor(1.)
 
-    def __call__(self, *args, **kwargs):
+    def forward(self, *args, **kwargs):
         return self.layers(*args, **kwargs)
 
     def prior_log_prob(self):
@@ -50,7 +50,7 @@ class BNN(nn.Module):
 
     def likelihood(self, X):
         """:returns the conditional distribution of y | X"""
-        return td.Normal(self(X), scale=self.sigma)
+        return td.Normal(self.forward(X), scale=self.sigma)
 
     def log_prob(self, X, y, vec):
         """SG flavour of Log-prob: any batches of X & y can be used"""
@@ -92,13 +92,13 @@ if __name__ == '__main__':
 
     # check forward path
     bnn.layers(X)
-    bnn(X)
+    bnn.forward(X)
 
     # check vec_to_attrs
     bnn.vec_to_attrs(torch.cat([i*torch.ones(h.n_params) for i, h in enumerate(bnn.layers)]))
     [h.W for h in bnn.layers] # notice this does not cover the optional bias
     bnn.vec_to_attrs(torch.ones(80))
-    bnn(X)
+    bnn.forward(X)
 
     # check accumulation of parameters & parsing
     bnn.log_prob(X, y, flatten(bnn))
@@ -123,7 +123,7 @@ if __name__ == '__main__':
 
     # check heteroscedastic case
     het_bnn = BNN(heteroscedast=True)
-    het_bnn(X)
+    het_bnn.forward(X)
     het_bnn.closure_log_prob(X, y)
     het_bnn.log_prob(flatten(het_bnn))
 
