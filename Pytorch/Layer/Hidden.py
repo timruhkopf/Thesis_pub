@@ -59,8 +59,14 @@ class Hidden(nn.Module):
         self.reset_parameters()
 
         # occupied space in 1d vector
-        self.n_params = sum([tensor.nelement() for tensor in self.parameters()])
-        self.n_tensors = len(list(self.parameters()))  # parsing tensorlist
+    @property
+    def n_params(self):
+        # to make it inheritable (is used in "model's" vec_to_params
+        return sum([tensor.nelement() for tensor in self.parameters()])
+
+    @property
+    def n_tensors(self):
+        return len(list(self.parameters()))  # parsing tensorlist
 
     @property
     def vec(self):
