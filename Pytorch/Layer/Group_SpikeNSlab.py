@@ -28,12 +28,19 @@ class Group_SpikeNSlab(Hidden):
 
         self.dist = dict()
 
+        # tau is the "slabs" variance
+        self.tau_ = nn.Parameter(torch.Tensor(1))
+        self.tau = torch.tensor(1.)
+        c, d = 0.5, 1/0.5
+        self.dist['tau'] = td.Gamma(c, d)
+
         # Group lasso structure of W
         self.W_ = nn.Parameter(torch.Tensor(no_in, self.no_out))
         self.W = None
         # self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_in), self.tau)
         # FIXME: check sigma dependence in W_shrinked: \beta_g | tau²_g, sigma² ~ MVN
         self.dist['W'] = td.Normal(torch.zeros(self.no_in * (self.no_out - 1)), 1.)
+        self.dist['W_shrinked'] = td.Normal()
 
         # add optional bias
         if bias:
