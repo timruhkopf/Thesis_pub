@@ -52,7 +52,6 @@ class Hidden(nn.Module):
             self.b_ = nn.Parameter(torch.Tensor(self.no_out))
             self.b = None
             self.tau_b = 1.
-            self.b = None
             self.dist.append(td.Normal(0., 1.))
 
         # initialize the parameters
@@ -163,12 +162,7 @@ if __name__ == '__main__':
     # generate data X, y
     X_dist = td.Uniform(torch.ones(no_in)*(-10.), torch.ones(no_in)*10.)
     X = X_dist.sample(torch.Size([100]))
-    X.detach()
-    X.requires_grad_()
-
     y = reg.likelihood(X).sample()
-    y.detach()
-    y.requires_grad_()
 
     # check helper functions
     reg.vec
