@@ -43,6 +43,10 @@ class BNN(nn.Module):
     def vec(self):
         return torch.cat([h.vec for h in self.layers])
 
+    @property
+    def parameters_list(self):
+        return [h.parameters_list for h in self.layers]
+
     def forward(self, *args, **kwargs):
         return self.layers(*args, **kwargs)
 
@@ -118,7 +122,7 @@ if __name__ == '__main__':
 
     # check vec_to_attrs
     bnn.vec_to_attrs(torch.cat([i * torch.ones(h.n_params) for i, h in enumerate(bnn.layers)]))
-    [h.W for h in bnn.layers]  # notice this does not cover the optional bias
+    bnn.parameters_list
     bnn.vec_to_attrs(torch.ones(80))
     bnn.forward(X)
 
@@ -136,6 +140,8 @@ if __name__ == '__main__':
     N = 200
     step_size = .3
     L = 5
+
+    bnn.reset_parameters()
 
     init_theta = hamiltorch.util.flatten(bnn)
     params_hmc = hamiltorch.sample(
