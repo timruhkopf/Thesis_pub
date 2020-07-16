@@ -7,8 +7,15 @@ AND caching the gradients - i.e. doing so will fail in the samplers.
 However, to reduce the amount of parsing necessary, nn.Module is used
 with hamiltorchs' unflatten function (which is the not inplace version of 
 aforementioned vector_to_parameters) in order to infer the list of tensors 
-implied by the vector. In order to do so in the context of hierarchical models
-a particular pattern must be followed:
+implied by the vector. The first and foremost necessity of a model is to inherit nn.Module
+and invoke its init:
+
+    class BNN(nn.Module):
+        def __init__(self, ...):
+            super(BNN, self).__init__()
+
+In order to do the parsing automatically and updating all distributions and 
+ parameters in the context of hierarchical models a particular pattern must be followed: 
 
 #### (1.1) Model based
 NNs typically consist of Hidden layers (or layers, that inherit from Hidden - which facilitates
