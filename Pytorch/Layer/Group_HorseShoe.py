@@ -41,6 +41,7 @@ class Group_HorseShoe(Hidden):
             self.dist['b'] = td.Normal(0., self.tau_b)
 
         self.reset_parameters()
+        self.true_model = None
 
     def update_distributions(self):
         self.dist['W_shrinked'].scale = self.tau
@@ -48,7 +49,7 @@ class Group_HorseShoe(Hidden):
     def reset_parameters(self, seperated=False):
 
         if seperated:
-            self.tau = torch.tensor(0.01)
+            self.tau = torch.tensor(0.001)
         else:
             self.tau = self.dist['tau'].sample()
 
@@ -80,6 +81,7 @@ if __name__ == '__main__':
 
     # single Hidden Unit Example
     ghorse = Group_HorseShoe(no_in, no_out, bias=True, activation=nn.Identity())
+    true_model = ghorse.vec
 
     X_dist = td.Uniform(torch.tensor([-10., -10.]), torch.tensor([10., 10.]))
     X = X_dist.sample(torch.Size([100])).view(100, 2)
@@ -89,8 +91,13 @@ if __name__ == '__main__':
     y = ghorse.likelihood(X).sample()
 
     ghorse.parameters_dict
+
+    ghorse.reset_parameters(seperated=True)
+    print(ghorse.parameters_dict)
+
     ghorse.vec_to_attrs(torch.cat([i * torch.ones(ghorse.__getattribute__(p).nelement())
                                    for i, p in enumerate(ghorse.p_names)]))
+
     ghorse.parameters_dict
     ghorse(X)
 

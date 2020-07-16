@@ -14,6 +14,9 @@ class Group_lasso_farhmeir(Group_lasso):
         self.dist['lamb'] = td.Gamma(0.01, 0.01)
         self.dist['tau'] = td.Exponential(0.5 * self.lamb ** 2)
 
+        self.reset_parameters()
+        self.true_model = None
+
     def update_distributions(self):
         """due to the hierarchical stucture, the distributions parameters must be updated
         Note, that this function is intended to be called immediately after vec_to_attr
@@ -28,7 +31,7 @@ class Group_lasso_farhmeir(Group_lasso):
         self.dist['tau'].rate = 0.5 * self.lamb ** 2
 
         if seperated:
-            raise NotImplementedError('still need to figure this out')
+            self.tau = torch.tensor(0.001)
         else:
             self.tau = self.dist['tau'].sample()
 

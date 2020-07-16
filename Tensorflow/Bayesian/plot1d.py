@@ -17,7 +17,7 @@ def plot_tfd_1D(dist, support=tf.range(0., 20., 0.05)):
 
     fig, ax = plt.subplots(nrows=1, ncols=1)
     fig.subplots_adjust(hspace=0.5)
-    sns.lineplot(support, var, ax = ax)
+    sns.lineplot(support, var, ax=ax)
     plt.plot()
 
 
@@ -70,9 +70,9 @@ def plot1d_functions(X, y, confidence=None, **kwargs):
     sns.scatterplot(
         x=tf.reshape(X, (X.shape[0],)).numpy(),
         y=tf.reshape(y, (y.shape[0],)).numpy(), ax=ax)
-    sns.lineplot('X', y='y', hue='functions', alpha = 0.5, data=df, ax=ax)
+    sns.lineplot('X', y='y', hue='functions', alpha=0.5, data=df, ax=ax)
     if confidence is not None:  # plot (optional) confidence bands
-        ax.fill_between(**confidence, alpha =0.4, facecolor='lightblue')
+        ax.fill_between(**confidence, alpha=0.4, facecolor='lightblue')
     fig.suptitle('Functions of the data')
     plt.plot()
 
@@ -90,7 +90,8 @@ def triangulate_remove_artifacts(x, y, xl=0.1, xu=9.9, yl=0.1, yu=9.9, plot=True
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
 
-        ax.triplot(triang, c="#D3D3D3", marker='.', markerfacecolor="#DC143C", markeredgecolor="black",
+        ax.triplot(triang, c="#D3D3D3", marker='.',
+                   markerfacecolor="#DC143C", markeredgecolor="black",
                    markersize=10)
 
         ax.set_xlabel('X')
@@ -99,12 +100,12 @@ def triangulate_remove_artifacts(x, y, xl=0.1, xu=9.9, yl=0.1, yu=9.9, plot=True
 
     return triang
 
+
 if __name__ == '__main__':
     # plot_tfd_1D(dist=tfd.InverseGamma(0.1, 0.1, name='tau'),
     #             support=tf.range(0., 20., 0.05))
-    plot_tfd_1D(dist=tfd.Gamma(6,20))
-    plot_tfd_1D(dist=tfd.HalfCauchy(0, 1))
+    plot_tfd_1D(dist=tfd.Gamma(6, 20))
+    plot_tfd_1D(dist=tfd.HalfCauchy(0., 1.))
 
     plot_tfd_1D(dist=tfd.InverseGamma(1., 1.))
-    plot_tfd_1D(dist= tfd.Gamma((2 + 1) / 2., tfd.HalfCauchy(0, 1).sample() ** 2 / 2.))
-
+    plot_tfd_1D(dist=tfd.Gamma((2 + 1) / 2., tfd.HalfCauchy(0, 1).sample() ** 2 / 2.))

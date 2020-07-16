@@ -45,6 +45,7 @@ class Group_lasso(Hidden):
             self.dist['b'] = td.Normal(0., 1.)
 
         self.reset_parameters()
+        self.true_model = None
 
     def update_distributions(self):
         """due to the hierarchical stucture, the distributions parameters must be updated
@@ -114,6 +115,8 @@ class Group_lasso(Hidden):
 
 if __name__ == '__main__':
     glasso = Group_lasso(3, 10)
+    glasso.true_model = glasso.vec
+
     # generate data
     X_dist = td.Uniform(torch.tensor([-10., -10., -10.]), torch.tensor([10., 10., 10.]))
     X = X_dist.sample(torch.Size([100])).view(100, 3)

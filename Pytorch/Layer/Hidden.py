@@ -57,6 +57,7 @@ class Hidden(nn.Module):
 
         # initialize the parameters
         self.reset_parameters()
+        self.true_model = None
 
         # occupied space in 1d vector
     @property
@@ -81,7 +82,8 @@ class Hidden(nn.Module):
     def parameters_list(self):
         """due to the differentiation of surrogates e.g. self.W_ and self.W, with
         the former not being updated, but referencing self.parameters(), this function
-        serves as self.parameters on the current state parameters self.W"""
+        serves as self.parameters on the current state parameters self.W
+        """
         # print(self, 'id:', id(self))
         return [self.__getattribute__(name) for name in self.p_names]
 
@@ -151,6 +153,8 @@ if __name__ == '__main__':
 
     # single Hidden Unit Example
     reg = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
+    reg.true_model = reg.vec
+
     reg.W = reg.W_.data
     reg.b = reg.b_.data
     reg.forward(X=torch.ones(100, 2))

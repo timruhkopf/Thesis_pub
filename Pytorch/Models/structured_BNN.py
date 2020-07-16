@@ -10,6 +10,7 @@ from Tensorflow.Effects.bspline import get_design
 
 
 class Structured_BNN(Shrinkage_BNN):
+
     def __init__(self, gam_param={'xgrid': (0, 10, 0.5), 'order': 1, 'no_basis': 20,
                                   'no_out': 1, 'activation': nn.Identity()},
                  hunits=[2, 10, 1], shrinkage='glasso', activation=nn.ReLU(), final_activation=nn.ReLU()):

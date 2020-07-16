@@ -1,10 +1,8 @@
 import torch
 import torch.distributions as td
 import torch.nn as nn
-from functools import partial
 
 from Pytorch.Models.BNN import BNN
-from Pytorch.Models.GAM import GAM
 import Pytorch.Layer as layer
 
 
@@ -16,11 +14,13 @@ class Shrinkage_BNN(nn.Module):
     log_prob = BNN.log_prob
     prior_log_prob = BNN.prior_log_prob
     forward = BNN.forward
+    reset_parameters = BNN.reset_parameters
+    vec = BNN.vec
 
     # available shrinkage layers
     shrinkage = {
         'glasso': layer.Group_lasso,
-        'gspike': layer.Group_SpikeNSlab,
+         #'gspike': layer.Group_SpikeNSlab,
         'ghorse': layer.Group_HorseShoe
     }
 
@@ -51,17 +51,7 @@ class Shrinkage_BNN(nn.Module):
               for no_in, no_units in    zip(self.hunits[1:-2], self.hunits[2:-1])],
             layer.Hidden(hunits[-2], hunits[-1], bias=False, activation=final_activation))
 
-    def sample(self, seperate=True):
-        """
-        Sample the entire Prior Model
-        :param seperate: True indicates whether or not, the true underlying model
-        has a joint or disjoint effect (i.e. shrinkage or no shrinkage)
-        :return: list of randomly sampled parameters
-        """
-        if seperate:
-            pass
-        else:
-            pass
+
 
 
 if __name__ == '__main__':
