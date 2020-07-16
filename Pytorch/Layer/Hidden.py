@@ -148,8 +148,8 @@ class Hidden(nn.Module):
 
 
 if __name__ == '__main__':
-    no_in = 2
-    no_out = 10
+    no_in = 10
+    no_out = 1
 
     # single Hidden Unit Example
     reg = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
@@ -157,11 +157,11 @@ if __name__ == '__main__':
 
     reg.W = reg.W_.data
     reg.b = reg.b_.data
-    reg.forward(X=torch.ones(100, 2))
+    reg.forward(X=torch.ones(100, no_in))
     reg.prior_log_prob()
 
     # generate data X, y
-    X_dist = td.Uniform(torch.tensor([-10., -10]), torch.tensor([10., 10]))
+    X_dist = td.Uniform(torch.ones(no_in)*(-10.), torch.ones(no_in)*10.)
     X = X_dist.sample(torch.Size([100]))
     X.detach()
     X.requires_grad_()
@@ -190,13 +190,24 @@ if __name__ == '__main__':
     import hamiltorch
     import hamiltorch.util
 
-    N = 200
+    N = 2000
     step_size = .3
     L = 5
 
+    # HMC (tuned with NUTS stepsize)
+    nuts_step_size = 0.014175990596413612
     init_theta = hamiltorch.util.flatten(reg)
     params_hmc = hamiltorch.sample(
         log_prob_func=reg.log_prob, params_init=init_theta, num_samples=N,
         step_size=step_size, num_steps_per_sample=L)
+
+    # HMC NUTS
+    burn = 500
+    N_nuts = burn + N
+    params_hmc_nuts = hamiltorch.sample(log_prob_func=reg.log_prob, params_init=init_theta,
+                                        num_samples=N_nuts, step_size=step_size, num_steps_per_sample=L,
+                                        sampler=hamiltorch.Sampler.HMC_NUTS, burn=burn,
+                                        desired_accept_rate=0.8)
+
 
     print()
