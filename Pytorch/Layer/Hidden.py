@@ -3,10 +3,10 @@ import torch.nn as nn
 import torch.distributions as td
 
 from hamiltorch.util import flatten, unflatten
-from functools import partial
+from Pytorch.Models.Util import Vec_Model, Model_util
 
 
-class Hidden(nn.Module):
+class Hidden(nn.Module, Vec_Model, Model_util):
 
     def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU()):
         """
@@ -20,6 +20,10 @@ class Hidden(nn.Module):
         should work with their functional correspondance e.g. F.relu. Notably,
         A final Layer in Regression setup looks like
         Hidden(10, 1, bias=False, activation=nn.Identity())
+        :param optimbased: bool. A Flag indicating whether or not the used sampler
+        makes use of the torch.optim lib -> training based on actual nn.Parameter.
+        if the model is trained based on a vector representation of the model, it
+        will require parsing of a vec in the log_prob--> and thus optimbased = False
 
         :notice Due to the inability of writing inplace to nn.Parameters via
         vector_to_parameter(vec, model) whilst keeping the gradients. Using
@@ -33,76 +37,52 @@ class Hidden(nn.Module):
         """
 
         super().__init__()
+
         self.no_in = no_in
         self.no_out = no_out
         self.bias = bias
         self.activation = activation
 
         # Add the prior model
-        self.tau_w = 1.
-        self.dist = [td.MultivariateNormal( # consider making this a dictionary
-            torch.zeros(self.no_in * self.no_out),
-            self.tau_w * torch.eye(self.no_in * self.no_out))] # todo refactor this to td.Normal()
-
-        self.W_ = nn.Parameter(torch.Tensor(no_in, no_out))
-        self.W = None
-
-        # add optional bias
-        if bias:
-            self.b_ = nn.Parameter(torch.Tensor(self.no_out))
-            self.b = None
-            self.tau_b = 1.
-            self.dist.append(td.Normal(0., 1.))
+        self.define_model()
 
         # initialize the parameters
         self.reset_parameters()
         self.true_model = None
 
-        # occupied space in 1d vector
-    @property
-    def n_params(self):
-        # to make it inheritable (is used in "model's" vec_to_params
-        return sum([tensor.nelement() for tensor in self.parameters()])
+    # (1) USER MUST DEFINE THESE FUNCTIONS: ------------------------------------
+    # TO MAKE THIS A VEC MODEL
+    def define_model(self):
+        """place to instantiate all necessary nn.Parameter (& in case of non-optim-based
+        samplers also the surrogate non-nn parameter.
+        Notice, how nn.parameter must have trailing underscore (self.W_) and how
+        all actions such as forward, prior_log_prob and log_prob are performed on
+        the surrogate parameters."""
+        self.tau_w = 1.
+        self.dist = {'W': td.MultivariateNormal(
+            torch.zeros(self.no_in * self.no_out),
+            self.tau_w * torch.eye(self.no_in * self.no_out))}  # todo refactor this to td.Normal()
 
-    @property
-    def n_tensors(self):
-        return len(list(self.parameters()))  # parsing tensorlist
+        self.W_ = nn.Parameter(torch.Tensor(no_in, no_out))
+        self.W = None
 
-    @property
-    def vec(self):
-        """vectorize provides the view of all of the object's parameters in form
-        of a single vector. essentially it is hamiltorch.util.flatten, but without
-        dependence to the nn.Parameters. instead it works on the """
-        return torch.cat([self.__getattribute__(name).view(
-            self.__getattribute__(name).nelement())
-            for name in self.p_names])
-
-    @property
-    def parameters_list(self):
-        """due to the differentiation of surrogates e.g. self.W_ and self.W, with
-        the former not being updated, but referencing self.parameters(), this function
-        serves as self.parameters on the current state parameters self.W
-        """
-        # print(self, 'id:', id(self))
-        return [self.__getattribute__(name) for name in self.p_names]
-
-    @property
-    def parameters_dict(self):
-        # print(self)
-        return {name: self.__getattribute__(name) for name in self.p_names}
-
-    @property
-    def p_names(self):
-        return [p[:-1] for p in self._parameters]
+        # add optional bias
+        if self.bias:
+            self.tau_b = 1.
+            self.dist['b'] = td.Normal(0., self.tau_b)
+            self.b_ = nn.Parameter(torch.Tensor(self.no_out))
+            self.b = None
 
     def reset_parameters(self):
-        """Use only at init"""
         nn.init.xavier_normal_(self.W_)
         self.W = self.W_.data
+
         if self.bias:
             nn.init.normal_(self.b_)
             self.b = self.b_.data
 
+    # (2) DEFINE THESE FUNCTIONS IN REFERENCE TO SURROGATE PARAM: --------------
+    # & inherit for layers
     def forward(self, X):
         XW = X @ self.W
         if self.bias:
@@ -110,40 +90,52 @@ class Hidden(nn.Module):
         return self.activation(XW)
 
     def prior_log_prob(self):
-        params = [self.W]
-        if self.bias:
-            params.append(self.b)
-        return sum([dist.log_prob(tensor.view(tensor.nelement()))
-                    for tensor, dist in zip(params, self.dist)])
+        """evaluate each parameter in respective distrib."""
+        param_names = self.p_names
+        param_names.remove('W')
+
+        value = torch.tensor(0.)
+        if param_names is not None:
+            for name in param_names:
+                value += self.dist[name].log_prob(self.get_param(name)).sum()
+
+        value += self.dist['W'].log_prob(self.W.view(self.W.nelement()))
+
+        return value
 
     def likelihood(self, X):
         """:returns the conditional distribution of y | X"""
         # TODO update likelihood to become an attribute distribution,
-        # which is updated via self.likelihood.__init__(newloc, scale)
-        # or even use self.likelihood.loc = newloc
+        #  which is updated via self.likelihood.__init__(newloc, scale)
+        #  or even use self.likelihood.loc = newloc
         return td.Normal(self.forward(X), scale=torch.tensor(1.))
 
-    def log_prob(self, X, y, vec):
-        """SG flavour of Log-prob: any batches of X & y can be used"""
-        self.vec_to_attrs(vec)  # parsing to attributes
+    def my_log_prob(self, X, y):
+        """
+        SG flavour of Log-prob: any batches of X & y can be used
+        make sure to pass self.log_prob to the sampler, since self.my_log_prob
+        is a convenience mask
+
+        Notice, that self.log_prob has two modes operandi:
+        (1) self.log_prob(X,y), which returns the log_prob with current state of
+        'parameters'. This is particularly handy with optim based samplers,
+        since 'parameters' are literally nn.Parameters and update their state based
+        on optim proposals (always up to date)
+
+        (2) self.log_prob(X,y, vec), modus is available iff inherits from VecModel
+        (-> and used for vec based samplers such as Hamiltorchs). When vec,
+        the vector representation (1D Tensor) of the model is provided, the model's
+        surrogate 'parameter' (not nn.Parameter) are updated - and the models state
+        under vec is evaluated for X & y
+
+        Irrespective of the mode choice, the self.log_prob operates as a SG-Flavour,
+        i.e. is called with ever new X & y batches. However, working with Samplers
+        operating on the entire Dataset at every step, the method can be modified
+        calling  self.closure_log_prob(X, y) to fix every consequent call to
+        self.log_prob()  or self.log_prob(vec) on the provided dataset X, y
+        (using functools.partial)"""
         return self.prior_log_prob().sum() + \
                self.likelihood(X).log_prob(y).sum()
-
-    def closure_log_prob(self, X=None, y=None):
-        """log_prob factory, to fix X & y for samplers operating on the entire
-        dataset.
-        :returns None. changes inplace attribute log_prob"""
-        # FIXME: ensure, that multiple calls to closure do not append multiple
-        # X & y s to the function log_prob, causing the call to fail ( to many arguments)
-        print('Setting up "Full Dataset" mode')
-        self.log_prob = partial(self.log_prob, X, y)
-
-    def vec_to_attrs(self, vec):
-        """parsing a 1D tensor according to self.parameters & setting them
-        as attributes"""
-        tensorlist = unflatten(self, vec)
-        for name, tensor in zip(self.p_names, tensorlist):
-            self.__setattr__(name, tensor)
 
 
 if __name__ == '__main__':
@@ -154,31 +146,30 @@ if __name__ == '__main__':
     reg = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
     reg.true_model = reg.vec
 
-    reg.W = reg.W_.data
-    reg.b = reg.b_.data
+    # reg.W = reg.W_.data
+    # reg.b = reg.b_.data
     reg.forward(X=torch.ones(100, no_in))
     reg.prior_log_prob()
 
     # generate data X, y
-    X_dist = td.Uniform(torch.ones(no_in)*(-10.), torch.ones(no_in)*10.)
+    X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
     X = X_dist.sample(torch.Size([100]))
     y = reg.likelihood(X).sample()
-
-    # check helper functions
-    reg.vec
-
-    reg.parameters_list
-    reg.p_names
-    reg.parameters_dict
-    reg.n_tensors
 
     # create 1D vector from nn.Parameters as Init + SG-Mode
     init_theta = flatten(reg)
     print(reg.log_prob(X, y, init_theta))
+    print(reg.log_prob(X, y))
+
+    init_theta1 = torch.ones_like(init_theta)
+    print(reg.log_prob(X, y))
+    print(reg.log_prob(X, y, init_theta1))
+    print(reg.log_prob(X, y))  # Carefull: notice the update of state!
 
     # setting the log_prob to full dataset mode
     reg.closure_log_prob(X, y)
-    print(reg.log_prob(init_theta))
+    print(reg.log_prob(init_theta))  # vec_mode: state change!
+    print(reg.log_prob())  # optim_mode
 
     # Estimation example
     import hamiltorch
@@ -196,6 +187,9 @@ if __name__ == '__main__':
         step_size=step_size, num_steps_per_sample=L)
 
     # HMC NUTS
+    N = 2000
+    step_size = .3
+    L = 5
     burn = 500
     N_nuts = burn + N
     params_hmc_nuts = hamiltorch.sample(log_prob_func=reg.log_prob, params_init=init_theta,
@@ -203,5 +197,9 @@ if __name__ == '__main__':
                                         sampler=hamiltorch.Sampler.HMC_NUTS, burn=burn,
                                         desired_accept_rate=0.8)
 
-
-    print()
+    # check helper functions
+    reg.vec
+    reg.parameters_list
+    reg.p_names
+    reg.parameters_dict
+    reg.n_tensors
