@@ -9,17 +9,18 @@ import numpy as np
 import random
 
 from Pytorch.Samplers import Samplers
+from hamiltorch.util import flatten
 
 # from models import *
-from Pytorch.utils import *
+from Pytorch.util import *
 
 sys.path.append('..')
 use_cuda = torch.cuda.is_available()
 
 
-class CSG_MCMC(Samplers):
+class CSG_MCMC:  # (Samplers)
     def __init__(self, temperature=1. / 50000, alpha=0.9,
-                 weight_decay=5e-4, lr_0=0.5, M=4, epochs=20):
+                 weight_decay=5e-4, lr_0=0.5, M=4, epochs=20, num_batch=10):
         """
         Instantiate a CSG_MCMC Sampler; i.e. depending on alpha, a cSGLD or cSGHMC
         :param temperature: default 1 / dataset_size
@@ -36,13 +37,15 @@ class CSG_MCMC(Samplers):
         self.weight_decay = weight_decay
         self.alpha = alpha
         self.temperature = temperature
-        self.epochs = 20
+        self.epochs = epochs
+        self.num_batch = num_batch
 
         # set up
         self.net = None
         self.trainloader = None
         self.criterion = None
         self.device_id = 1
+
         self.use_cuda = torch.cuda.is_available()
         self.chain = list()
 
@@ -60,27 +63,37 @@ class CSG_MCMC(Samplers):
         :return: None (inplace change)
         """
         for p in self.net.parameters():
+            # initalize buf attribute depending on available cuda
             if not hasattr(p, 'buf'):
-                p.buf = torch.zeros(p.size()).cuda(self.device_id)
+                if self.use_cuda:
+                    p.buf = torch.zeros(p.size()).cuda(self.device_id)
+                else:
+                    p.buf = torch.zeros(p.size())
+
+        for p in self.net.parameters():
             d_p = p.grad.data
             d_p.add_(self.weight_decay, p.data)
             buf_new = (1 - self.alpha) * p.buf - lr * d_p
+
             if (epoch % 50) + 1 > 45:
-                eps = torch.randn(p.size()).cuda(self.device_id)
-                buf_new += (2.0 * lr * self.alpha * self.temperature / datasize) ** .5 * eps
+                if self.use_cuda:
+                    eps = torch.randn(p.size()).cuda(self.device_id)
+                else:
+                    eps = torch.randn(p.size())
+
+                buf_new += (2.0 * lr * self.alpha * self.temperature / self.datasize) ** .5 * eps
             p.data.add_(buf_new)
             p.buf = buf_new
 
-    def _adjust_learning_rate(self, epoch, num_batch, batch_idx):
-        # FIXME: num_batch shouldn't be in call should be in train_loader6
+    def _adjust_learning_rate(self, epoch, batch_idx):
         """
         INTERNAL METHOD, cyclic adjustment of learning rate
         :param epoch:
-        :param num_batch:
+
         :param batch_idx:
         :return:
         """
-        rcounter = epoch * num_batch + batch_idx
+        rcounter = epoch * self.num_batch + batch_idx
         cos_inner = np.pi * (rcounter % (self.T // self.M))
         cos_inner /= self.T // self.M
         cos_out = np.cos(cos_inner) + 1
@@ -95,7 +108,7 @@ class CSG_MCMC(Samplers):
         :return: None (inplace changes)
         """
         print('\nEpoch: %d' % epoch)
-        self.net.train()  # TODO figure out what this is doing
+        self.net.train()  # sets the module in training mode
 
         # TODO update statistics!
         # train_loss = 0
@@ -107,10 +120,9 @@ class CSG_MCMC(Samplers):
                 inputs, targets = inputs.cuda(self.device_id), targets.cuda(self.device_id)
             self.net.zero_grad()
             lr = self._adjust_learning_rate(epoch, batch_idx)
-            outputs = self.net(inputs)
+            # outputs = self.net(inputs)  # Deprec was relevant in the Resnet with multiclass prediction
 
-            # FIXME! change criterion to be log prob!
-            loss = self.criterion(outputs, targets)
+            loss = self.criterion(inputs, targets)
 
             loss.backward()
             self._update_params(lr, epoch)
@@ -124,7 +136,7 @@ class CSG_MCMC(Samplers):
             #     print('Loss: %.3f | Acc: %.3f%% (%d/%d)'
             #           % (train_loss / (batch_idx + 1), 100. * correct / total, correct, total))
 
-    def sample_model(self, net, trainloader, criterion, dir=None, device_id=1, seed=1):
+    def sample_csgmcmc(self, net, trainloader, dir='/home/tim/PycharmProjects/Thesis/Pytorch/Chains', seed=1):
         """
         Like Hamiltorch .sample_model: sampling model based on net (which is required to have a log_prob)
         Also this assumes, that the net's parameters are already initialized.
@@ -138,24 +150,21 @@ class CSG_MCMC(Samplers):
         """
         self.net = net
         self.trainloader = trainloader
-        self.criterion = criterion
-        self.device_id = device_id
+        self.criterion = net.log_prob
+        self.datasize = len(trainloader.dataset)
 
         torch.manual_seed(seed)
         np.random.seed(seed)
         random.seed(seed)
 
-        self.use_cuda = torch.cuda.is_available()
-
-        if use_cuda:
+        if self.use_cuda:
             self.net.cuda(self.device_id)
             cudnn.benchmark = True
             cudnn.deterministic = True
 
-
         # mt is number of cycles
         print('==> COLLECTING SAMPLES')
-        for mt, epoch in enumerate(self.epochs):
+        for mt, epoch in enumerate(range(self.epochs)):
             self._step(epoch)
             if (epoch % 50) + 1 > 47:  # save 3 models per cycle
                 print('save!')
@@ -163,22 +172,11 @@ class CSG_MCMC(Samplers):
                 # TODO: check for net.state_dict VS. list of Tensors.
                 torch.save(self.net.state_dict(), dir + '/cifar_csghmc_%i.pt' % (mt))
                 self.chain.append(flatten(model=self.net))
-                net.cuda(self.device_id)
+                if self.use_cuda:
+                    net.cuda(self.device_id)
 
         return self.chain
 
-    def sample(self, log_prob, init_param, trainloader, criterion, dir=None, device_id=1, seed=1):
-        """
-        sample based on the log_prob model
-        :param log_prob:
-        :param trainloader:
-        :param criterion:
-        :param dir:
-        :param device_id:
-        :param seed:
-        :return:
-        """
-        pass
 
 #
 # def test(net, testloader, device_id, criterion, epoch):
@@ -209,50 +207,36 @@ class CSG_MCMC(Samplers):
 
 
 if __name__ == '__main__':
-    # Data / model related
-    net = ResNet18()
-    batch_size = 64  # input batch size for training
-    datasize = 50000
-    num_batch = datasize / batch_size + 1
-    criterion = nn.CrossEntropyLoss()
+    from Pytorch.Layer.Hidden_Probmodel import Hidden_ProbModel
+    import torch.distributions as td
+    import torch.nn as nn
 
+    no_in = 10
+    no_out = 2
 
-    # # Data
-    # print('==> Preparing data..')
-    # transform_train = transforms.Compose([
-    #     transforms.RandomCrop(32, padding=4),
-    #     transforms.RandomHorizontalFlip(),
-    #     transforms.ToTensor(),
-    #     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    # ])
-    #
-    # transform_test = transforms.Compose([
-    #     transforms.ToTensor(),
-    #     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    # ])
+    # single Hidden Unit Example
+    reg = Hidden_ProbModel(no_in, no_out, bias=True, activation=nn.Identity())
+    reg.true_model = reg.vec
 
-    # set up data
-    data_path = None  # path to datasets location (default None)
-    trainset = torchvision.datasets.CIFAR10(root=data_path, train=True, download=True, transform=transform_train)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
+    X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
+    X = X_dist.sample(torch.Size([100]))
+    y = reg.likelihood(X).sample()
 
-    testset = torchvision.datasets.CIFAR10(root=data_path, train=False, download=True, transform=transform_test)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=0)
+    reg.reset_parameters()
+    init_theta = reg.vec
 
-    # Model
-    csg_ld = CSG_MCMC(temperature=1. / 50000, alpha=0.9, weight_decay=5e-4, lr_0=0.5, M=4, epochs=20)
-    csg_ld.sample(net, trainloader, criterion, dir=None, seed=1)
+    # sampling example
+    batch_size = 10
 
-    csg_ld = CSG_MCMC(temperature=1. / 50000, alpha=1., weight_decay=5e-4, lr_0=0.5, M=4, epochs=20)
-    csg_ld.sample(net, trainloader, criterion, dir=None, seed=1)
+    from torch.utils.data import TensorDataset, DataLoader
 
-    # DEPREC the train functionallity is now in sample
-    # for epoch in range(epochs):
-    #     sample(epoch)
-    #     test(epoch)
-    #     if (epoch % 50) + 1 > 47:  # save 3 models per cycle
-    #         print('save!')
-    #         net.cpu()
-    #         torch.save(net.state_dict(), dir + '/cifar_csghmc_%i.pt' % (mt))
-    #         mt += 1
-    #         net.cuda(device_id)
+    trainset = TensorDataset(X, y)
+    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
+
+    # a = trainloader.__iter__()
+    # next(a)
+
+    csgmcmc = CSG_MCMC(epochs=70)
+    chain = csgmcmc.sample_csgmcmc(
+        reg, trainloader,
+        dir='/home/tim/PycharmProjects/Thesis/Pytorch/Chains', seed=1)
