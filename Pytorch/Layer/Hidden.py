@@ -63,7 +63,7 @@ class Hidden(nn.Module, Vec_Model, Model_util):
             torch.zeros(self.no_in * self.no_out),
             self.tau_w * torch.eye(self.no_in * self.no_out))}  # todo refactor this to td.Normal()
 
-        self.W_ = nn.Parameter(torch.Tensor(no_in, no_out))
+        self.W_ = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
         self.W = None
 
         # add optional bias
@@ -134,7 +134,7 @@ class Hidden(nn.Module, Vec_Model, Model_util):
         calling  self.closure_log_prob(X, y) to fix every consequent call to
         self.log_prob()  or self.log_prob(vec) on the provided dataset X, y
         (using functools.partial)"""
-        return self.prior_log_prob().sum() + \
+        return  -self.prior_log_prob().sum() - \
                self.likelihood(X).log_prob(y).sum()
 
 
