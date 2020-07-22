@@ -6,18 +6,11 @@ from Pytorch.Layer.Hidden import Hidden
 
 
 class Group_lasso(Hidden):
+    # Notice: use of Hidden.__init__
 
-    def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU()):
-        nn.Module.__init__(self)
-        self.bias = False  # to meet the Hidden default standard!
-        self.no_in = no_in
-        self.no_out = no_out
-        self.bias = bias
-        self.activation = activation
-
-        self.dist = dict()
-
-        self.m = no_out  # single "group size" to be penalized
+    def define_model(self):
+        self.m = self.no_out  # single "group size" to be penalized
+        self.dist = {}
 
         # hyperparam of tau
         self.lamb_ = nn.Parameter(torch.Tensor(1))
@@ -30,30 +23,26 @@ class Group_lasso(Hidden):
         self.dist['tau'] = td.Gamma((self.m + 1) / 2, (self.lamb ** 2) / 2)
 
         # Group lasso structure of W
-        self.W_ = nn.Parameter(torch.Tensor(no_in, self.no_out))
+        self.W_ = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
         self.W = None
         self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_in), self.tau)
         # FIXME: check sigma dependence in W_shrinked: \beta_g | tau²_g, sigma² ~ MVN
         self.dist['W'] = td.Normal(torch.zeros(self.no_in * (self.no_out - 1)), 1.)
 
         # add optional bias
-        if bias:
+        if self.bias:
             self.b_ = nn.Parameter(torch.Tensor(self.no_out))
             self.b = None
             self.tau_b = 1.
             self.b = None
             self.dist['b'] = td.Normal(0., 1.)
 
-        self.reset_parameters()
-        self.true_model = None
-
     def update_distributions(self):
-        """due to the hierarchical stucture, the distributions parameters must be updated
+        """due to the hierarchical structure, the distributions parameters must be updated
         Note, that this function is intended to be called immediately after vec_to_attr
         in order to get thr correct log prob. This function does not """
         # self.dist['tau'].__init__((self.m + 1) / 2, self.lamb ** 2)
         # self.dist['W_shrinked'].__init__(torch.zeros(self.no_in), self.tau)
-
         self.dist['tau'].rate = self.lamb ** 2 / 2
         self.dist['W_shrinked'].scale = self.tau
 
@@ -80,12 +69,6 @@ class Group_lasso(Hidden):
         self.W_.data = self.W
         if self.bias:
             self.b_.data = self.b
-
-    def vec_to_attrs(self, vec):
-        Hidden.vec_to_attrs(self, vec)
-
-        # update the hierarical distribution structure, to get correct prior log_prob
-        self.update_distributions()
 
     def prior_log_prob(self):
         """evaluate each parameter in respective distrib."""
@@ -169,7 +152,7 @@ if __name__ == '__main__':
     glasso.closure_log_prob(X, y)
     glasso.reset_parameters()
     theta = hamiltorch.util.flatten(glasso)
-    glasso.log_prob(theta)
+    print(glasso.log_prob(theta))
 
 
     # FIXME: failing internally with Glasso during irmhmc sampling due to singular U in cholesky (MVN , fisher)
@@ -184,13 +167,13 @@ if __name__ == '__main__':
     theta = hamiltorch.util.flatten(glasso)
     glasso.log_prob(theta)
 
-    N = 200
+    # HMC NUTS
+    N = 2000
     step_size = .3
     L = 5
-
-    # samplable, but consistent log_prob nan / -inf
-    params_hmc = hamiltorch.sample(
-        log_prob_func=glasso.log_prob, params_init=theta, num_samples=N,
-        step_size=step_size, num_steps_per_sample=L)
-
-    print()
+    burn = 500
+    N_nuts = burn + N
+    params_hmc_nuts = hamiltorch.sample(log_prob_func=glasso.log_prob, params_init=theta,
+                                        num_samples=N_nuts, step_size=step_size, num_steps_per_sample=L,
+                                        sampler=hamiltorch.Sampler.HMC_NUTS, burn=burn,
+                                        desired_accept_rate=0.8)
