@@ -167,7 +167,8 @@ class CSG_MCMC:  # (Samplers)
             self._step(epoch)
             if (epoch % 50) + 1 > 47:  # save 3 models per cycle
                 print('save!')
-                self.net.cpu()
+                if self.use_cuda:
+                    self.net.cpu()
                 # TODO: check for net.state_dict VS. list of Tensors.
                 torch.save(self.net.state_dict(), dir + '/cifar_csghmc_%i.pt' % (mt))
                 self.chain.append(flatten(model=self.net))
