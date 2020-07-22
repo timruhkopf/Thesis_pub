@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 
-from ludwigwinkler.src.MCMC_ProbModel import ProbModel
+from thirdparty_repo.ludwigwinkler.src.MCMC_ProbModel import ProbModel
 from Pytorch.Layer.Hidden import Hidden
-from Pytorch.Models.Util import Optim_Model
+from Pytorch.Models.ModelUtil import Optim_Model
 
 
 class Hidden_ProbModel(ProbModel, Optim_Model, Hidden):

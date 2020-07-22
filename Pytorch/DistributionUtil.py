@@ -115,14 +115,9 @@ if __name__ == '__main__':
     n = SpikeNSlab_N(dim=10, pi=0.5, v0=0.01, tau=1.)
     n.log_prob(shrunk=torch.zeros(10), delta=torch.tensor(0.))
 
-    print(n.log_prob(* n.sample()))
-
-
+    print(n.log_prob(*n.sample()))
 
     ig = SpikeNSlab_IG(pi=0.5, a=0.1, b=0.1, v0=0.01)
     n.sample()
     print(n.log_prob(shrunk=torch.zeros(10), delta=torch.tensor(1.)),
           n.log_prob(shrunk=torch.zeros(10), delta=torch.tensor(0.)))
-
-
-

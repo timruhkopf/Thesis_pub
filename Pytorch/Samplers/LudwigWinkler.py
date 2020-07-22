@@ -1,6 +1,6 @@
 import torch
 from Pytorch.Samplers.Samplers import Sampler
-from ludwigwinkler.src.MCMC_Sampler import SGLD_Sampler, MALA_Sampler, HMC_Sampler, SGNHT_Sampler
+from thirdparty_repo.ludwigwinkler.src.MCMC_Sampler import SGLD_Sampler, MALA_Sampler, SGNHT_Sampler
 from torch.utils.data import TensorDataset, DataLoader
 
 class LudwigWinkler(Sampler):

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.distributions as td
 
 from hamiltorch.util import flatten, unflatten
-from Pytorch.Models.Util import Vec_Model, Model_util
+from Pytorch.Models.ModelUtil import Vec_Model, Model_util
 
 
 class Hidden(nn.Module, Vec_Model, Model_util):

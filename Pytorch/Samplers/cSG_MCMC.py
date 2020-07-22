@@ -12,7 +12,7 @@ from Pytorch.Samplers import Samplers
 from hamiltorch.util import flatten
 
 # from models import *
-from Pytorch.util import *
+from Pytorch.DistributionUtil import *
 
 sys.path.append('..')
 use_cuda = torch.cuda.is_available()
@@ -118,10 +118,11 @@ class CSG_MCMC:  # (Samplers)
         for batch_idx, (inputs, targets) in enumerate(self.trainloader):
             if self.use_cuda:
                 inputs, targets = inputs.cuda(self.device_id), targets.cuda(self.device_id)
+
             self.net.zero_grad()
             lr = self._adjust_learning_rate(epoch, batch_idx)
-            # outputs = self.net(inputs)  # Deprec was relevant in the Resnet with multiclass prediction
 
+            # outputs = self.net(inputs)  # Deprec was relevant in the Resnet with multiclass prediction
             loss = self.criterion(inputs, targets)
 
             loss.backward()
@@ -142,9 +143,7 @@ class CSG_MCMC:  # (Samplers)
         Also this assumes, that the net's parameters are already initialized.
         :param net:
         :param trainloader:
-        :param criterion:
         :param dir: path to save checkpoints (default None)  # DEPREC: WARNING state_dicts!
-        :param device_id:
         :param seed:
         :return: list of 1D tensors, where each tensor is flattend net.parameters() also stores the state_dict
         """
@@ -211,15 +210,15 @@ if __name__ == '__main__':
     import torch.distributions as td
     import torch.nn as nn
 
-    no_in = 10
-    no_out = 2
+    no_in = 2
+    no_out = 1
 
     # single Hidden Unit Example
     reg = Hidden_ProbModel(no_in, no_out, bias=True, activation=nn.Identity())
     reg.true_model = reg.vec
 
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
-    X = X_dist.sample(torch.Size([100]))
+    X = X_dist.sample(torch.Size([1000]))
     y = reg.likelihood(X).sample()
 
     reg.reset_parameters()
@@ -236,7 +235,7 @@ if __name__ == '__main__':
     # a = trainloader.__iter__()
     # next(a)
 
-    csgmcmc = CSG_MCMC(epochs=70)
+    csgmcmc = CSG_MCMC(epochs=1000)
     chain = csgmcmc.sample_csgmcmc(
         reg, trainloader,
         dir='/home/tim/PycharmProjects/Thesis/Pytorch/Chains', seed=1)
