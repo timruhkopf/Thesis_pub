@@ -56,6 +56,33 @@ class Model_util:
         print('Setting up "Full Dataset" mode')
         self.log_prob = partial(self.log_prob, X, y)
 
+    def my_log_prob(self, X, y):
+        """ DEFAULT, but can be easily modified!
+        SG flavour of Log-prob: any batches of X & y can be used
+        make sure to pass self.log_prob to the sampler, since self.my_log_prob
+        is a convenience mask
+
+        Notice, that self.log_prob has two modes operandi:
+        (1) self.log_prob(X,y), which returns the log_prob with current state of
+        'parameters'. This is particularly handy with optim based samplers,
+        since 'parameters' are literally nn.Parameters and update their state based
+        on optim proposals (always up to date)
+
+        (2) self.log_prob(X,y, vec), modus is available iff inherits from VecModel
+        (-> and used for vec based samplers such as Hamiltorchs). When vec,
+        the vector representation (1D Tensor) of the model is provided, the model's
+        surrogate 'parameter' (not nn.Parameter) are updated - and the models state
+        under vec is evaluated for X & y
+
+        Irrespective of the mode choice, the self.log_prob operates as a SG-Flavour,
+        i.e. is called with ever new X & y batches. However, working with Samplers
+        operating on the entire Dataset at every step, the method can be modified
+        calling  self.closure_log_prob(X, y) to fix every consequent call to
+        self.log_prob()  or self.log_prob(vec) on the provided dataset X, y
+        (using functools.partial)"""
+        return  -self.prior_log_prob().sum() - \
+               self.likelihood(X).log_prob(y).sum()
+
 
 class Vec_Model:
     @property
