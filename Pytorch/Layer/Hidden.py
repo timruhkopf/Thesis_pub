@@ -44,6 +44,7 @@ class Hidden(nn.Module, Vec_Model, Model_util):
         self.activation = activation
 
         # Add the prior model
+        self.dist = {}
         self.define_model()
 
         # initialize the parameters
@@ -59,9 +60,9 @@ class Hidden(nn.Module, Vec_Model, Model_util):
         all actions such as forward, prior_log_prob and log_prob are performed on
         the surrogate parameters."""
         self.tau_w = 1.
-        self.dist = {'W': td.MultivariateNormal(
+        self.dist['W'] = td.MultivariateNormal(
             torch.zeros(self.no_in * self.no_out),
-            self.tau_w * torch.eye(self.no_in * self.no_out))}  # todo refactor this to td.Normal()
+            self.tau_w * torch.eye(self.no_in * self.no_out))  # todo refactor this to td.Normal()
 
         self.W_ = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
         self.W = None

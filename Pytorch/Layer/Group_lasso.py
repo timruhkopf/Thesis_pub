@@ -3,14 +3,28 @@ import torch.nn as nn
 import torch.distributions as td
 
 from Pytorch.Layer.Hidden import Hidden
+from Pytorch.DistributionUtil import LogTransform
 
 
 class Group_lasso(Hidden):
-    # Notice: use of Hidden.__init__
+
+    def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU(), bijected=True):
+        """
+        Group Lasso Layer, which is essentially a Hidden Layer, but with a different
+        prior structure: W is partitioned columwise - such that all weights outgoing
+        the first variable are shrunken by bayesian lasso.
+        for params see Hidden
+        :param bijected: bool. indicates whether or not the shrinkage variances
+        'tau' and 'lamb' are to be bijected i.e. unconstrained on space R.
+        as consequence, the self.update_method must change. the self.prior_log_prob
+        is automatically adjusted by the jacobian via td.TransformedDistribution.
+        """
+        self.bijected = bijected
+        Hidden.__init__(self, no_in, no_out, bias, activation)
+
 
     def define_model(self):
         self.m = self.no_out  # single "group size" to be penalized
-        self.dist = {}
 
         # hyperparam of tau
         self.lamb_ = nn.Parameter(torch.Tensor(1))
@@ -21,6 +35,10 @@ class Group_lasso(Hidden):
         self.tau_ = nn.Parameter(torch.Tensor(1))
         self.tau = torch.tensor(1.)  # just to instantiate dist
         self.dist['tau'] = td.Gamma((self.m + 1) / 2, (self.lamb ** 2) / 2)
+
+        if self.bijected:
+            self.dist['lamb'] = td.TransformedDistribution(self.dist['lamb'], LogTransform())
+            self.dist['tau'] = td.TransformedDistribution(self.dist['tau'], LogTransform())
 
         # Group lasso structure of W
         self.W_ = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
@@ -43,20 +61,36 @@ class Group_lasso(Hidden):
         in order to get thr correct log prob. This function does not """
         # self.dist['tau'].__init__((self.m + 1) / 2, self.lamb ** 2)
         # self.dist['W_shrinked'].__init__(torch.zeros(self.no_in), self.tau)
-        self.dist['tau'].rate = self.lamb ** 2 / 2
-        self.dist['W_shrinked'].scale = self.tau
+
+        # BE WELL AWARE of the required inverse of the bijector in order to update
+        # the conditional distributions accordingly
+        if self.bijected:
+            self.dist['tau'].base_dist.rate = \
+                self.dist['lamb'].transforms[0]._inverse(self.lamb) ** 2 / 2
+            self.dist['W_shrinked'].scale = \
+                self.dist['tau'].transforms[0]._inverse(self.tau)
+        else:
+            self.dist['tau'].rate = self.lamb ** 2 / 2
+            self.dist['W_shrinked'].scale = self.tau
 
     def reset_parameters(self, seperated=False):
         """sampling method to instantiate the parameters"""
-        self.lamb = self.dist['lamb'].sample()
-        self.dist['tau'].rate = self.lamb ** 2 / 2
 
-        if seperated:
-            raise NotImplementedError('still need to figure this out')
+        self.lamb = self.dist['lamb'].sample()
+        self.update_distributions() # to ensure tau's dist is updated properly
+
+        if seperated: # allows XOR Decision
+            if self.bijected:
+                self.tau = self.dist['tau'].transforms[0](torch.tensor(0.001))
+            else:
+                self.tau = torch.tensor(0.001)
+            self.update_distributions()  # to ensure W_shrinked's dist is updated properly
         else:
             self.tau = self.dist['tau'].sample()
+            self.update_distributions()  # to ensure W_shrinked's dist is updated properly
 
-        self.dist['W_shrinked'].scale = self.tau
+        # partition W according to prior model
+
         self.W = torch.cat([self.dist['W_shrinked'].sample().view(self.no_in, 1),
                             self.dist['W'].sample().view(self.no_in, self.no_out - 1)],
                            dim=1)
@@ -173,7 +207,12 @@ if __name__ == '__main__':
     L = 5
     burn = 500
     N_nuts = burn + N
+    glasso.reset_parameters()
+    glasso.vec
     params_hmc_nuts = hamiltorch.sample(log_prob_func=glasso.log_prob, params_init=theta,
                                         num_samples=N_nuts, step_size=step_size, num_steps_per_sample=L,
                                         sampler=hamiltorch.Sampler.HMC_NUTS, burn=burn,
                                         desired_accept_rate=0.8)
+    glasso.invert_bij('tau')
+    glasso.invert_bij('lamb')
+    print()
