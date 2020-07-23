@@ -21,7 +21,8 @@ class Group_lasso(Hidden):
         """
         self.bijected = bijected
         Hidden.__init__(self, no_in, no_out, bias, activation)
-
+        self.dist['alpha'] = td.LogNormal(0., scale=1./20.)
+        self.alpha_chain = list()
 
     def define_model(self):
         self.m = self.no_out  # single "group size" to be penalized
@@ -79,7 +80,7 @@ class Group_lasso(Hidden):
         self.lamb = self.dist['lamb'].sample()
         self.update_distributions() # to ensure tau's dist is updated properly
 
-        if seperated: # allows XOR Decision
+        if seperated: # allows XOR Decision in data generating procecss
             if self.bijected:
                 self.tau = self.dist['tau'].transforms[0](torch.tensor(0.001))
             else:
@@ -125,8 +126,33 @@ class Group_lasso(Hidden):
         """attribute in interval [0,1], which decides upon the degree of how much
         weight gam gets in likelihoods'mu= bnn() + alpha *gam()"""
         # FIXME alpha value for mu in likelihood depending on used shrinkage layer
-        raise NotImplementedError('glasso\'s alpha is not yet implemented')
 
+        # as update_params already changed the tau value here explicitly
+        tau = self.dist['W_shrinked'].scale
+
+        # 1- : since small tau indicate high shrinkage & the possibility to
+        # estimate using GAM, this means that alpha should be (close to) 1
+        self.alpha_chain.append(1 - self.dist['alpha'].cdf(tau))
+        return self.alpha_chain[-1]
+
+    @property
+    def alpha_probab(self):
+        """
+        this is a potential candidate for alpha, to choose as to whether or not
+        the model should estimate the effect of x_1 with BNN or with GAM.
+        This procedure uses the shrinkage variance tau to decide this probabilistically,
+        ensuring that the GAM parameters will be optimized, even if the model should
+        favour alpha = 0 i.e. estimating x_1 in the bnn without gam (considering all
+        interactions with other variables)
+        """
+        tau = self.dist['W_shrinked'].scale
+
+        # map tau to [0,1] interval, making it a probability
+        # be careful as the mapping is informative prior knowledge!
+        # Note further, that alpha is not learned!
+        pi = 1 - self.dist['alpha'].cdf(tau)
+        self.alpha_chain.append(pi)
+        return td.Bernoulli(pi).sample()
 
 
 
