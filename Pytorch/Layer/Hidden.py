@@ -135,7 +135,7 @@ class Hidden(nn.Module, Vec_Model, Model_util):
         calling  self.closure_log_prob(X, y) to fix every consequent call to
         self.log_prob()  or self.log_prob(vec) on the provided dataset X, y
         (using functools.partial)"""
-        return  -self.prior_log_prob().sum() - \
+        return self.prior_log_prob().sum() + \
                self.likelihood(X).log_prob(y).sum()
 
 
@@ -193,10 +193,11 @@ if __name__ == '__main__':
     L = 5
     burn = 500
     N_nuts = burn + N
-    params_hmc_nuts = hamiltorch.sample(log_prob_func=reg.log_prob, params_init=init_theta,
-                                        num_samples=N_nuts, step_size=step_size, num_steps_per_sample=L,
-                                        sampler=hamiltorch.Sampler.HMC_NUTS, burn=burn,
-                                        desired_accept_rate=0.8)
+    params_hmc_nuts = hamiltorch.sample(
+        log_prob_func=reg.log_prob, params_init=init_theta,
+        num_samples=N_nuts, step_size=step_size, num_steps_per_sample=L,
+        sampler=hamiltorch.Sampler.HMC_NUTS, burn=burn,
+        desired_accept_rate=0.8)
 
     # check helper functions
     reg.vec
