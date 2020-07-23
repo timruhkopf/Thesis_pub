@@ -47,7 +47,7 @@ class Sampler:
         return self.chain_mat.numpy()
 
     def posterior_mean(self):
-        return self.chain_mat.mean(dim=1)
+        return self.chain_mat.mean(dim=0)
 
     def posterior_mode(self):
         """
