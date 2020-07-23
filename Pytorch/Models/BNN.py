@@ -3,14 +3,17 @@ import torch.nn as nn
 import torch.distributions as td
 
 from hamiltorch.util import flatten, unflatten
-from functools import partial
 from itertools import accumulate
 import inspect
 
 from Pytorch.Layer import *
+from Pytorch.Models.ModelUtil import Vec_Model, Model_util
 
+class BNN(nn.Module, Vec_Model, Model_util):
+    # FIXME: make this model compatible with Model_utils:
+    #  write get_param, self.vec_to_attrs, self.update_distributions,
+    #  self.my_log_prob (or use Hidden.my..)
 
-class BNN(nn.Module):
     def __init__(self, hunits=[1, 10, 5, 1], activation=nn.ReLU(), final_activation=nn.Identity(), heteroscedast=False):
         """
         Bayesian Neural Network, consisting of hidden layers.
@@ -63,19 +66,6 @@ class BNN(nn.Module):
         """:returns the conditional distribution of y | X"""
         return td.Normal(self.forward(X), scale=self.sigma)
 
-    def log_prob(self, X, y, vec):
-        """SG flavour of Log-prob: any batches of X & y can be used"""
-        self.vec_to_attrs(vec)  # parsing to attributes
-        return self.prior_log_prob() + \
-               self.likelihood(X).log_prob(y).sum()
-
-    def closure_log_prob(self, X=None, y=None):
-        """log_prob factory, to fix X & y for samplers operating on the entire
-        dataset.
-        :returns None. changes inplace attribute log_prob"""
-        print('Setting up "Full Dataset" mode')
-        self.log_prob = partial(self.log_prob, X, y)
-
     def vec_to_attrs(self, vec):
         """surrogate for Hidden Layers' vec_to_attrs, but actually needs to sett a
         BNN.attribute in case of e.g. heteroscedasticity,
@@ -90,6 +80,11 @@ class BNN(nn.Module):
             self.__setattr__('sigma', vec[-1])
 
     def reset_parameters(self, seperated=False):
+        """samples each layer individually.
+        :param seperated: bool. indicates whether the first layer (given its
+        local reset_parameters function has a seperated argument) will sample
+        the first layers 'shrinkage' to create an effect for a variable, that is indeed
+        not relevant to the BNNs prediction."""
         inspected = inspect.getfullargspec(self.layers[0].reset_parameters).args
         if 'seperated' in inspected:
             self.layers[0].reset_parameters(seperated)
@@ -108,9 +103,6 @@ if __name__ == '__main__':
     # generate data
     X_dist = td.Uniform(torch.tensor(-10.), torch.tensor(10.))
     X = X_dist.sample(torch.Size([100])).view(100, 1)
-    X.detach()
-    X.requires_grad_()
-
     y = bnn.likelihood(X).sample()
 
     # check forward path
@@ -137,16 +129,20 @@ if __name__ == '__main__':
     import hamiltorch
     import hamiltorch.util
 
-    N = 200
+    init_theta = flatten(bnn)
+
+    # HMC NUTS
+    N = 2000
     step_size = .3
     L = 5
+    burn = 500
+    N_nuts = burn + N
+    params_hmc_nuts = hamiltorch.sample(
+        log_prob_func=bnn.log_prob, params_init=init_theta,
+        num_samples=N_nuts, step_size=step_size, num_steps_per_sample=L,
+        sampler=hamiltorch.Sampler.HMC_NUTS, burn=burn,
+        desired_accept_rate=0.8)
 
-    bnn.reset_parameters()
-
-    init_theta = hamiltorch.util.flatten(bnn)
-    params_hmc = hamiltorch.sample(
-        log_prob_func=bnn.log_prob, params_init=init_theta, num_samples=N,
-        step_size=step_size, num_steps_per_sample=L)
 
     # check heteroscedastic case
     het_bnn = BNN(heteroscedast=True)
