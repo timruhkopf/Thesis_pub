@@ -10,11 +10,6 @@ from Pytorch.Layer.Hidden_Probmodel import Hidden_ProbModel
 from Pytorch.Layer.Hidden import Hidden
 from Pytorch.Models.ModelUtil import Vec_Model, Model_util, Optim_Model
 from thirdparty_repo.ludwigwinkler.src.MCMC_ProbModel import ProbModel
-#
-# VEC = True
-#
-# vec = (nn.Module, Vec_Model, Model_util)
-# optim = (ProbModel, Optim_Model, nn.Module, Vec_Model, Model_util)
 
 
 class BNN:
@@ -35,9 +30,16 @@ class BNN:
 
         self.heteroscedast = heteroscedast
         self.hunits = hunits
+        self.activation = activation
+        self.final_activation = final_activation
 
+        self.define_model()
+        self.reset_parameters()
+
+        self.true_model = None
+
+    def define_model(self):
         # Defining the layers depending on the mode.
-
         if isinstance(self, Vec_Model):
             L = Hidden
         elif isinstance(self, Optim_Model):
@@ -46,9 +48,9 @@ class BNN:
             L = Hidden
 
         self.layers = nn.Sequential(
-            *[L(no_in, no_units, True, activation)
+            *[L(no_in, no_units, True, self.activation)
               for no_in, no_units in zip(self.hunits[:-2], self.hunits[1:-1])],
-            L(hunits[-2], hunits[-1], bias=False, activation=final_activation))
+            L(self.hunits[-2], self.hunits[-1], bias=False, activation=self.final_activation))
 
         if self.heteroscedast:
             self.sigma_ = nn.Parameter(torch.Tensor(1))
@@ -56,8 +58,6 @@ class BNN:
             self.sigma = self.dist_sigma.sample()
         else:
             self.sigma = torch.tensor(1.)
-
-        self.true_model = None
 
     @property
     def vec(self):
@@ -117,17 +117,16 @@ class BNN:
             h.reset_parameters()
 
 
-class VEC_BNN(BNN, nn.Module, Vec_Model, Model_util):
+class BNN_VEC(BNN, nn.Module, Vec_Model, Model_util):
     def __init__(self, *args, **kwargs):
         nn.Module.__init__(self)
         BNN.__init__(self, *args, **kwargs)
 
 
-class OPTIM_BNN(BNN, ProbModel, Optim_Model, nn.Module, Model_util):
+class BNN_OPTIM(BNN, ProbModel, Optim_Model, nn.Module, Model_util):
     def __init__(self, *args, **kwargs):
         nn.Module.__init__(self)
         BNN.__init__(self, *args, **kwargs)
-
 
 
 if __name__ == '__main__':
@@ -155,7 +154,7 @@ if __name__ == '__main__':
     # bnn.log_prob(X, y, flatten(bnn))
 
     # (VEC MODEL & Data generation) --------------------------------------------
-    vec = VEC_BNN()
+    vec = BNN_VEC()
     X_dist = td.Uniform(torch.tensor(-10.), torch.tensor(10.))
     X = X_dist.sample(torch.Size([100])).view(100, 1)
     y = vec.likelihood(X).sample()
@@ -182,7 +181,8 @@ if __name__ == '__main__':
 
     # (Optim model) ------------------------------------------------------------
     from Pytorch.Samplers.LudwigWinkler import LudwigWinkler
-    optim = OPTIM_BNN()
+
+    optim = BNN_OPTIM()
     ludi = LudwigWinkler(optim, X, y, batch_size=X.shape[0])
 
     num_samples = 200
