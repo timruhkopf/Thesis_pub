@@ -10,10 +10,10 @@ from Pytorch.Models.ModelUtil import Optim_Model
 class Hidden_ProbModel(ProbModel, Optim_Model, Hidden):
     # Inheritance Order is relevant!
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU()):
         """Instantiate a Hidden model, that is ready to be handled by optimbased
         samplers. all that needs to be done is copy the define_model & reset parameters function"""
-        Hidden.__init__(self,*args, **kwargs)
+        Hidden.__init__(self, no_in, no_out, bias=True, activation=nn.ReLU())
 
     def define_model(self):
         self.tau_w = 1.
@@ -32,6 +32,8 @@ class Hidden_ProbModel(ProbModel, Optim_Model, Hidden):
         nn.init.xavier_normal_(self.W)
         if self.bias:
             nn.init.normal_(self.b)
+
+
 
 
 if __name__ == '__main__':
@@ -68,7 +70,7 @@ if __name__ == '__main__':
     num_samples = 200
     sampler = 'sgnht'
     step_size = 0.1
-    num_steps = 10000
+    num_steps = 100
     pretrain = False
     tune = False
     burn_in = 2000
