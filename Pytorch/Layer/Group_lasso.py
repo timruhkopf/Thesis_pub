@@ -113,7 +113,7 @@ class Group_lasso(Hidden):
 
         value = torch.tensor(0.)
         for name in param_names:
-            value += self.dist[name].log_prob(self.__getattribute__(name)).sum()
+            value += self.dist[name].log_prob(self.get_param(name)).sum()
 
         # W's split & vectorized priors
         value += self.dist['W_shrinked'].log_prob(self.W[:, 0]).sum() + \
