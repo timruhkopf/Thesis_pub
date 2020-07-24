@@ -36,6 +36,9 @@ class Model_util:
             self.get_param(name).nelement())
             for name in self.p_names])
 
+    def update_distributions(self):
+        return None
+
     def log_prob(self, X, y, vec=None):
         if vec is not None:
             self.vec_to_attrs(vec)  # parsing to attributes
@@ -82,6 +85,9 @@ class Model_util:
         (using functools.partial)"""
         return self.prior_log_prob().sum() + \
                self.likelihood(X).log_prob(y).sum()
+
+    def invert_bij(self, name):
+        return self.dist[name].transforms[0]._inverse(self.get_param(name))
 
 
 class Vec_Model:
