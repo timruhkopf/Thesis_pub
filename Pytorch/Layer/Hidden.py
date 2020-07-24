@@ -82,6 +82,10 @@ class Hidden(nn.Module, Vec_Model, Model_util):
             nn.init.normal_(self.b_)
             self.b = self.b_.data
 
+    def update_distributions(self):
+        # here no hierarchical distributions exists
+        return None
+
     # (2) DEFINE THESE FUNCTIONS IN REFERENCE TO SURROGATE PARAM: --------------
     # & inherit for layers
     def forward(self, X):
