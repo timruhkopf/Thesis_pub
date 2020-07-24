@@ -6,10 +6,18 @@ from hamiltorch.util import flatten, unflatten
 from itertools import accumulate
 import inspect
 
-from Pytorch.Layer import *
-from Pytorch.Models.ModelUtil import Vec_Model, Model_util
+from Pytorch.Layer.Hidden_Probmodel import Hidden_ProbModel
+from Pytorch.Layer.Hidden import Hidden
+from Pytorch.Models.ModelUtil import Vec_Model, Model_util, Optim_Model
+from thirdparty_repo.ludwigwinkler.src.MCMC_ProbModel import ProbModel
+#
+# VEC = True
+#
+# vec = (nn.Module, Vec_Model, Model_util)
+# optim = (ProbModel, Optim_Model, nn.Module, Vec_Model, Model_util)
 
-class BNN(nn.Module, Vec_Model, Model_util):
+
+class BNN:
     # FIXME: make this model compatible with Model_utils:
     #  write get_param, self.vec_to_attrs, self.update_distributions,
     #  self.my_log_prob (or use Hidden.my..)
@@ -25,13 +33,22 @@ class BNN(nn.Module, Vec_Model, Model_util):
         :remark: see Hidden.activation doc for available activation functions
         """
 
-        super().__init__()
         self.heteroscedast = heteroscedast
         self.hunits = hunits
+
+        # Defining the layers depending on the mode.
+
+        if isinstance(self, Vec_Model):
+            L = Hidden
+        elif isinstance(self, Optim_Model):
+            L = Hidden_ProbModel
+        else:
+            L = Hidden
+
         self.layers = nn.Sequential(
-            *[Hidden(no_in, no_units, True, activation)
+            *[L(no_in, no_units, True, activation)
               for no_in, no_units in zip(self.hunits[:-2], self.hunits[1:-1])],
-            Hidden(hunits[-2], hunits[-1], bias=False, activation=final_activation))
+            L(hunits[-2], hunits[-1], bias=False, activation=final_activation))
 
         if self.heteroscedast:
             self.sigma_ = nn.Parameter(torch.Tensor(1))
@@ -52,6 +69,10 @@ class BNN(nn.Module, Vec_Model, Model_util):
 
     def forward(self, *args, **kwargs):
         return self.layers(*args, **kwargs)
+
+    def update_distributions(self):
+        for h in self.layers:
+            h.update_distributions()
 
     def prior_log_prob(self):
         """surrogate for the hidden layers' prior log prob"""
@@ -96,40 +117,56 @@ class BNN(nn.Module, Vec_Model, Model_util):
             h.reset_parameters()
 
 
+class VEC_BNN(BNN, nn.Module, Vec_Model, Model_util):
+    def __init__(self, *args, **kwargs):
+        nn.Module.__init__(self)
+        BNN.__init__(self, *args, **kwargs)
+
+
+class OPTIM_BNN(BNN, ProbModel, Optim_Model, nn.Module, Model_util):
+    def __init__(self, *args, **kwargs):
+        nn.Module.__init__(self)
+        BNN.__init__(self, *args, **kwargs)
+
+
 
 if __name__ == '__main__':
-    bnn = BNN(hunits=[1, 10, 5, 1])
+    # bnn = BNN(hunits=[1, 10, 5, 1])
+    #
+    # # generate data
+    # X_dist = td.Uniform(torch.tensor(-10.), torch.tensor(10.))
+    # X = X_dist.sample(torch.Size([100])).view(100, 1)
+    # y = bnn.likelihood(X).sample()
+    #
+    # # check forward path
+    # bnn.layers(X)
+    # bnn.forward(X)
+    #
+    # bnn.reset_parameters()
+    # bnn.true_model = bnn.vec
+    #
+    # # check vec_to_attrs
+    # bnn.vec_to_attrs(torch.cat([i * torch.ones(h.n_params) for i, h in enumerate(bnn.layers)]))
+    # bnn.parameters_list
+    # bnn.vec_to_attrs(torch.ones(80))
+    # bnn.forward(X)
+    #
+    # # check accumulation of parameters & parsing
+    # bnn.log_prob(X, y, flatten(bnn))
 
-    # generate data
+    # (VEC MODEL & Data generation) --------------------------------------------
+    vec = VEC_BNN()
     X_dist = td.Uniform(torch.tensor(-10.), torch.tensor(10.))
     X = X_dist.sample(torch.Size([100])).view(100, 1)
-    y = bnn.likelihood(X).sample()
+    y = vec.likelihood(X).sample()
 
-    # check forward path
-    bnn.layers(X)
-    bnn.forward(X)
+    vec.closure_log_prob(X, y)
+    vec.log_prob(flatten(vec))
 
-    bnn.reset_parameters()
-    bnn.true_model = bnn.vec
-
-    # check vec_to_attrs
-    bnn.vec_to_attrs(torch.cat([i * torch.ones(h.n_params) for i, h in enumerate(bnn.layers)]))
-    bnn.parameters_list
-    bnn.vec_to_attrs(torch.ones(80))
-    bnn.forward(X)
-
-    # check accumulation of parameters & parsing
-    bnn.log_prob(X, y, flatten(bnn))
-
-    # check log_prob "full dataset"
-    bnn.closure_log_prob(X, y)
-    bnn.log_prob(flatten(bnn))
-
-    # check estimation
     import hamiltorch
     import hamiltorch.util
 
-    init_theta = flatten(bnn)
+    init_theta = flatten(vec)
 
     # HMC NUTS
     N = 2000
@@ -138,25 +175,36 @@ if __name__ == '__main__':
     burn = 500
     N_nuts = burn + N
     params_hmc_nuts = hamiltorch.sample(
-        log_prob_func=bnn.log_prob, params_init=init_theta,
+        log_prob_func=vec.log_prob, params_init=init_theta,
         num_samples=N_nuts, step_size=step_size, num_steps_per_sample=L,
         sampler=hamiltorch.Sampler.HMC_NUTS, burn=burn,
         desired_accept_rate=0.8)
 
+    # (Optim model) ------------------------------------------------------------
+    from Pytorch.Samplers.LudwigWinkler import LudwigWinkler
+    optim = OPTIM_BNN()
+    ludi = LudwigWinkler(optim, X, y, batch_size=X.shape[0])
 
-    # check heteroscedastic case
-    het_bnn = BNN(heteroscedast=True)
-    het_bnn.forward(X)
-    het_bnn.closure_log_prob(X, y)
-    het_bnn.log_prob(flatten(het_bnn))
+    num_samples = 200
+    sampler = 'sgnht'
+    step_size = 0.1
+    num_steps = 100
+    pretrain = False
+    tune = False
+    burn_in = 2000
+    # num_chains 		type=int, 	default=1
+    num_chains = 1  # os.cpu_count() - 1
+    batch_size = 50
+    hmc_traj_length = 20
+    val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
+    val_prediction_steps = 50
+    val_converge_criterion = 20
+    val_per_epoch = 200
 
-    N = 3000
-    step_size = .3
-    L = 5
+    ludi.sample_SGNHT(step_size, num_steps, burn_in, pretrain=False, tune=tune, hmc_traj_length=hmc_traj_length,
+                      num_chains=num_chains)
 
-    init_theta = hamiltorch.util.flatten(bnn)
-    params_hmc = hamiltorch.sample(
-        log_prob_func=bnn.log_prob, params_init=init_theta, num_samples=N,
-        step_size=step_size, num_steps_per_sample=L)
+    type(ludi.sampler.chain)
+    ludi.sampler.chain.__dict__
 
     print()
