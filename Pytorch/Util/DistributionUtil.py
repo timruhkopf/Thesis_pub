@@ -141,7 +141,7 @@ class LogTransform(td.Transform):
         return y.exp()
 
     def log_abs_det_jacobian(self, x, y):
-        return 1 / x
+        return 1 / x  # todo check it is not 1/y
 
 
 if __name__ == '__main__':
