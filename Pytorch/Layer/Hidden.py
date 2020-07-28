@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 
-from hamiltorch.util import flatten, unflatten
-from Pytorch.Models.ModelUtil import Vec_Model, Model_util
+from hamiltorch.util import flatten
+from Pytorch.Util.ModelUtil import Vec_Model, Model_util
 
 
 class Hidden(nn.Module, Vec_Model, Model_util):
@@ -144,7 +144,7 @@ class Hidden(nn.Module, Vec_Model, Model_util):
 
 
 if __name__ == '__main__':
-    no_in = 10
+    no_in = 2
     no_out = 1
 
     # single Hidden Unit Example

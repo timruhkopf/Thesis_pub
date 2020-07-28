@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.distributions as td
 
 from Pytorch.Layer.Hidden import Hidden
-from Pytorch.DistributionUtil import LogTransform
+from Pytorch.Util.DistributionUtil import LogTransform
 
 
 class Group_lasso(Hidden):
@@ -21,7 +21,7 @@ class Group_lasso(Hidden):
         """
         self.bijected = bijected
         Hidden.__init__(self, no_in, no_out, bias, activation)
-        self.dist['alpha'] = td.LogNormal(0., scale=1./20.)
+        self.dist['alpha'] = td.LogNormal(0., scale=1. / 20.)
         self.alpha_chain = list()
 
     def define_model(self):
@@ -78,9 +78,9 @@ class Group_lasso(Hidden):
         """sampling method to instantiate the parameters"""
 
         self.lamb = self.dist['lamb'].sample()
-        self.update_distributions() # to ensure tau's dist is updated properly
+        self.update_distributions()  # to ensure tau's dist is updated properly
 
-        if seperated: # allows XOR Decision in data generating procecss
+        if seperated:  # allows XOR Decision in data generating procecss
             if self.bijected:
                 self.tau = self.dist['tau'].transforms[0](torch.tensor(0.001))
             else:
@@ -155,9 +155,8 @@ class Group_lasso(Hidden):
         return td.Bernoulli(pi).sample()
 
 
-
 if __name__ == '__main__':
-    glasso = Group_lasso(3, 10)
+    glasso = Group_lasso(3, 1, bias=True, activation=nn.Identity())
     glasso.true_model = glasso.vec
 
     # generate data
@@ -214,14 +213,12 @@ if __name__ == '__main__':
     theta = hamiltorch.util.flatten(glasso)
     print(glasso.log_prob(theta))
 
-
     # FIXME: failing internally with Glasso during irmhmc sampling due to singular U in cholesky (MVN , fisher)
     # params_irmhmc_bij = hamiltorch.sample(
     #     log_prob_func=glasso.log_prob, params_init=theta, num_samples=N,
     #     step_size=step_size, num_steps_per_sample=L, sampler=hamiltorch.Sampler.RMHMC,
     #     integrator=hamiltorch.Integrator.IMPLICIT, fixed_point_max_iterations=1000,
     #     fixed_point_threshold=1e-05)
-
 
     glasso.reset_parameters()
     theta = hamiltorch.util.flatten(glasso)
