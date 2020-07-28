@@ -4,7 +4,7 @@ import torch.distributions as td
 
 from thirdparty_repo.ludwigwinkler.src.MCMC_ProbModel import ProbModel
 from Pytorch.Layer.Hidden import Hidden
-from Pytorch.Models.ModelUtil import Optim_Model
+from Pytorch.Util.ModelUtil import Optim_Model
 
 
 class Hidden_ProbModel(ProbModel, Optim_Model, Hidden):
@@ -88,7 +88,3 @@ if __name__ == '__main__':
 
     type(ludi.sampler.chain)
     ludi.sampler.chain.__dict__
-
-
-
-

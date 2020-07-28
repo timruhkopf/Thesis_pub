@@ -3,10 +3,10 @@ import torch.nn as nn
 import torch.distributions as td
 
 from thirdparty_repo.ludwigwinkler.src.MCMC_ProbModel import ProbModel
-from Pytorch.Layer.Hidden_Probmodel import Hidden_ProbModel
+from Pytorch.Layer.Layer_Probmodel.Hidden_Probmodel import Hidden_ProbModel
 from Pytorch.Layer.Group_lasso import Group_lasso
-from Pytorch.Models.ModelUtil import Optim_Model
-from Pytorch.DistributionUtil import LogTransform
+from Pytorch.Util.ModelUtil import Optim_Model
+from Pytorch.Util.DistributionUtil import LogTransform
 
 
 class Group_lasso_Probmodel(ProbModel, Optim_Model, Group_lasso):
