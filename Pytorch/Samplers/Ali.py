@@ -5,8 +5,8 @@ from tqdm import tqdm
 from copy import deepcopy
 
 from Pytorch.Samplers.Samplers import Sampler
-from thirdparty_repo.alisiahkoohi.Langevin_dynamics_master.langevin_sampling import MetropolisAdjustedLangevin, \
-    LangevinDynamics
+from thirdparty_repo.alisiahkoohi.Langevin_dynamics_master.langevin_sampling.samplers import \
+    MetropolisAdjustedLangevin, LangevinDynamics
 
 
 class Ali(Sampler):

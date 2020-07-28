@@ -2,17 +2,14 @@
 
 from __future__ import print_function
 import sys
-import torch
-import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import numpy as np
 import random
 
-from Pytorch.Samplers import Samplers
 from hamiltorch.util import flatten
 
 # from models import *
-from Pytorch.DistributionUtil import *
+from Pytorch.Util.DistributionUtil import *
 
 sys.path.append('..')
 use_cuda = torch.cuda.is_available()
@@ -207,7 +204,7 @@ class CSG_MCMC:  # (Samplers)
 
 
 if __name__ == '__main__':
-    from Pytorch.Layer.Hidden_Probmodel import Hidden_ProbModel
+    from Pytorch.Layer.Layer_Probmodel.Hidden_Probmodel import Hidden_ProbModel
     import torch.distributions as td
     import torch.nn as nn
 

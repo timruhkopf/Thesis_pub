@@ -54,7 +54,7 @@ class LudwigWinkler(Sampler):
 
         self.sampler.sample_chains()
 
-        self.sampler.posterior_dist()
+        # self.sampler.posterior_dist()
         # sampler.trace()
 
         # plt.plot(sampler.chain.accepted_steps)

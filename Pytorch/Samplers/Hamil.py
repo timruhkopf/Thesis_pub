@@ -11,6 +11,7 @@ class Hamil(Sampler):
         """An interface to various hamiltorch samplers
         # https://github.com/AdamCobb/hamiltorch
         # https://adamcobb.github.io/journal/hamiltorch.html  (vignette)
+        # https://github.com/AdamCobb/hamiltorch/blob/master/notebooks/hamiltorch_log_prob_examples.ipynb
         """
 
         self.model = model
@@ -22,7 +23,7 @@ class Hamil(Sampler):
         self.log_probability = torch.Tensor()
 
     def logs(self):
-        self.log_probability = torch.cat([self.model.log_prob(state) for state in self.chain])
+        self.log_probability = torch.stack([self.model.log_prob(state) for state in self.chain], dim=-1)
 
     def sample_NUTS(self, N, step_size=.3, L=5, burn=500):
         """burn = 500,    N_nuts = burn + N"""
@@ -84,6 +85,7 @@ if __name__ == '__main__':
 
     reg.reset_parameters()
     init_theta = reg.vec
+
 
     hamil = Hamil(reg, X, y, init_theta)
     hamil.sample_NUTS(1000, 0.3, 5)
