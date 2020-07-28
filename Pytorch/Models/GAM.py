@@ -4,7 +4,7 @@ import torch.nn as nn
 from hamiltorch.util import flatten, unflatten
 
 from Pytorch.Layer.Hidden import Hidden
-from Pytorch.DistributionUtil import LogTransform
+from Pytorch.Util.DistributionUtil import LogTransform
 
 from Tensorflow.Effects.bspline import get_design, diff_mat1D
 from Tensorflow.Effects.Cases1D.Bspline_K import Bspline_K
@@ -138,6 +138,7 @@ if __name__ == '__main__':
     gam.reset_parameters()
     gam(Z)
 
+    gam.forward(Z)
     y = gam.likelihood(Z).sample()
 
     # prior log prob example

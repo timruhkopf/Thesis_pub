@@ -5,11 +5,11 @@ import hamiltorch.util as util
 from functools import partial
 
 from Pytorch.Models.GAM import GAM
-from Pytorch.Models.Shrinkage_BNN import Shrinkage_BNN
+from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
 from Tensorflow.Effects.bspline import get_design
 
 
-class Structured_BNN(Shrinkage_BNN):
+class Structured_BNN(ShrinkageBNN):
 
     def __init__(self, gam_param={'xgrid': (0, 10, 0.5), 'order': 1, 'no_basis': 20,
                                   'no_out': 1, 'activation': nn.Identity()},

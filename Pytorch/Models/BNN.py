@@ -2,21 +2,17 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 
-from hamiltorch.util import flatten, unflatten
+from hamiltorch.util import flatten
 from itertools import accumulate
 import inspect
 
-from Pytorch.Layer.Hidden_Probmodel import Hidden_ProbModel
+from Pytorch.Layer.Layer_Probmodel.Hidden_Probmodel import Hidden_ProbModel
 from Pytorch.Layer.Hidden import Hidden
-from Pytorch.Models.ModelUtil import Vec_Model, Model_util, Optim_Model
+from Pytorch.Util.ModelUtil import Vec_Model, Model_util, Optim_Model
 from thirdparty_repo.ludwigwinkler.src.MCMC_ProbModel import ProbModel
 
 
-class BNN:
-    # FIXME: make this model compatible with Model_utils:
-    #  write get_param, self.vec_to_attrs, self.update_distributions,
-    #  self.my_log_prob (or use Hidden.my..)
-
+class BNN(nn.Module, Model_util):
     def __init__(self, hunits=[1, 10, 5, 1], activation=nn.ReLU(), final_activation=nn.Identity(), heteroscedast=False):
         """
         Bayesian Neural Network, consisting of hidden layers.
@@ -27,7 +23,7 @@ class BNN:
         variance y|x~N(mu, sigma²) is to be estimated as well
         :remark: see Hidden.activation doc for available activation functions
         """
-
+        nn.Module.__init__(self)
         self.heteroscedast = heteroscedast
         self.hunits = hunits
         self.activation = activation
@@ -38,6 +34,7 @@ class BNN:
 
         self.true_model = None
 
+    # CLASSICS METHODS ---------------------------------------------------------
     def define_model(self):
         # Defining the layers depending on the mode.
         if isinstance(self, Vec_Model):
@@ -59,47 +56,6 @@ class BNN:
         else:
             self.sigma = torch.tensor(1.)
 
-    @property
-    def vec(self):
-        return torch.cat([h.vec for h in self.layers])
-
-    @property
-    def parameters_list(self):
-        return [h.parameters_list for h in self.layers]
-
-    def forward(self, *args, **kwargs):
-        return self.layers(*args, **kwargs)
-
-    def update_distributions(self):
-        for h in self.layers:
-            h.update_distributions()
-
-    def prior_log_prob(self):
-        """surrogate for the hidden layers' prior log prob"""
-        p_log_prob = sum([h.prior_log_prob().sum() for h in self.layers])
-
-        if self.heteroscedast:
-            p_log_prob += self.dist_sigma.log_prob(self.sigma)
-
-        return p_log_prob
-
-    def likelihood(self, X):
-        """:returns the conditional distribution of y | X"""
-        return td.Normal(self.forward(X), scale=self.sigma)
-
-    def vec_to_attrs(self, vec):
-        """surrogate for Hidden Layers' vec_to_attrs, but actually needs to sett a
-        BNN.attribute in case of e.g. heteroscedasticity,
-        i.e. where sigma param is in likelihood"""
-
-        # delegate the vector parts to the layers
-        lengths = list(accumulate([0] + [h.n_params for h in self.layers]))
-        for i, j, h in zip(lengths, lengths[1:], self.layers):
-            h.vec_to_attrs(vec[i:j])
-
-        if self.heteroscedast:
-            self.__setattr__('sigma', vec[-1])
-
     def reset_parameters(self, seperated=False):
         """samples each layer individually.
         :param seperated: bool. indicates whether the first layer (given its
@@ -116,14 +72,57 @@ class BNN:
         for h in self.layers[1:]:
             h.reset_parameters()
 
+    def prior_log_prob(self):
+        """surrogate for the hidden layers' prior log prob"""
+        p_log_prob = sum([h.prior_log_prob().sum() for h in self.layers])
 
-class BNN_VEC(BNN, nn.Module, Vec_Model, Model_util):
+        if self.heteroscedast:
+            p_log_prob += self.dist_sigma.log_prob(self.sigma)
+
+        return p_log_prob
+
+    def likelihood(self, X):
+        """:returns the conditional distribution of y | X"""
+        return td.Normal(self.forward(X), scale=self.sigma)
+
+    # SURROGATE (AGGREGATING) METHODS ------------------------------------------
+    @property
+    def vec(self):
+        return torch.cat([h.vec for h in self.layers])
+
+    @property
+    def parameters_list(self):
+        return [h.parameters_list for h in self.layers]
+
+    def forward(self, *args, **kwargs):
+        return self.layers(*args, **kwargs)
+
+    def update_distributions(self):
+        for h in self.layers:
+            h.update_distributions()
+
+    def vec_to_attrs(self, vec):
+        """surrogate for Hidden Layers' vec_to_attrs, but actually needs to sett a
+        BNN.attribute in case of e.g. heteroscedasticity,
+        i.e. where sigma param is in likelihood"""
+
+        # delegate the vector parts to the layers
+        lengths = list(accumulate([0] + [h.n_params for h in self.layers]))
+        for i, j, h in zip(lengths, lengths[1:], self.layers):
+            h.vec_to_attrs(vec[i:j])
+
+        if self.heteroscedast:
+            self.__setattr__('sigma', vec[-1])
+
+
+
+class BNN_VEC(BNN, Vec_Model):
     def __init__(self, *args, **kwargs):
         nn.Module.__init__(self)
         BNN.__init__(self, *args, **kwargs)
 
 
-class BNN_OPTIM(BNN, ProbModel, Optim_Model, nn.Module, Model_util):
+class BNN_OPTIM(BNN, ProbModel, Optim_Model):
     def __init__(self, *args, **kwargs):
         nn.Module.__init__(self)
         BNN.__init__(self, *args, **kwargs)
@@ -168,7 +167,7 @@ if __name__ == '__main__':
     init_theta = flatten(vec)
 
     # HMC NUTS
-    N = 2000
+    N = 200
     step_size = .3
     L = 5
     burn = 500

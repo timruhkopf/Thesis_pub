@@ -5,9 +5,9 @@ import torch.nn as nn
 from Pytorch.Models.BNN import BNN
 from Pytorch.Layer.Group_lasso import Group_lasso
 from Pytorch.Layer.Group_HorseShoe import Group_HorseShoe
-from Pytorch.Layer.Hidden_Probmodel import Hidden_ProbModel
+from Pytorch.Layer.Layer_Probmodel.Hidden_Probmodel import Hidden_ProbModel
 from Pytorch.Layer.Hidden import Hidden
-from Pytorch.Layer.Group_lasso_Probmodel import Group_lasso_Probmodel
+from Pytorch.Layer.Layer_Probmodel.Group_lasso_Probmodel import Group_lasso_Probmodel
 
 
 class ShrinkageBNN(BNN):
@@ -65,7 +65,7 @@ class ShrinkageBNN(BNN):
             self.sigma = torch.tensor(1.)
 
 
-from Pytorch.Models.ModelUtil import Vec_Model, Model_util, Optim_Model
+from Pytorch.Util.ModelUtil import Vec_Model, Model_util, Optim_Model
 from thirdparty_repo.ludwigwinkler.src.MCMC_ProbModel import ProbModel
 
 
@@ -82,7 +82,7 @@ class ShrinkageBNN_OPTIM(ShrinkageBNN, ProbModel, Optim_Model, nn.Module, Model_
 
 
 if __name__ == '__main__':
-    from hamiltorch.util import flatten, unflatten
+    from hamiltorch.util import flatten
 
     sbnn = ShrinkageBNN_VEC()
 
