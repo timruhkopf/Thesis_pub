@@ -95,8 +95,8 @@ class Group_lasso(Hidden):
         self.W = torch.cat([self.dist['W_shrinked'].sample().view(self.no_in, 1),
                             self.dist['W'].sample().view(self.no_in, self.no_out - 1)],
                            dim=1)
-
-        self.b = self.dist['b'].sample()
+        if self.bias:
+            self.b = self.dist['b'].sample()
 
         # setting the nn.Parameters's starting value
         self.lamb_.data = self.lamb

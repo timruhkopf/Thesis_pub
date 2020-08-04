@@ -13,7 +13,7 @@ class Hidden_ProbModel(ProbModel, Optim_Model, Hidden):
     def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU()):
         """Instantiate a Hidden model, that is ready to be handled by optimbased
         samplers. all that needs to be done is copy the define_model & reset parameters function"""
-        Hidden.__init__(self, no_in, no_out, bias=True, activation=nn.ReLU())
+        Hidden.__init__(self, no_in, no_out, bias, activation)
 
     def define_model(self):
         self.tau_w = 1.
