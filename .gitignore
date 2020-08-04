@@ -1,6 +1,9 @@
 /.TEMPORARY/
 /Literature/
 /venv/
-/shell/
 /.idea/
 .gitignore
+/Pytorch/TorchTutorials/
+
+/Pytorch/Layer/Group_SpikeNSlab.py
+/Pytorch/Layer/Group_SpikeNSlab_Ishwaran.py

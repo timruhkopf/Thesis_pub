@@ -133,7 +133,7 @@ class Effects2D(SamplerPrecision):
         coefficients originated from a Random field.
 
         :param l: The ND-splines degreee
-        :return: ndsplines.NDSpline.__call__ object, allows to evaluate the
+        :return: ndsplines.NDSpline.forward object, allows to evaluate the
         exact surface value: fxy.surface(np.stack([x, y], axis=-1))
 
         """
