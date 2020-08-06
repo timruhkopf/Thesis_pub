@@ -29,7 +29,6 @@ class GAM(Hidden):
         self.K = torch.tensor(diff_mat1D(no_basis, order)[1], dtype=torch.float32, requires_grad=False)
         self.penK = penK
         if self.penK:
-
             # bspline_k = Bspline_K(self.xgrid, no_coef=self.no_basis, order=1,
             #                       sig_Q=0.9, sig_Q0=0.1, threshold=10 ** -3)
             # self.K = torch.tensor(torch.from_numpy(bspline_k.penQ), dtype=torch.float32)
@@ -109,7 +108,7 @@ class GAM(Hidden):
         elif mode == 'U-MVN' and self.penK:  # Uniform for gamma0 & MVN (0, K[1:, 1:]**-1) as cov
             gamma = torch.cat(
                 [td.Uniform(torch.tensor([-1.]), torch.tensor([1.])).sample(),
-                 td.MultivariateNormal(torch.zeros(self.no_basis - 1), (self.tau**-1) * self.cov).sample()],
+                 td.MultivariateNormal(torch.zeros(self.no_basis - 1), (self.tau ** -1) * self.cov).sample()],
                 dim=0).view(self.no_out, self.no_basis)
             self.W = gamma.view(self.no_basis, self.no_out)
 
@@ -136,8 +135,39 @@ class GAM(Hidden):
         return sum(const + kernel + self.dist['tau'].log_prob(self.tau))
 
     def plot1d(self, X, y, true_model=None, param=None, confidence=None, show=True, **kwargs):
+        import matplotlib.pyplot as plt
+        import pandas as pd
+        import seaborn as sns
         # TODO Overwrite due to X & Z mismatch: plotting axes & forward
-        raise NotImplementedError()
+
+        Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=no_basis), dtype=torch.float32, requires_grad=False)
+
+        # FIXME: in GAM case, Z is required for predictions & X is used for plotting
+        last_state = self.vec  # saving the state before overwriting it
+        kwargs.update({'true': self._chain_predict([true_model], Z)['0']})
+        kwargs.update(self._chain_predict(param, Z))
+
+        df = pd.DataFrame({'X': torch.reshape(X, (X.shape[0],)).numpy()})
+        for name, var in kwargs.items():
+            df[name] = torch.reshape(var, (var.shape[0],)).numpy()
+        df = df.melt('X', value_name='y')
+        df = df.rename(columns={'variable': 'functions'})
+
+        # plot the functions
+        fig, ax = plt.subplots(nrows=1, ncols=1)
+        fig.subplots_adjust(hspace=0.5)
+        sns.scatterplot(
+            x=torch.reshape(X, (X.shape[0],)).numpy(),
+            y=torch.reshape(y, (y.shape[0],)).numpy(), ax=ax)
+
+        sns.lineplot('X', y='y', hue='functions', alpha=0.5, data=df, ax=ax)
+
+        if confidence is not None:  # plot (optional) confidence bands
+            ax.fill_between(**confidence, alpha=0.4, facecolor='lightblue')
+
+        fig.suptitle('Functions of the data')
+        plt.plot()
+
 
 if __name__ == '__main__':
     # dense example
@@ -155,6 +185,9 @@ if __name__ == '__main__':
 
     # prior log prob example
     gam.prior_log_prob()
+
+    gam.plot1d(X, y, true_model=gam.vec, param=
+    [torch.linspace(0., 10., len(gam.vec))+ td.Normal(torch.zeros_like(gam.vec), 1.).sample()])
 
     # log_prob sg example
     theta = flatten(gam)
