@@ -29,9 +29,19 @@ class GAM(Hidden):
         self.K = torch.tensor(diff_mat1D(no_basis, order)[1], dtype=torch.float32, requires_grad=False)
         self.penK = penK
         if self.penK:
-            bspline_k = Bspline_K(self.xgrid, no_coef=self.no_basis, order=1,
-                                  sig_Q=0.9, sig_Q0=0.1, threshold=10 ** -3)
-            self.K = torch.tensor(torch.from_numpy(bspline_k.penQ), dtype=torch.float32)
+
+            # bspline_k = Bspline_K(self.xgrid, no_coef=self.no_basis, order=1,
+            #                       sig_Q=0.9, sig_Q0=0.1, threshold=10 ** -3)
+            # self.K = torch.tensor(torch.from_numpy(bspline_k.penQ), dtype=torch.float32)
+
+            # replaced Bspline_K with the actual penalize call for K
+            from Tensorflow.Effects.SamplerPrecision import penalize_nullspace
+            sig_Q = 0.99
+            sig_Q0 = 0.01
+            threshold = 10 ** -3
+
+            Sigma, penQ = penalize_nullspace(self.K.numpy(), sig_Q, sig_Q0, threshold, plot=False)
+            self.K = torch.tensor(torch.from_numpy(penQ), dtype=torch.float32)
 
         self.cov = torch.inverse(self.K[1:, 1:])  # FIXME: Multivariate Normal cholesky decomp fails!
 
@@ -57,7 +67,7 @@ class GAM(Hidden):
         else:
             self.tau_bij = self.tau
 
-    def reset_parameters(self, tau=torch.tensor([1.]), mode='K'):
+    def reset_parameters(self, tau=torch.tensor([1.]), mode='U-MVN'):
         """
         Sample the prior model, instantiating the data model
         :param xgrid: defining space for the Bspline expansion. Notice, that
@@ -96,12 +106,12 @@ class GAM(Hidden):
             bspline_cum = Bspline_cum(self.xgrid, coef_scale=0.3)
             self.W = torch.tensor(bspline_cum.z, dtype=torch.float32).view(self.no_out, self.no_basis)
 
-        elif mode == 'U-MVN' and not self.penK:  # Uniform for gamma0 & MVN (0, K[1:, 1:]**-1) as cov
+        elif mode == 'U-MVN' and self.penK:  # Uniform for gamma0 & MVN (0, K[1:, 1:]**-1) as cov
             gamma = torch.cat(
                 [td.Uniform(torch.tensor([-1.]), torch.tensor([1.])).sample(),
-                 td.MultivariateNormal(torch.zeros(self.no_basis - 1), self.cov).sample()],
+                 td.MultivariateNormal(torch.zeros(self.no_basis - 1), (self.tau**-1) * self.cov).sample()],
                 dim=0).view(self.no_out, self.no_basis)
-            self.W = gamma
+            self.W = gamma.view(self.no_basis, self.no_out)
 
         else:
             raise ValueError('Mode is incorreclty specified')
@@ -125,6 +135,9 @@ class GAM(Hidden):
         kernel = -(2 * self.tau_bij) ** -1 * self.W.t() @ self.K @ self.W
         return sum(const + kernel + self.dist['tau'].log_prob(self.tau))
 
+    def plot1d(self, X, y, true_model=None, param=None, confidence=None, show=True, **kwargs):
+        # TODO Overwrite due to X & Z mismatch: plotting axes & forward
+        raise NotImplementedError()
 
 if __name__ == '__main__':
     # dense example
@@ -132,7 +145,6 @@ if __name__ == '__main__':
     X_dist = td.Uniform(-10., 10)
     X = X_dist.sample(torch.Size([100]))
     Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=no_basis), dtype=torch.float32, requires_grad=False)
-    Z.detach()
 
     gam = GAM(no_basis=no_basis, order=1)
     gam.reset_parameters()
