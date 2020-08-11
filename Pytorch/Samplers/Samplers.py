@@ -1,9 +1,9 @@
 import torch
 
-from Pytorch.Samplers.Experimental import Experimental
+from Pytorch.Samplers.Sampler_Experimental import Sampler_Experimental
 
 
-class Sampler(Experimental):
+class Sampler(Sampler_Experimental):
     def __init__(self, model):
         """
         Samplers class, implementing all the functionality shared by the samplers:
@@ -39,7 +39,7 @@ class Sampler(Experimental):
     def save(self, path):
         # import pickle
 
-        torch.save(path)
+        torch.save(self, path)
         #
         # with open(path, 'wb') as p:
         #     pickle.dump(self, p)
@@ -73,7 +73,11 @@ class Sampler(Experimental):
         all log_prob evaluations
         :return: 1D. Tensor: state of the chain, which has the max log_prob
         """
-        return self.chain[self.logs.index(max(self.logs))]
+        # flattening the list of indecies
+        a = [a[0] for a in torch.nonzero(self.log_probability == max(
+            self.log_probability)).numpy().tolist()]
+        # return the mode value(s)
+        return [c for i, c in enumerate(self.chain) if i in a]
 
 
 if __name__ == '__main__':
@@ -99,13 +103,18 @@ if __name__ == '__main__':
     theta = gam.flatten()
 
     from Pytorch.Samplers.Hamil import Hamil
-
+    theta
     hamil = Hamil(gam, Z, y, theta)
     hamil.sample_NUTS(1000, 0.3, 5)
 
+    hamil.model.vec
     hamil.save(path='/home/tim/PycharmProjects/Thesis/Pytorch/Chains/hamil2')
+    hamil.model.vec_to_attrs(torch.ones_like(theta))
     hamil2 = Hamil.load('/home/tim/PycharmProjects/Thesis/Pytorch/Chains/hamil2')
     hamil2.forward(Z)
+
+    # FIXME X & Z in GAM PLOTTING !!!
+    hamil2.model.plot1d(X, Z, y)
 
     sampler = Sampler()
     sampler.chain.extend([torch.ones(10), torch.zeros(10), torch.ones(10)])
