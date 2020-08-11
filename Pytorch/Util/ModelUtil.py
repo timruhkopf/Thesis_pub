@@ -47,6 +47,13 @@ class Model_util:
     def update_distributions(self):
         return None
 
+    def likelihood(self, X):
+        """:returns the conditional distribution of y | X"""
+        # TODO update likelihood to become an attribute distribution,
+        #  which is updated via self.likelihood.__init__(newloc, scale)
+        #  or even use self.likelihood.loc = newloc
+        return td.Normal(self.forward(X), scale=torch.tensor(1.))
+
     def my_log_prob(self, X, y):
         """ DEFAULT, but can be easily modified!
         SG flavour of Log-prob: any batches of X & y can be used
@@ -129,7 +136,7 @@ class Model_util:
             raise ValueError('X is of improper dimensions')
 
         # FIXME: in GAM case, Z is required for predictions & X is used for plotting
-        last_state = self.vec  # saving the state before overwriting it
+        last_state = self.vec.detach().clone()  # saving the state before overwriting it
         kwargs.update({'true': self._chain_predict([true_model], X)['0']})
         kwargs.update(self._chain_predict(param, X))
 
@@ -152,11 +159,12 @@ class Model_util:
             ax.fill_between(**confidence, alpha=0.4, facecolor='lightblue')
 
         fig.suptitle('Functions of the data')
-        plt.plot()
-
 
         # reinstate the old state
         self.vec_to_attrs(last_state)
+
+        plt.plot()
+
 
     @torch.no_grad()
     def plot2d(self, X, y, true_model=None, param=None, multi_subplots=False, **kwargs):
