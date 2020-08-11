@@ -45,7 +45,7 @@ class Hidden_Nuts(Grid):
 
 if __name__ == '__main__':
 
-    hidden_unittest = Hidden_Nuts(root=os.getcwd() + '/Pytorch/Experiments/')
+    hidden_unittest = Hidden_Nuts(root=os.getcwd() + '/Pytorch/Experiments/') #+ '/Pytorch/Experiments/')
     # test run
     hidden_unittest.main(
         n=100,

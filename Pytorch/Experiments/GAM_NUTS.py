@@ -54,13 +54,13 @@ if __name__ == '__main__':
 
 
     # RECONSTRUCTION FROM MODEL FILES: ----------------------------------------------
-    from Pytorch.Models.GAM import GAM
-    from Pytorch.Samplers.Hamil import Hamil
-
-    # filter a dir for .model files
-    models = [m for m in os.listdir('results/') if m.endswith('.model')]
-
-    loaded_hamil = torch.load('results/' +models[0])
-    loaded_hamil.chain
+    # from Pytorch.Models.GAM import GAM
+    # from Pytorch.Samplers.Hamil import Hamil
+    #
+    # # filter a dir for .model files
+    # models = [m for m in os.listdir('results/') if m.endswith('.model')]
+    #
+    # loaded_hamil = torch.load('results/' +models[0])
+    # loaded_hamil.chain
 
 print()

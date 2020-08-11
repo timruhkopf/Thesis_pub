@@ -14,14 +14,11 @@ class Grid:
         if not os.path.isdir(self.pathresults[:-1]):
             os.mkdir(self.pathresults)
 
-        # TODO if not exists in dir
-        if not os.path.isfile(self.pathresults + 'results/run_log.csv'):
+        # critical section: reference in bash different compared to
+        # debug call from subclass' module
+        if not os.path.isfile(self.pathresults +'run_log.csv'):
             df = pd.DataFrame(columns=['index', 'id', 'success', 'config'])
-
-            df.to_csv('results/run_log.csv')
-        # crete pandas df
-
-
+            df.to_csv(self.pathresults + 'run_log.csv')
 
         self.hash = self._create_hash()
         self._pip_freeze()
@@ -82,5 +79,5 @@ class Grid:
 
     def write_to_table(self, success, config_str):
         df = pd.DataFrame({'id': [self.hash], 'success':[success], 'config':[config_str]})
-        df.to_csv('results/run_log.csv', mode='a', header=False)
+        df.to_csv(self.pathresults + 'run_log.csv', mode='a', header=False)
 
