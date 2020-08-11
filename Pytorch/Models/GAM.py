@@ -40,7 +40,7 @@ class GAM(Hidden):
             threshold = 10 ** -3
 
             Sigma, penQ = penalize_nullspace(self.K.numpy(), sig_Q, sig_Q0, threshold, plot=False)
-            self.K = torch.tensor(torch.from_numpy(penQ), dtype=torch.float32)
+            self.K = torch.from_numpy(penQ).clone().detach().type(torch.FloatTensor)
 
         self.cov = torch.inverse(self.K[1:, 1:])  # FIXME: Multivariate Normal cholesky decomp fails!
 
@@ -143,7 +143,7 @@ class GAM(Hidden):
         Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=no_basis), dtype=torch.float32, requires_grad=False)
 
         # FIXME: in GAM case, Z is required for predictions & X is used for plotting
-        last_state = self.vec  # saving the state before overwriting it
+        last_state = self.vec.detach().clone()  # saving the state before overwriting it
         kwargs.update({'true': self._chain_predict([true_model], Z)['0']})
         kwargs.update(self._chain_predict(param, Z))
 
@@ -166,6 +166,7 @@ class GAM(Hidden):
             ax.fill_between(**confidence, alpha=0.4, facecolor='lightblue')
 
         fig.suptitle('Functions of the data')
+        self.vec_to_attrs(last_state)
         plt.plot()
 
 
