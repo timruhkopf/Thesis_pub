@@ -50,7 +50,7 @@ class Hamil(Sampler):
 
     def sample_eRMHMC(self, N, step_size, L, omega=100.):
         self.chain = hamiltorch.sample(
-            log_prob_func=self.log_prob, params_init=self.params_init, num_samples=N,
+            log_prob_func=self.model.log_prob, params_init=self.params_init, num_samples=N,
             step_size=step_size, num_steps_per_sample=L, sampler=hamiltorch.Sampler.RMHMC,
             integrator=hamiltorch.Integrator.EXPLICIT, explicit_binding_const=omega)
 
