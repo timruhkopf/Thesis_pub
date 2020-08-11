@@ -30,6 +30,11 @@ class LudwigWinkler(Sampler):
             FloatTensor = torch.FloatTensor
             Tensor = torch.FloatTensor
 
+
+    def convert_chain(self):
+        vectorize = lambda D: torch.cat([a.view(a.nelement()) for a in D.values()])
+        return [vectorize(c) for c in self.sampler.chain.samples]
+
     def sample_MALA(self, step_size, num_steps, burn_in, pretrain, tune, num_chains):
         self.sampler = MALA_Sampler(
             probmodel=self.model,
@@ -40,6 +45,8 @@ class LudwigWinkler(Sampler):
             tune=tune,
             num_chains=num_chains)
         self.sampler.sample_chains()
+        self.chain = self.convert_chain()
+
 
     def sample_SGNHT(self, step_size, num_steps, burn_in, pretrain, tune, hmc_traj_length, num_chains):
         self.sampler = SGNHT_Sampler(
@@ -53,6 +60,8 @@ class LudwigWinkler(Sampler):
             num_chains=num_chains)
 
         self.sampler.sample_chains()
+        self.chain = self.convert_chain()
+
 
         # self.sampler.posterior_dist()
         # sampler.trace()
@@ -60,15 +69,17 @@ class LudwigWinkler(Sampler):
         # plt.plot(sampler.chain.accepted_steps)
         # plt.show()
 
-    def sample_SGLD(self, step_size, num_steps, burn_in, pretrain, tune):
+    def sample_SGLD(self, step_size, num_steps, burn_in, pretrain, tune, num_chains=7):
         self.sampler = SGLD_Sampler(
             probmodel=self.model,
             step_size=step_size,
             num_steps=num_steps,
+            num_chains=num_chains,
             burn_in=burn_in,
             pretrain=pretrain,
             tune=tune)
         self.sampler.sample_chains()
+        self.chain = self.convert_chain()
 
 
 if __name__ == '__main__':
