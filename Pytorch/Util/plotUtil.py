@@ -6,7 +6,17 @@ import numpy as np
 import matplotlib.tri as mtri  # for trisurface with irregular grid
 
 def triangulate_remove_artifacts(x, y, xl=0.1, xu=9.9, yl=0.1, yu=9.9, plot=True):
-    # remove artifacts from triangulation method with some boundary
+    """
+    remove artifacts from triangulation method with some boundary
+    :param x:
+    :param y:
+    :param xl:
+    :param xu:
+    :param yl:
+    :param yu:
+    :param plot:
+    :return:
+    """
     triang = mtri.Triangulation(x, y)
     isBad = np.where((x < xl) | (x > xu) | (y < yl) | (y > yu), True, False)
 

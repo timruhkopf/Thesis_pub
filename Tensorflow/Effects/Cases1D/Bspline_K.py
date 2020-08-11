@@ -21,7 +21,7 @@ class Bspline_K(Effects1D):
         self.Q = diff_mat1D(dim=no_coef, order=order)[1]
         self._sample_with_nullspace_pen(self.Q, sig_Q, sig_Q0, threshold)
         self._generate_bspline(degree)
-        self.plot_bspline()
+        # self.plot_bspline()
 
 
 if __name__ == '__main__':

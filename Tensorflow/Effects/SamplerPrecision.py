@@ -10,7 +10,7 @@ class SamplerPrecision:
     # ANY such method must produce self.Q & self.z
     def _sample_with_nullspace_pen(self, Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3):
         """see penalize nullspace for doc"""
-        Sigma, penQ = penalize_nullspace(Q, sig_Q, sig_Q0, threshold)
+        Sigma, penQ = penalize_nullspace(Q, sig_Q, sig_Q0, threshold, plot=False)
         self.Sigma = Sigma
         self.penQ = penQ
         self.z = np.random.multivariate_normal(mean=np.zeros((self.Sigma.shape[0],)), cov=self.Sigma)
