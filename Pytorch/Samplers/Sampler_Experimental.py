@@ -1,4 +1,6 @@
-class Experimental:
+import numpy as np
+
+class Sampler_Experimental:
     def aggregate_priors(self, N, seperated=False):
         """
         sampling prior models
@@ -19,10 +21,44 @@ class Experimental:
             prior_models.append(self.model.vec)
         return prior_models
 
-    def autocorrelation(self):
-        raise NotImplementedError()
+    def auto_corr(self,kappa = 100):
+        '''
+        This is the intuitive and naive way to calculate autocorrelations. See
+        auto_corr_fast(...) instead.
+        '''
+        M = self.np_chain
+        #   The autocorrelation has to be truncated at some point so there are enough
+        #   data points constructing each lag. Let kappa be the cutoff
+        auto_corr = np.zeros((kappa - 1))
+        mu = np.mean(M)
+        for s in range(1, kappa - 1):
+            auto_corr[s] = np.mean((M[:-s] - mu) * (M[s:] - mu)) / np.var(M)
+        return auto_corr
 
-    def plot_chain(self, X, y, stride):
+    def auto_corr_fast(self, kappa =100 ):
+        '''
+        The bruteforce way to calculate autocorrelation curves is defined in
+        auto_corr(M). The correlation is computed for an array against itself, and
+        then the indices of one copy of the array are shifted by one and the
+        procedure is repeated. This is a typical "convolution-style" approach.
+        An incredibly faster method is to Fourier transform the array first, since
+        convolutions in Fourier space is simple multiplications. This is the approach
+        in auto_corr_fast(...)
+        '''
+        M = self.np_chain
+        #   The autocorrelation has to be truncated at some point so there are enough
+        #   data points constructing each lag. Let kappa be the cutoff
+        M = M - np.mean(M)
+        N = len(M)
+        fvi = np.fft.fft(M, n=2 * N)
+        #   G is the autocorrelation curve
+        G = np.real(np.fft.ifft(fvi * np.conjugate(fvi))[:N])
+        G /= N - np.arange(N);
+        G /= G[0]
+        G = G[:kappa]
+        return G
+
+    def plot_traces(self, X, y, stride):
         """
 
         :param stride: for large chains, choose a stride of the chain to display
