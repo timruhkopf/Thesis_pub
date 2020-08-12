@@ -126,7 +126,7 @@ class Model_util:
         return d
 
     @torch.no_grad()
-    def plot1d(self, X, y, path, true_model=None, param=None, confidence=None, **kwargs):
+    def plot1d(self, X, y, path=None, true_model=None, param=None, confidence=None, **kwargs):
         """1D plot of the (current) model.
         :param param: list of 1d torch tensors. optional vector of parameters,
         representing the model of interest, which is to be plotted."""

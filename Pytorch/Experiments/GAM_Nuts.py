@@ -43,6 +43,19 @@ class GAM_Nuts(Grid):
         # sampler class must be imported, to make them accessible
         hamil.save(self.pathresults + self.hash + '.model')
 
+        sub_n = 100
+        import random
+        rand_choices = random.sample(range(len(X)), sub_n)
+        rand_chain = random.sample(range(len(hamil.chain)), 20)
+
+        if model_param['no_in'] == 1:
+            gam.plot1d(X[rand_choices], y[rand_choices],
+                              path=self.pathresults + self.hash + '_1dplot',
+                              true_model=gam.true_model,
+                              param=[hamil.chain[i] for i in rand_chain])
+        elif model_param['no_in'] == 2:
+            print('currently only one dimensional plots are supported')
+
         # TODO Autocorrelation time & thinning
         # TODO write out 1d / 2d plots
 
@@ -53,26 +66,26 @@ if __name__ == '__main__':
                             os.getcwd() + '/Pytorch/Experiments')
 
     # (1) unbijected
-    gam_unittest.main(n=100, steps=100, bijected=False, model_param={
+    gam_unittest.main(n=1000, steps=10000, bijected=False, model_param={
         'no_basis': 20
     })
 
     # (2) bijected # FIXME: fails, since prior model is not implemented!
-    gam_unittest.main(n=100, steps=100, bijected=True, model_param={
+    gam_unittest.main(n=1000, steps=10000, bijected=True, model_param={
         'no_basis': 20
     })
 
     # (3) penK
 
     # RECONSTRUCTION FROM MODEL FILES: ----------------------------------------------
-    from Pytorch.Models.GAM import GAM
-    from Pytorch.Samplers.Hamil import Hamil
-
-    # filter a dir for .model files
-    models = [m for m in os.listdir('results/') if m.endswith('.model')]
-
-    loaded_hamil = torch.load('results/' +models[0])
-    loaded_hamil.chain
+    # from Pytorch.Models.GAM import GAM
+    # from Pytorch.Samplers.Hamil import Hamil
+    #
+    # # filter a dir for .model files
+    # models = [m for m in os.listdir('results/') if m.endswith('.model')]
+    #
+    # loaded_hamil = torch.load('results/' +models[0])
+    # loaded_hamil.chain
 
 
 print()
