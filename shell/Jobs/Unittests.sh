@@ -11,7 +11,7 @@ module load python/3.8.2
 
 echo "#### conquering the snake ####"
 cd /home/tim/PycharmProjects/Thesis/
-python3 pip freeze
+pip3 freeze > requirements.txt
 
 # make sure not to add .py ending when calling a module file
 python3 -m Pytorch.Experiments.Hidden_Nuts # &>/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/results/
