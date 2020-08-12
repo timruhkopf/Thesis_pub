@@ -10,7 +10,7 @@ import pandas as pd
 class Grid:
     def __init__(self, root):
         self.root = root
-        self.pathresults = root + 'results/'
+        self.pathresults = root + '/results/'
         if not os.path.isdir(self.pathresults[:-1]):
             os.mkdir(self.pathresults)
 
@@ -29,13 +29,12 @@ class Grid:
     def _log_main_function(self):
         import inspect
         source = inspect.getsource(self.main)
-        with open(self.pathresults + '/{}.log'.format(self.hash), 'a') as file:
+        with open(self.pathresults + '{}.log'.format(self.hash), 'a') as file:
             file.write('\n' + source)
 
 
     def try_main(self, func):
         """decorate main to ensure the main function runs smoothly"""
-
         def wrapper(*args, **kwargs):
             try:
                 func(*args, **kwargs)
@@ -46,10 +45,10 @@ class Grid:
                 import sys
                 import traceback
 
-                with open(self.pathresults + '/{}.log'.format(self.hash), 'a') as file:
+                with open(self.pathresults + '{}.log'.format(self.hash), 'a') as file:
                     # catch the entire error message:
                     # exc_type, exc_value, exc_traceback = sys.exc_info()
-                    file.write('\n' +traceback.format_exc() + '\n')
+                    file.write('\n' + traceback.format_exc() + '\n')
                     file.write('ERROR triggered by main(args:{}, kwargs:{}) \n'.format(
                         str(args), str(kwargs)))
         return wrapper
@@ -80,4 +79,3 @@ class Grid:
     def write_to_table(self, success, config_str):
         df = pd.DataFrame({'id': [self.hash], 'success':[success], 'config':[config_str]})
         df.to_csv(self.pathresults + 'run_log.csv', mode='a', header=False)
-

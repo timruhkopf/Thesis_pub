@@ -1,6 +1,10 @@
 #!/bin/bash
+# bash requiries
+
+
 # NOTICE Execution via bash shell/Jobs/Unittests.sh
-module load python/3.6.3
+module load python/3.8.2
+
 
 echo "#### conquering the snake ####"
 cd /home/tim/PycharmProjects/Thesis/

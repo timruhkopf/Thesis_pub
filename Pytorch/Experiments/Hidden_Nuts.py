@@ -5,6 +5,7 @@ import os
 
 from Pytorch.Util.GridUtil import Grid
 
+
 class Hidden_Nuts(Grid):
     def main(self, n, model_param, steps, sampler_config={}):
         """
@@ -20,7 +21,12 @@ class Hidden_Nuts(Grid):
         from Pytorch.Layer.Hidden import Hidden
         from Pytorch.Samplers.Hamil import Hamil
 
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if torch.cuda.is_available():
+            torch.cuda.get_device_name(0)
+
         reg_Hidden = Hidden(**model_param)
+        reg_Hidden.to(device)
 
         # generate true model
         X_dist = td.Uniform(-10. * torch.ones(model_param['no_in']),
@@ -29,6 +35,9 @@ class Hidden_Nuts(Grid):
 
         reg_Hidden.true_model = reg_Hidden.vec
         y = reg_Hidden.likelihood(X).sample()
+
+        X.to(device)
+        y.to(device)
 
         # sample
         hamil = Hamil(reg_Hidden, X, y, torch.ones_like(reg_Hidden.vec))
@@ -44,8 +53,11 @@ class Hidden_Nuts(Grid):
 
 
 if __name__ == '__main__':
+    hidden_unittest = Hidden_Nuts(
+        root= \
+        os.getcwd() if os.path.isdir(os.getcwd()) else \
+        os.getcwd() + '/Pytorch/Experiments/')  # + '/Pytorch/Experiments/')
 
-    hidden_unittest = Hidden_Nuts(root=os.getcwd() + '/Pytorch/Experiments/') #+ '/Pytorch/Experiments/')
     # test run
     hidden_unittest.main(
         n=100,
@@ -63,6 +75,5 @@ if __name__ == '__main__':
         steps=1000,
         sampler_config={}
     )
-
 
 print()
