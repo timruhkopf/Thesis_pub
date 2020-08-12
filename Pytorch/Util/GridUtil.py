@@ -25,9 +25,9 @@ class Grid:
         self.hash = None
         self.main = self.try_main(self.main)
 
-    def _log_main_function(self):
+    def _log_main_function(self, func):
         import inspect
-        source = inspect.getsource(self.main)
+        source = inspect.getsource(func)
         with open(self.pathresults + '{}.log'.format(self.hash), 'a') as file:
             file.write('\n' + source)
 
@@ -38,7 +38,7 @@ class Grid:
             # Ensure, the execution is propperly logged & individual calls are hashed
             self.hash = self._create_hash()
             self._pip_freeze()
-            self._log_main_function()
+            self._log_main_function(func)
 
             try:
                 func(*args, **kwargs)
