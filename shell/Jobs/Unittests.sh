@@ -1,7 +1,22 @@
 #!/bin/bash
+#SBATCH -p gpu
+#SBATCH -t 5
+#SBATCH --gres=gpu:1
+#SBATCH --job-name=unittest_thesis
+#SBATCH --output=unittest_thesis.%j.out
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=timruhkopf@googlemail.com
+
 # requiries
+module purge
+module load cuda90/fft
+module load cuda90/nsight
+module load cuda90/profiler
 
-
+# GWDDG tutorial on tensorflow
+module load cuda90/toolkit/9.0.176
+module load cuda90/blas/9.0.176
+module load cudnn/90v7.3.1
 
 # NOTICE Execution via bash shell/Jobs/Unittests.sh
 # install packages:

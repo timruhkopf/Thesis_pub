@@ -42,7 +42,7 @@ class Hidden_Nuts(Grid):
         # sample
         # TODO REMEMBER TO DO A SUFFICIENT AMOUNT OF BURNIN
         hamil = Hamil(reg_Hidden, X, y, torch.ones_like(reg_Hidden.vec))
-        hamil.sample_NUTS(steps)
+        hamil.sample_NUTS(steps, burn=5000)
 
         # save the sampler instance (containing the model instance as attribute)
         # NOTICE: to recover the info, both the model class and the
@@ -75,19 +75,19 @@ if __name__ == '__main__':
 
     # test run
     hidden_unittest.main(
-        n=100,
+        n=1000,
         model_param={'no_in': 1, 'no_out': 1,
                      'bias': True, 'activation': nn.Identity()},
-        steps=100,
+        steps=10000,
         sampler_config={}
     )
 
     # serious run
     hidden_unittest.main(
         n=1000,
-        model_param={'no_in': 2, 'no_out': 1,
+        model_param={'no_in': 1, 'no_out': 1,
                      'bias': True, 'activation': nn.Identity()},
-        steps=1000,
+        steps=10000,
         sampler_config={}
     )
 

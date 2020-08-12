@@ -134,7 +134,7 @@ class GAM(Hidden):
         kernel = -(2 * self.tau_bij) ** -1 * self.W.t() @ self.K @ self.W
         return sum(const + kernel + self.dist['tau'].log_prob(self.tau))
 
-    def plot1d(self, X, y, true_model=None, param=None, confidence=None, show=True, **kwargs):
+    def plot1d(self, X, y, path=None, true_model=None, param=None, confidence=None, **kwargs):
         import matplotlib.pyplot as plt
         import pandas as pd
         import seaborn as sns
@@ -167,7 +167,11 @@ class GAM(Hidden):
 
         fig.suptitle('Functions of the data')
         self.vec_to_attrs(last_state)
-        plt.plot()
+
+        if path is None:
+            plt.plot()
+        else:
+            plt.savefig('{}.png'.format(path), bbox_inches='tight')
 
 
 if __name__ == '__main__':
