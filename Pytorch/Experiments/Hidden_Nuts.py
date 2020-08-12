@@ -40,6 +40,7 @@ class Hidden_Nuts(Grid):
         y.to(device)
 
         # sample
+        # TODO REMEMBER TO DO A SUFFICIENT AMOUNT OF BURNIN
         hamil = Hamil(reg_Hidden, X, y, torch.ones_like(reg_Hidden.vec))
         hamil.sample_NUTS(steps)
 

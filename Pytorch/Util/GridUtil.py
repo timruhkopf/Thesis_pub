@@ -9,6 +9,8 @@ import pandas as pd
 
 class Grid:
     def __init__(self, root):
+        print('------ progressing with: {name} --------------------- '.format(
+            name=self.__class__.__name__))
         self.root = root
         self.pathresults = root + '/results/'
         if not os.path.isdir(self.pathresults[:-1]):
