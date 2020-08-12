@@ -19,7 +19,7 @@ class Grid:
         # critical section: reference in bash different compared to
         # debug call from subclass' module
         if not os.path.isfile(self.pathresults +'run_log.csv'):
-            df = pd.DataFrame(columns=['index', 'id', 'success', 'config'])
+            df = pd.DataFrame(columns=[ 'id', 'success', 'config'])
             df.to_csv(self.pathresults + 'run_log.csv')
 
         self.hash = None

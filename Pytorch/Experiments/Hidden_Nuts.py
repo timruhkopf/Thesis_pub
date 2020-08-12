@@ -33,7 +33,7 @@ class Hidden_Nuts(Grid):
                             10 * torch.ones(model_param['no_in']))
         X = X_dist.sample(torch.Size([n]))
 
-        reg_Hidden.true_model = reg_Hidden.vec
+        reg_Hidden.true_model = reg_Hidden.vec.clone()
         y = reg_Hidden.likelihood(X).sample()
 
         X.to(device)
@@ -49,6 +49,20 @@ class Hidden_Nuts(Grid):
         # sampler class must be imported, to make them accessible
         hamil.save(self.pathresults + self.hash + '.model')
 
+        # subsampling the data for the plot
+        sub_n = 100
+        import random
+        rand_choices = random.sample(range(len(X)), sub_n)
+        rand_chain = random.sample(range(len(hamil.chain)), 20)
+
+        if model_param['no_in']==1:
+            reg_Hidden.plot1d(X[rand_choices], y[rand_choices],
+                              path=self.pathresults + self.hash + '_1dplot',
+                              true_model=reg_Hidden.true_model,
+                              param=[hamil.chain[i] for i in rand_chain ])
+        elif model_param['no_in']==2:
+            print('currently only one dimensional plots are supported')
+
         # TODO Autocorrelation time & thinning
         # TODO write out 1d / 2d plots
 
@@ -56,13 +70,13 @@ class Hidden_Nuts(Grid):
 if __name__ == '__main__':
     hidden_unittest = Hidden_Nuts(
         root= \
-        os.getcwd() if os.path.isdir(os.getcwd()) else \
-        os.getcwd() + '/Pytorch/Experiments/')  # + '/Pytorch/Experiments/')
+            os.getcwd() if os.path.isdir(os.getcwd()) else \
+                os.getcwd() + '/Pytorch/Experiments/')  # + '/Pytorch/Experiments/')
 
     # test run
     hidden_unittest.main(
         n=100,
-        model_param={'no_in': 2, 'no_out': 1,
+        model_param={'no_in': 1, 'no_out': 1,
                      'bias': True, 'activation': nn.Identity()},
         steps=100,
         sampler_config={}
