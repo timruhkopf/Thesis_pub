@@ -27,7 +27,7 @@ class Grid:
         self.pathroot = root
         self.pathresults = self.pathroot + 'results'  # consider only for plots
         self.pathlogs = self.pathroot + 'logs/'
-        self.pathtf = self.pathroot + 'tf/'
+        self.pathtf = self.pathroot + 'torch/'
         os.mkdir(self.pathroot)
         os.mkdir(self.pathlogs)
         os.mkdir(self.pathtf)
