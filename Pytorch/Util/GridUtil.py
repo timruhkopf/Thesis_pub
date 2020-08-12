@@ -22,10 +22,7 @@ class Grid:
             df = pd.DataFrame(columns=['index', 'id', 'success', 'config'])
             df.to_csv(self.pathresults + 'run_log.csv')
 
-        self.hash = self._create_hash()
-        self._pip_freeze()
-        self._log_main_function()
-
+        self.hash = None
         self.main = self.try_main(self.main)
 
     def _log_main_function(self):
@@ -38,6 +35,11 @@ class Grid:
     def try_main(self, func):
         """decorate main to ensure the main function runs smoothly"""
         def wrapper(*args, **kwargs):
+            # Ensure, the execution is propperly logged & individual calls are hashed
+            self.hash = self._create_hash()
+            self._pip_freeze()
+            self._log_main_function()
+
             try:
                 func(*args, **kwargs)
                 self.write_to_table(success=True, config_str=str(args)+ str(kwargs))
