@@ -32,9 +32,9 @@ echo 'be aware to change to /Thesis/ and start script using "bash shell/Jobs/Uni
 pip3 freeze > requirements.txt
 
 # make sure not to add .py ending when calling a module file
-python3 -m Pytorch.Experiments.Group_lasso_NUTS  &>/usr/users/truhkop/Thesis/Group_lasso_NUTS.out
-python3 -m Pytorch.Experiments.Hidden_Nuts  &>/usr/users/truhkop/Thesis/Hidden_Nuts_run.out
-python3 -m Pytorch.Experiments.GAM_Nuts &>/usr/users/truhkop/Thesis/GAM_Nuts_run.out
+python3 -m Pytorch.Experiments.Group_lasso_Nuts  &>/usr/users/truhkop/Thesis/Group_lasso_Nuts.out
+#python3 -m Pytorch.Experiments.Hidden_Nuts  &>/usr/users/truhkop/Thesis/Hidden_Nuts_run.out
+#python3 -m Pytorch.Experiments.GAM_Nuts &>/usr/users/truhkop/Thesis/GAM_Nuts_run.out
 # python /home/uni08/truhkop/Masterthesis/Python/test_server_main.py &>/home/uni08/truhkop/results &
 
 echo "#### finished successfully ####"
