@@ -118,7 +118,7 @@ class Model_util:
                     # TODO parallelize predictions
                     self.vec_to_attrs(p)
                     # self.update_distributions()
-                    d.update({str(i):self.forward(X)})
+                    d.update({str(i): self.forward(X)})
 
         elif isinstance(self, Optim_Model):
             raise NotImplementedError('plot1d not parsing parameters yet')
@@ -163,15 +163,13 @@ class Model_util:
         # reinstate the old state
         self.vec_to_attrs(last_state)
 
-
         if path is None:
             plt.plot()
         else:
             plt.savefig('{}.png'.format(path), bbox_inches='tight')
 
-
     @torch.no_grad()
-    def plot2d(self, X, y, true_model=None, param=None, multi_subplots=False, **kwargs):
+    def plot2d(self, X, y, path, title=None, true_model=None, param=None, multi_subplots=False, **kwargs):
         """
         :param true_model: 1D vector representing the true model
         :param X: 2d Tensor
@@ -186,12 +184,12 @@ class Model_util:
             raise ValueError('X is of improper dimensions')
 
         last_state = self.vec  # saving the state before overwriting it
+        # predicting y
         kwargs.update({'true': self._chain_predict([true_model], X)['0']})
         kwargs.update(self._chain_predict(param, X))
 
         # for irregular grid data make use of Delauny triangulation & trisurf:
         # https://fabrizioguerrieri.com/blog/2017/9/7/surface-graphs-with-irregular-dataset
-
         df = pd.DataFrame(torch.reshape(X, (X.shape[0], 2)).numpy(), columns=['X1', 'X2'])
         for name, var in kwargs.items():
             df[name] = torch.reshape(var, (var.shape[0],)).numpy()
@@ -200,15 +198,15 @@ class Model_util:
         triang = triangulate_remove_artifacts(X[:, 0], X[:, 1], -9.9, 9.9, -9.9, 9.9, plot=False)
 
         fig = plt.figure()
-        plt.title('{}'.format('title here'))
+        plt.title('{}'.format(title))
         plt.axis('off')
-
 
         if multi_subplots:
             rows = int(torch.ceil(torch.sqrt(torch.tensor(len(kwargs.keys()), dtype=torch.float32))).numpy())
             ax1 = fig.add_subplot(rows, rows, 1, projection='3d')
         else:
             ax1 = fig.add_subplot(111, projection='3d')
+            ax1.text2D(0.05, 0.95, title, transform=ax1.transAxes)
 
         # ground truth model & data
         ax1.plot_trisurf(triang, kwargs['true'].view(X.shape[0]),
@@ -217,17 +215,16 @@ class Model_util:
                     marker='.', s=10, c="black", alpha=0.5)
         ax1.view_init(elev=40, azim=-45)
 
-
         if multi_subplots:
             # plotting each function as a seperate surface in a subplot
-            for num, (k,v) in enumerate(kwargs.items()):
-                if k != 'true_function':
+            for num, (k, v) in enumerate(kwargs.items()):
+                if k != 'true':
                     num += 2
                     ax = fig.add_subplot(rows, rows, num, projection='3d')
                     # ax2.scatter(X[:, 0], X[:, 1], v,
                     #             marker='.', s=10, c="red", alpha=0.3)
                     ax.plot_trisurf(triang, v.view(X.shape[0]),
-                                     cmap='jet', alpha=0.4)
+                                    cmap='jet', alpha=0.4)
                     ax.view_init(elev=40, azim=-45)
 
         else:
@@ -240,8 +237,10 @@ class Model_util:
                     ax1.scatter(X[:, 0], X[:, 1], v,
                                 marker='.', s=7, color=c, alpha=0.3)
 
-
-        plt.show()
+        if path is None:
+            plt.plot()
+        else:
+            plt.savefig('{}.png'.format(path), bbox_inches='tight')
 
 
 class Vec_Model:
@@ -305,8 +304,8 @@ if __name__ == '__main__':
     y = reg.likelihood(X).sample()
 
     from copy import deepcopy
-    reg.true_model = torch.tensor(deepcopy(reg.vec.numpy()))
 
+    reg.true_model = torch.tensor(deepcopy(reg.vec.numpy()))
 
     param = list()
     for i in range(10):

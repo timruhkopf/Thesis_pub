@@ -61,10 +61,16 @@ class GAM(Hidden):
         # self.dist['W'] (RANDOMWALK PRIOR) formulated explicitly in prior model!
 
     def update_distributions(self):
+        # tau_bij is the actual variance parameter of W (on R+)- whilest if self.bijected==True,
+        # tau becomes the bijected i.e. unconstrained parameter on entire R
         if self.bijected:
+            # here tau (is on R) ---> tau_bij (on R+)
             self.tau_bij = self.dist['tau'].transforms[0]._inverse(self.tau)
         else:
             self.tau_bij = self.tau
+
+        # Notice, the explicit prior formulation of W does not allow an update of W's tau here:
+        # instead it must be updated in prior_log_prob explicitly
 
     def reset_parameters(self, tau=torch.tensor([1.]), mode='U-MVN'):
         """
@@ -124,15 +130,14 @@ class GAM(Hidden):
          RandomWalkPrior
         """
         # FIXME: CHECK IF IDENTIFIABILITY CAN BE HELPED IF SELF.K were penalized
-        if self.bijected:
-            raise NotImplementedError('GAM prior_log_prob requires bijection!')
 
         # fixme: check if tau is correct here! (and not 1/tau)
         #  BE VERY CAREFULL IF TAU IS BIJECTED!
         # p321 fahrmeir kneib lang:
         const = - 0.5 * (self.K.shape[0] - 1) * torch.log(self.tau_bij)
         kernel = -(2 * self.tau_bij) ** -1 * self.W.t() @ self.K @ self.W
-        return sum(const + kernel + self.dist['tau'].log_prob(self.tau))
+        return sum(const + kernel + self.dist['tau'].log_prob(self.tau)) # notice that tau can be on R if
+        # self.bijected is true!
 
     def plot1d(self, X, y, path=None, true_model=None, param=None, confidence=None, **kwargs):
         import matplotlib.pyplot as plt
@@ -140,7 +145,8 @@ class GAM(Hidden):
         import seaborn as sns
         # TODO Overwrite due to X & Z mismatch: plotting axes & forward
 
-        Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=no_basis), dtype=torch.float32, requires_grad=False)
+        Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=self.no_basis), dtype=torch.float32,
+                         requires_grad=False)
 
         # FIXME: in GAM case, Z is required for predictions & X is used for plotting
         last_state = self.vec.detach().clone()  # saving the state before overwriting it

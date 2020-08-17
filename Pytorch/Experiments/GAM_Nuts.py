@@ -48,13 +48,11 @@ class GAM_Nuts(Grid):
         rand_choices = random.sample(range(len(X)), sub_n)
         rand_chain = random.sample(range(len(hamil.chain)), 20)
 
-        if model_param['no_in'] == 1:
-            gam.plot1d(X[rand_choices], y[rand_choices],
-                              path=self.pathresults + self.hash + '_1dplot',
-                              true_model=gam.true_model,
-                              param=[hamil.chain[i] for i in rand_chain])
-        elif model_param['no_in'] == 2:
-            print('currently only one dimensional plots are supported')
+        # IN GAM there is always only one dimension!
+        gam.plot1d(X[rand_choices], y[rand_choices],
+                   path=self.pathresults + self.hash + '_1dplot',
+                   true_model=gam.true_model,
+                   param=[hamil.chain[i] for i in rand_chain])
 
         # TODO Autocorrelation time & thinning
         # TODO write out 1d / 2d plots
@@ -62,8 +60,8 @@ class GAM_Nuts(Grid):
 
 if __name__ == '__main__':
     gam_unittest = GAM_Nuts(root= \
-                            os.getcwd() if os.path.isdir(os.getcwd()) else \
-                            os.getcwd() + '/Pytorch/Experiments')
+                                os.getcwd() if os.path.isdir(os.getcwd()) else \
+                                    os.getcwd() + '/Pytorch/Experiments')
 
     # (1) unbijected
     gam_unittest.main(n=1000, steps=10000, bijected=False, model_param={
@@ -86,6 +84,5 @@ if __name__ == '__main__':
     #
     # loaded_hamil = torch.load('results/' +models[0])
     # loaded_hamil.chain
-
 
 print()

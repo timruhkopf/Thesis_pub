@@ -44,9 +44,9 @@ class Group_lasso(Hidden):
         # Group lasso structure of W
         self.W_ = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
         self.W = None
-        self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_in), self.tau)
+        self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_out), self.tau)
         # FIXME: check sigma dependence in W_shrinked: \beta_g | tau²_g, sigma² ~ MVN
-        self.dist['W'] = td.Normal(torch.zeros(self.no_in * (self.no_out - 1)), 1.)
+        self.dist['W'] = td.Normal(torch.zeros((self.no_in-1) * self.no_out), 1.)
 
         # add optional bias
         if self.bias:
@@ -91,10 +91,10 @@ class Group_lasso(Hidden):
             self.update_distributions()  # to ensure W_shrinked's dist is updated properly
 
         # partition W according to prior model
-
-        self.W = torch.cat([self.dist['W_shrinked'].sample().view(self.no_in, 1),
-                            self.dist['W'].sample().view(self.no_in, self.no_out - 1)],
-                           dim=1)
+        # Explicit assumption that only one variable is shrunken.
+        self.W = torch.cat([self.dist['W_shrinked'].sample().view(1, self.no_out),
+                            self.dist['W'].sample().view(self.no_in-1, self.no_out)],
+                           dim=0)
         if self.bias:
             self.b = self.dist['b'].sample()
 

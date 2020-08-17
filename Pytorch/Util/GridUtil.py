@@ -9,7 +9,7 @@ import pandas as pd
 
 class Grid:
     def __init__(self, root):
-        print('------ progressing with: {name} --------------------- '.format(
+        print('--------------------- progressing with: {name} --------------------- '.format(
             name=self.__class__.__name__))
         self.root = root
         self.pathresults = root + '/results/'
@@ -37,6 +37,7 @@ class Grid:
         def wrapper(*args, **kwargs):
             # Ensure, the execution is propperly logged & individual calls are hashed
             self.hash = self._create_hash()
+            print('specifically: {hash}'.format(hash=self.hash))
             self._pip_freeze()
             self._log_main_function(func)
 
