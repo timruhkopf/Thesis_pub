@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p gpu
-#SBATCH -t 5:00:00
+#SBATCH -t 1:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --job-name=unittest_thesis
 #SBATCH --output=unittest_thesis.%j.out
@@ -32,6 +32,7 @@ echo 'be aware to change to /Thesis/ and start script using "bash shell/Jobs/Uni
 pip3 freeze > requirements.txt
 
 # make sure not to add .py ending when calling a module file
+python3 -m Pytorch.Experiments.Group_lasso_NUTS  &>/usr/users/truhkop/Thesis/Group_lasso_NUTS.out
 python3 -m Pytorch.Experiments.Hidden_Nuts  &>/usr/users/truhkop/Thesis/Hidden_Nuts_run.out
 python3 -m Pytorch.Experiments.GAM_Nuts &>/usr/users/truhkop/Thesis/GAM_Nuts_run.out
 # python /home/uni08/truhkop/Masterthesis/Python/test_server_main.py &>/home/uni08/truhkop/results &
