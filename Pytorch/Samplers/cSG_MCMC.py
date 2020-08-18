@@ -7,6 +7,8 @@ import numpy as np
 import random
 
 from hamiltorch.util import flatten
+from torch.utils.data import TensorDataset, DataLoader
+
 
 # from models import *
 from Pytorch.Util.DistributionUtil import *
@@ -14,10 +16,11 @@ from Pytorch.Util.DistributionUtil import *
 sys.path.append('..')
 use_cuda = torch.cuda.is_available()
 
+from Pytorch.Samplers.Samplers import Sampler
 
-class CSG_MCMC:  # (Samplers)
-    def __init__(self, temperature=1. / 50000, alpha=0.9,
-                 weight_decay=5e-4, lr_0=0.5, M=4, epochs=20, num_batch=10):
+class CSG_MCMC(Sampler):  # (Samplers)
+    def __init__(self, net, X, y, temperature=None, alpha=0.9,
+                 weight_decay=5e-4, lr_0=0.5, M=4, epochs=20, num_batch=10, batch_size=10):
         """
         Instantiate a CSG_MCMC Sampler; i.e. depending on alpha, a cSGLD or cSGHMC
         :param temperature: default 1 / dataset_size
@@ -27,19 +30,24 @@ class CSG_MCMC:  # (Samplers)
         :param M: number of cycles
         :param epochs: number of epochs to train
         """
-        print('==> INSTANTIATING SAMPLER..')
         self.T = epochs * num_batch  # total number of iterations
+        self.batch_size = batch_size
         self.M = M
         self.lr_0 = lr_0
         self.weight_decay = weight_decay
         self.alpha = alpha
-        self.temperature = temperature
+        if temperature is None:
+            self.temperature = 1./ len(X)
+        else:
+            self.temperature = temperature
+
         self.epochs = epochs
         self.num_batch = num_batch
 
-        # set up
-        self.net = None
-        self.trainloader = None
+        # set up model, dataloader & criterion
+        self.net = net
+        trainset = TensorDataset(X, y)
+        self.trainloader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True, num_workers=0)
         self.criterion = None
         self.device_id = 1
 
@@ -68,9 +76,14 @@ class CSG_MCMC:  # (Samplers)
                     p.buf = torch.zeros(p.size())
 
         for p in self.net.parameters():
+            # FIXME ISSUE: of Divergence seems to start off here
+            print(list(self.net.parameters()))
+
             d_p = p.grad.data
             d_p.add_(self.weight_decay, p.data)
             buf_new = (1 - self.alpha) * p.buf - lr * d_p
+
+            print('buf_new:{},\n d_p:{}'.format(buf_new, d_p))
 
             if (epoch % 50) + 1 > 45:
                 if self.use_cuda:
@@ -79,6 +92,7 @@ class CSG_MCMC:  # (Samplers)
                     eps = torch.randn(p.size())
 
                 buf_new += (2.0 * lr * self.alpha * self.temperature / self.datasize) ** .5 * eps
+            print('buf: {}\np.data:{}'.format(p.buf, p.data))
             p.data.add_(buf_new)
             p.buf = buf_new
 
@@ -95,6 +109,9 @@ class CSG_MCMC:  # (Samplers)
         cos_inner /= self.T // self.M
         cos_out = np.cos(cos_inner) + 1
         lr = 0.5 * cos_out * self.lr_0
+
+        print('lr {}'.format(lr))
+
         return lr
 
     def _step(self, epoch):
@@ -104,7 +121,9 @@ class CSG_MCMC:  # (Samplers)
         :param epoch: current epoch to adjust learning rate and update params
         :return: None (inplace changes)
         """
+
         print('\nEpoch: %d' % epoch)
+
         self.net.train()  # sets the module in training mode
 
         # TODO update statistics!
@@ -120,10 +139,16 @@ class CSG_MCMC:  # (Samplers)
             lr = self._adjust_learning_rate(epoch, batch_idx)
 
             # outputs = self.net(inputs)  # Deprec was relevant in the Resnet with multiclass prediction
-            loss = self.criterion(inputs, targets)
+            loss = self.criterion(X=inputs, y=targets)
+
+            print('loss: {}'.format(loss))
 
             loss.backward()
+
+            print(self.net.parameters() ,'\n')
+
             self._update_params(lr, epoch)
+
 
             # TODO update statistics!
             # train_loss += loss.data.item()
@@ -134,7 +159,7 @@ class CSG_MCMC:  # (Samplers)
             #     print('Loss: %.3f | Acc: %.3f%% (%d/%d)'
             #           % (train_loss / (batch_idx + 1), 100. * correct / total, correct, total))
 
-    def sample_csgmcmc(self, net, trainloader, dir='/home/tim/PycharmProjects/Thesis/Pytorch/Chains', seed=1):
+    def sample_csgmcmc(self, dir='/home/tim/PycharmProjects/Thesis/Pytorch/Chains', seed=1):
         """
         Like Hamiltorch .sample_model: sampling model based on net (which is required to have a log_prob)
         Also this assumes, that the net's parameters are already initialized.
@@ -144,10 +169,9 @@ class CSG_MCMC:  # (Samplers)
         :param seed:
         :return: list of 1D tensors, where each tensor is flattend net.parameters() also stores the state_dict
         """
-        self.net = net
-        self.trainloader = trainloader
-        self.criterion = net.log_prob
-        self.datasize = len(trainloader.dataset)
+
+        self.criterion = self.net.log_prob
+        self.datasize = len(self.trainloader.dataset)
 
         torch.manual_seed(seed)
         np.random.seed(seed)
@@ -162,15 +186,17 @@ class CSG_MCMC:  # (Samplers)
         print('==> COLLECTING SAMPLES')
         for mt, epoch in enumerate(range(self.epochs)):
             self._step(epoch)
+            print(flatten(model=self.net))
             if (epoch % 50) + 1 > 47:  # save 3 models per cycle
                 print('save!')
                 if self.use_cuda:
                     self.net.cpu()
                 # TODO: check for net.state_dict VS. list of Tensors.
-                torch.save(self.net.state_dict(), dir + '/cifar_csghmc_%i.pt' % (mt))
-                self.chain.append(flatten(model=self.net))
+                #torch.save(self.net.state_dict(), dir + '/csghmc_%i.pt' % (mt))
+                print(flatten(model=self.net))
+                self.chain.append(flatten(model=self.net).clone())
                 if self.use_cuda:
-                    net.cuda(self.device_id)
+                    self.net.cuda(self.device_id)
 
         return self.chain
 
@@ -223,17 +249,5 @@ if __name__ == '__main__':
     init_theta = reg.vec
 
     # sampling example
-    batch_size = 10
-
-    from torch.utils.data import TensorDataset, DataLoader
-
-    trainset = TensorDataset(X, y)
-    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
-
-    # a = trainloader.__iter__()
-    # next(a)
-
-    csgmcmc = CSG_MCMC(epochs=1000)
-    chain = csgmcmc.sample_csgmcmc(
-        reg, trainloader,
-        dir='/home/tim/PycharmProjects/Thesis/Pytorch/Chains', seed=1)
+    csgmcmc = CSG_MCMC(reg, X, y, epochs=1000,     batch_size = 10)
+    chain = csgmcmc.sample_csgmcmc(seed=1)
