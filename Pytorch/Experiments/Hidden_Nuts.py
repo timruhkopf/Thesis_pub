@@ -75,9 +75,9 @@ if __name__ == '__main__':
 
     # test run
     hidden_unittest.main(
-        n=1000,
+        n=100,
         model_param={'no_in': 1, 'no_out': 1,
-                     'bias': True, 'activation': nn.Identity()},
+                     'bias': True, 'activation': nn.ReLU()},
         steps=10000,
         sampler_config={}
     )

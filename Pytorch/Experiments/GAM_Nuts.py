@@ -64,12 +64,12 @@ if __name__ == '__main__':
                                     os.getcwd() + '/Pytorch/Experiments')
 
     # (1) unbijected
-    gam_unittest.main(n=1000, steps=10000, bijected=False, model_param={
+    gam_unittest.main(n=1000, steps=1000, bijected=True, model_param={
         'no_basis': 20
     })
 
     # (2) bijected # FIXME: fails, since prior model is not implemented!
-    gam_unittest.main(n=1000, steps=10000, bijected=True, model_param={
+    gam_unittest.main(n=1000, steps=1000, bijected=True, model_param={
         'no_basis': 20
     })
 

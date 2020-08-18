@@ -153,10 +153,11 @@ if __name__ == '__main__':
     # bnn.log_prob(X, y, flatten(bnn))
 
     # (VEC MODEL & Data generation) --------------------------------------------
-    vec = BNN_VEC()
+    vec = BNN_VEC(hunits=[1, 10, 5, 1], activation=nn.ReLU(), final_activation=nn.Identity(), heteroscedast=False)
     X_dist = td.Uniform(torch.tensor(-10.), torch.tensor(10.))
     X = X_dist.sample(torch.Size([100])).view(100, 1)
     y = vec.likelihood(X).sample()
+
 
     vec.closure_log_prob(X, y)
     vec.log_prob(flatten(vec))
