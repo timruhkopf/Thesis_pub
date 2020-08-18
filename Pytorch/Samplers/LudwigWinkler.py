@@ -83,4 +83,51 @@ class LudwigWinkler(Sampler):
 
 
 if __name__ == '__main__':
-    pass
+    import torch
+    import torch.nn as nn
+    import torch.distributions as td
+    from Pytorch.Layer.Layer_Probmodel.Hidden_Probmodel import Hidden_ProbModel
+
+    no_in = 10
+    no_out = 1
+
+    # single Hidden Unit Example
+    reg = Hidden_ProbModel(no_in, no_out, bias=True, activation=nn.Identity())
+    reg.true_model = reg.vec
+
+    # reg.W = reg.W_.data
+    # reg.b = reg.b_.data
+    reg.forward(X=torch.ones(100, no_in))
+    reg.prior_log_prob()
+
+    # generate data X, y
+    X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
+    X = X_dist.sample(torch.Size([100]))
+    y = reg.likelihood(X).sample()
+
+    # log_prob sg mode:
+    print(reg.log_prob(X, y))
+
+    ludi = LudwigWinkler(reg, X, y, batch_size=X.shape[0])
+
+    num_samples = 100
+    sampler = 'sgnht'
+    step_size = 0.1
+    num_steps = 2000  # <-------------- important
+    pretrain = False
+    tune = False
+    burn_in = 2000
+    # num_chains 		type=int, 	default=1
+    num_chains = 1  # os.cpu_count() - 1
+    batch_size = 50
+    hmc_traj_length = 20
+    val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
+    val_prediction_steps = 50
+    val_converge_criterion = 20
+    val_per_epoch = 200
+
+    ludi.sample_SGNHT(step_size, num_steps, burn_in, pretrain=False, tune=tune, hmc_traj_length=hmc_traj_length,
+                      num_chains=num_chains)
+
+    type(ludi.sampler.chain)
+    ludi.sampler.chain.__dict__
