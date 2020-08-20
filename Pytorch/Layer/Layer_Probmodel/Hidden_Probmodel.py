@@ -2,12 +2,11 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 
-from thirdparty_repo.ludwigwinkler.src.MCMC_ProbModel import ProbModel
 from Pytorch.Layer.Hidden import Hidden
 from Pytorch.Util.ModelUtil import Optim_Model
 
 
-class Hidden_ProbModel(ProbModel, Optim_Model, Hidden):
+class Hidden_ProbModel(Optim_Model, Hidden):
     # Inheritance Order is relevant!
 
     def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU()):
@@ -28,11 +27,16 @@ class Hidden_ProbModel(ProbModel, Optim_Model, Hidden):
             self.dist['b'] = td.Normal(0., self.tau_b)
             self.b = nn.Parameter(torch.Tensor(self.no_out))
 
+    @torch.no_grad()
     def reset_parameters(self):
-        nn.init.xavier_normal_(self.W)
+        # nn.init.xavier_normal_(self.W)
+
+        # with torch.no_grad():
+        nn.init._no_grad_zero_(self.W)
+        self.W.add_(self.dist['W'].sample().view(self.W.shape))
+
         if self.bias:
             nn.init.normal_(self.b)
-
 
 
 
@@ -42,7 +46,25 @@ if __name__ == '__main__':
 
     # single Hidden Unit Example
     reg = Hidden_ProbModel(no_in, no_out, bias=True, activation=nn.Identity())
+
+    # works with probmodel
+    # state = reg.state_dict()
+    # state['W'] = torch.ones_like(state['W'])
+    #
+    # reg.load_state_dict(state)
+
+    # with torch.no_grad():
+    #     reg.W.data = torch.ones_like(reg.W.data)
+
+
+
+
+
     reg.true_model = reg.vec
+
+
+
+
 
     # reg.W = reg.W_.data
     # reg.b = reg.b_.data

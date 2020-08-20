@@ -2,14 +2,13 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 
-from thirdparty_repo.ludwigwinkler.src.MCMC_ProbModel import ProbModel
 from Pytorch.Layer.Layer_Probmodel.Hidden_Probmodel import Hidden_ProbModel
 from Pytorch.Layer.Group_lasso import Group_lasso
 from Pytorch.Util.ModelUtil import Optim_Model
 from Pytorch.Util.DistributionUtil import LogTransform
 
 
-class Group_lasso_Probmodel(ProbModel, Optim_Model, Group_lasso):
+class Group_lasso_Probmodel(Optim_Model, Group_lasso):
     def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU(), bijected=True):
         """
         Group Lasso Layer, which is essentially a Hidden Layer, but with a different

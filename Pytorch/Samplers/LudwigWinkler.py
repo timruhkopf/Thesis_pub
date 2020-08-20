@@ -92,7 +92,7 @@ if __name__ == '__main__':
     no_out = 1
 
     # single Hidden Unit Example
-    reg = Hidden_ProbModel(no_in, no_out, bias=True, activation=nn.Identity())
+    reg = Hidden_ProbModel(no_in, no_out, bias=False, activation=nn.Identity())
     reg.true_model = reg.vec
 
     # reg.W = reg.W_.data
@@ -128,6 +128,14 @@ if __name__ == '__main__':
 
     ludi.sample_SGNHT(step_size, num_steps, burn_in, pretrain=False, tune=tune, hmc_traj_length=hmc_traj_length,
                       num_chains=num_chains)
+    ludi.sampler.chain.__dict__
+
+    ludi.sample_MALA(step_size, num_steps, burn_in, pretrain=False, tune=tune,
+                      num_chains=num_chains)
+    ludi.sampler.chain.__dict__
+
+    ludi.sample_SGLD(step_size, num_steps, burn_in, pretrain=False, tune=tune,
+                     num_chains=num_chains)
 
     type(ludi.sampler.chain)
     ludi.sampler.chain.__dict__

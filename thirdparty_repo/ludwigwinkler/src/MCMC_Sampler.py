@@ -210,7 +210,7 @@ class MetropolisHastings_Sampler(Sampler):
 		:param burn_in:
 		'''
 
-		assert isinstance(probmodel, ProbModel)
+		# assert isinstance(probmodel, ProbModel)
 		super().__init__(probmodel, step_size, num_steps, burn_in, pretrain, tune)
 
 		self.optim = MetropolisHastings_Optim(self.probmodel,
@@ -239,7 +239,7 @@ class SGLD_Sampler(Sampler):
 		:param burn_in:
 		'''
 
-		assert isinstance(probmodel, ProbModel)
+		# assert isinstance(probmodel, ProbModel)
 		Sampler.__init__(self, probmodel, step_size, num_steps, num_chains, burn_in, pretrain, tune)
 
 	def sample_chains(self):
@@ -285,7 +285,7 @@ class MALA_Sampler(Sampler):
 		:param burn_in:
 		'''
 
-		assert isinstance(probmodel, ProbModel)
+		# assert isinstance(probmodel, ProbModel)
 		super().__init__(probmodel, step_size, num_steps, num_chains, burn_in, pretrain, tune)
 
 	def sample_chains(self):
@@ -335,7 +335,7 @@ class HMC_Sampler(Sampler):
 		:param burn_in:
 		'''
 
-		assert isinstance(probmodel, ProbModel)
+		# assert isinstance(probmodel, ProbModel)
 		Sampler.__init__(self, probmodel, step_size, num_steps, num_chains, burn_in, pretrain, tune)
 
 		self.traj_length = traj_length
@@ -384,7 +384,7 @@ class SGNHT_Sampler(Sampler):
 		:param burn_in:
 		'''
 
-		assert isinstance(probmodel, ProbModel)
+		# assert isinstance(probmodel, ProbModel)
 		Sampler.__init__(self, probmodel, step_size, num_steps, num_chains, burn_in, pretrain, tune)
 
 		self.traj_length = traj_length

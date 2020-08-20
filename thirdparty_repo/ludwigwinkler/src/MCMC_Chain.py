@@ -60,7 +60,7 @@ class Chain(MutableSequence):
 			'''
 			Initialize chain with given model
 			'''
-			assert isinstance(probmodel, ProbModel)
+			# assert isinstance(probmodel, ProbModel)
 
 			self.state_dicts = [copy.deepcopy(probmodel.state_dict())]
 			log_prob = probmodel.log_prob(*next(probmodel.dataloader.__iter__()))
@@ -176,10 +176,10 @@ class Chain(MutableSequence):
 
 	def append(self, probmodel, log_prob, accept):
 
-		if isinstance(probmodel, ProbModel):
-			params_state_dict = copy.deepcopy(probmodel.state_dict())
-		elif isinstance(probmodel, OrderedDict):
-			params_state_dict = copy.deepcopy(probmodel)
+		# if isinstance(probmodel, ProbModel):
+		params_state_dict = copy.deepcopy(probmodel.state_dict())
+		# elif isinstance(probmodel, OrderedDict):
+		# 	params_state_dict = copy.deepcopy(probmodel)
 		assert isinstance(log_prob, dict)
 		assert type(log_prob['log_prob'])==torch.Tensor
 		assert log_prob['log_prob'].numel()==1
