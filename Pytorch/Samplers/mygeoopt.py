@@ -192,31 +192,31 @@ if __name__ == '__main__':
     #                    n_samples=10000,
     #                    ))
 
-    def test_sampling2(params):
-        class NormalDist(torch.nn.Module):
-            def __init__(self, mu, sigma):
-                super().__init__()
-                self.d = torch.distributions.Normal(mu, sigma)
-                self.x = torch.nn.Parameter(torch.randn_like(mu))
-
-            def forward(self):
-                return self.d.log_prob(self.x).sum()
-
-        torch.manual_seed(42)
-        D = 2
-        n_burn, n_samples = params.pop("n_burn"), params.pop("n_samples")
-
-        mu = torch.randn([D])
-        sigma = torch.randn([D]).abs()
-
-        nd = NormalDist(mu, sigma)
-        Sampler = {'RHMC': myRHMC, 'RSGLD': myRSGLD, 'SGRHMC': mySGRHMC}[params.pop("sampler")]
-        sampler = Sampler(nd, **params)
-
-        points = sampler.sample(500, 1000)
-        print(points)
-
-
-    test_sampling2(dict(sampler="RHMC", epsilon=0.2, n_steps=5, n_burn=1000, n_samples=5000))
-    test_sampling2(dict(sampler="RSGLD", epsilon=1e-3, n_burn=3000, n_samples=10000))
-    test_sampling2(dict(sampler="SGRHMC", epsilon=1e-3, n_steps=1, alpha=0.5, n_burn=3000, n_samples=10000))
+    # def test_sampling2(params):
+    #     class NormalDist(torch.nn.Module):
+    #         def __init__(self, mu, sigma):
+    #             super().__init__()
+    #             self.d = torch.distributions.Normal(mu, sigma)
+    #             self.x = torch.nn.Parameter(torch.randn_like(mu))
+    #
+    #         def forward(self):
+    #             return self.d.log_prob(self.x).sum()
+    #
+    #     torch.manual_seed(42)
+    #     D = 2
+    #     n_burn, n_samples = params.pop("n_burn"), params.pop("n_samples")
+    #
+    #     mu = torch.randn([D])
+    #     sigma = torch.randn([D]).abs()
+    #
+    #     nd = NormalDist(mu, sigma)
+    #     Sampler = {'RHMC': myRHMC, 'RSGLD': myRSGLD, 'SGRHMC': mySGRHMC}[params.pop("sampler")]
+    #     sampler = Sampler(nd, **params)
+    #
+    #     points = sampler.sample(500, 1000)
+    #     print(points)
+    #
+    #
+    # test_sampling2(dict(sampler="RHMC", epsilon=0.2, n_steps=5, n_burn=1000, n_samples=5000))
+    # test_sampling2(dict(sampler="RSGLD", epsilon=1e-3, n_burn=3000, n_samples=10000))
+    # test_sampling2(dict(sampler="SGRHMC", epsilon=1e-3, n_steps=1, alpha=0.5, n_burn=3000, n_samples=10000))
