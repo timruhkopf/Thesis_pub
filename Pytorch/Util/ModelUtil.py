@@ -112,7 +112,7 @@ class Model_util:
         :return: dict
         """
         d = dict()
-        if isinstance(self, Vec_Model):
+        if not isinstance(self, Optim_Model):
             if chain is not None:
                 for i, p in enumerate(chain):
                     # TODO parallelize predictions
@@ -120,8 +120,13 @@ class Model_util:
                     # self.update_distributions()
                     d.update({str(i): self.forward(X)})
 
-        elif isinstance(self, Optim_Model):
-            raise NotImplementedError('plot1d not parsing parameters yet')
+        else:
+            if chain is not None:
+                for i, p in enumerate(chain):
+                    # TODO parallelize predictions
+                    self.load_state_dict(p)
+                    # self.update_distributions()
+                    d.update({str(i): self.forward(X)})
 
         return d
 

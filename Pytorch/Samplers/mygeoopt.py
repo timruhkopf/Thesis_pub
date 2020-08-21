@@ -1,5 +1,7 @@
 from geoopt.samplers import RHMC, RSGLD, SGRHMC
 from Pytorch.Samplers.Samplers import Sampler
+from functools import partial
+from tqdm import tqdm
 
 
 # geoopt is the inofficial implementation of
@@ -7,20 +9,65 @@ from Pytorch.Samplers.Samplers import Sampler
 # original code can be found @ https://github.com/geoopt/geoopt
 
 class Geoopt_interface:
-    def sample(self, n_burn, n_samples):
-        for _ in range(n_burn):
-            self.step(self.model)
+    def sample(self, trainloader, n_burn, n_samples):
+        """
+
+        :param trainloader:
+        :param n_burn: number of burnin_steps
+        :param n_samples: number of collected samples (steps)
+        :return:
+        """
+        # FiXME: make it log_prob (and trainloader) dependent and ensure, that non-SG
+        #  actually has batchsize of whole dataset!
+        #  see the following code snipped from RSGLD!
+        #      def step(self, closure):
+        #         logp = closure()
+
+        # self.model.closure_log_prob(X, y)   # for non-SG
+        print('Burn-in')
+        for _ in tqdm(range(n_burn)):
+            X, y = next(trainloader.__iter__())
+            self.step(partial(self.model.log_prob, X, y))
 
         points = []
         self.burnin = False
 
-        for _ in range(n_samples):
-            self.step(self.model)
-            points.append(self.model.x.detach().numpy().copy())
+        print('Sampling')
+        # for i, epoch in tqdm(enumerate(range(epochs))):
+        #     print('Starting Epoch {}'.format(i))
+        self.chain = list()
 
-        # points = np.asarray(points)
+        for _ in tqdm(range(n_samples)):
+            X, y = next(trainloader.__iter__())
+            self.step(partial(self.model.log_prob, X, y))
 
-        return points
+            state = self.model.state_dict()
+            # if not all([all(state[k] == v) for k, v in samples[-1].items()]): # this is imprecise
+            self.chain.append(state)
+
+        self.log_probs
+        self.state
+        self.n_rejected
+        self.rejection_rate
+
+        return self.chain
+
+    def clean_chain(self):
+        # a = [1,1,2,3,4,4,5,6,7,8,9,9,8]
+        # b = range(len(a))
+        #
+        # c = [c for i, (c, l) in enumerate(zip(b, a)) \
+        #  if i == 0 or l != a[i - 1]]
+        #
+        # le = [c for i, c in enumerate(self.chain) \
+        #       if i == 0 or all([a == b for a, b in zip(c, self.chain[i-1])])]
+        # len(le)
+        #
+        # filtered_chain = [c for i, (c, l) in enumerate(zip(self.chain, self.log_probs)) \
+        #                   if i == 0 or l != self.log_probs[i - 1]]
+        # len(filtered_chain)
+
+        return
 
 
 class myRHMC(RHMC, Geoopt_interface, Sampler):
@@ -44,9 +91,47 @@ class mySGRHMC(SGRHMC, Geoopt_interface, Sampler):
 
 if __name__ == '__main__':
     # code taken from https://github.com/geoopt/geoopt/blob/bd6c687862e6692a018ea5201191cc982e74efcf/tests/test_rhmc.py
-    import torch
     import numpy as np
     import pytest
+
+    import torch
+    import torch.nn as nn
+    import torch.distributions as td
+    from torch.utils.data import TensorDataset, DataLoader
+
+    from Pytorch.Layer.Layer_Probmodel.Hidden_Probmodel import Hidden_ProbModel
+
+    no_in = 2
+    no_out = 1
+
+    # single Hidden Unit Example
+    model = Hidden_ProbModel(no_in, no_out, bias=True, activation=nn.Identity())
+    model.forward(X=torch.ones(100, no_in))
+    model.prior_log_prob()
+
+    original = model.state_dict()
+
+    # generate data X, y
+    X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
+    X = X_dist.sample(torch.Size([100]))
+    y = model.likelihood(X).sample()
+
+    batch_size = 64
+    trainset = TensorDataset(X, y)
+    trainloader = DataLoader(trainset, batch_size=batch_size,
+                             shuffle=True, num_workers=0)
+
+    params = dict(sampler="RHMC", epsilon=0.02, n_steps=5)
+    params = dict(sampler="RSGLD", epsilon=1e-3)
+    params = dict(sampler="SGRHMC", epsilon=1e-3, n_steps=1, alpha=0.5  )
+
+    Sampler = {'RHMC': myRHMC, 'RSGLD': myRSGLD, 'SGRHMC': mySGRHMC}[params.pop("sampler")]
+    sampler = Sampler(model, **params)
+
+    points = sampler.sample(trainloader, n_burn=1000, n_samples=1000)
+
+    model.plot2d(X, y, true_model=original, path=None, param=points[0:1000:100])
+    print()
 
 
     # @pytest.mark.parametrize(
