@@ -4,13 +4,12 @@ import torch.distributions as td
 import os
 
 from Pytorch.Util.GridUtil import Grid
-from Pytorch.Layer.Group_lasso import Group_lasso
 
 
 class Group_lasso_Nuts(Grid):
     def main(self, n, steps, burn, seperated, bijected=True, model_param={}):
         from Pytorch.Layer.Group_lasso import Group_lasso
-        from Pytorch.Samplers.Hamil import Hamil
+        from Pytorch.Samplers.TRASH.Hamil import Hamil
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         if torch.cuda.is_available():

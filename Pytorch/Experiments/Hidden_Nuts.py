@@ -19,7 +19,7 @@ class Hidden_Nuts(Grid):
         signiture.
         """
         from Pytorch.Layer.Hidden import Hidden
-        from Pytorch.Samplers.Hamil import Hamil
+        from Pytorch.Samplers.TRASH.Hamil import Hamil
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         if torch.cuda.is_available():

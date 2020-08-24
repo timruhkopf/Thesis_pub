@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 import torch.distributions as td
 import os
 
@@ -10,7 +9,7 @@ class GAM_Nuts(Grid):
     def main(self, n, steps, bijected=True, model_param={}):
         from Tensorflow.Effects.bspline import get_design
         from Pytorch.Models.GAM import GAM
-        from Pytorch.Samplers.Hamil import Hamil
+        from Pytorch.Samplers.TRASH.Hamil import Hamil
 
         # set up device
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

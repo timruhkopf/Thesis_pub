@@ -13,7 +13,7 @@ from torch.utils.data import TensorDataset, DataLoader
 # from models import *
 from Pytorch.Util.DistributionUtil import *
 
-sys.path.append('..')
+sys.path.append('../..')
 use_cuda = torch.cuda.is_available()
 
 from Pytorch.Samplers.Samplers import Sampler
@@ -249,5 +249,5 @@ if __name__ == '__main__':
     init_theta = reg.vec
 
     # sampling example
-    csgmcmc = CSG_MCMC(reg, X, y, epochs=1000,     batch_size = 10)
+    csgmcmc = CSG_MCMC(reg, X, y, epochs=1000,  alpha=1.,    batch_size = 10)
     chain = csgmcmc.sample_csgmcmc(seed=1)

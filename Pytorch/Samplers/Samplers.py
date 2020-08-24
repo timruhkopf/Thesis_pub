@@ -102,7 +102,7 @@ if __name__ == '__main__':
 
     theta = gam.flatten()
 
-    from Pytorch.Samplers.Hamil import Hamil
+    from Pytorch.Samplers.TRASH.Hamil import Hamil
     theta
     hamil = Hamil(gam, Z, y, theta)
     hamil.sample_NUTS(1000, 0.3, 5)

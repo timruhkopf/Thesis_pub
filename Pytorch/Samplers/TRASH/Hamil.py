@@ -68,6 +68,8 @@ class Hamil(Sampler):
         """
         pass
 
+    def np_chain_mat(self):
+        array = torch.stack(hamil.chain).numpy()
 
 if __name__ == '__main__':
     from Pytorch.Layer.Hidden import Hidden
@@ -88,6 +90,12 @@ if __name__ == '__main__':
 
 
     hamil = Hamil(reg, X, y, init_theta)
-    hamil.sample_NUTS(1000, 0.3, 5)
-    hamil.sample_eRMHMC(1000, 0.3, 5)
-    hamil.sample_iRMHMC(1000, 0.3, 5)
+
+    hamil.sample_NUTS(100, 0.03, 5)
+    print(hamil.chain)
+
+    hamil.sample_eRMHMC(100, 0.023, 2)
+    print(hamil.chain)
+
+    hamil.sample_iRMHMC(100, 0.03, 5)
+    print(hamil.chain)

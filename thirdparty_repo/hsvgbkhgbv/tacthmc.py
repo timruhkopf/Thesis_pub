@@ -6,6 +6,26 @@ import re
 class TACTHMC:
 
     def __init__(self, model, N, eta_theta0, eta_xi0, c_theta0, c_xi0, gamma_theta0, gamma_xi0, enable_cuda, standard_interval=0.1, gaussian_decay=1e-3, version='accurate', temper_model='Metadynamics'):
+        """
+        parameters: model, N, [η θ , η ξ , c θ , c ξ , γ θ , γ ξ , K], enable_cuda, ...
+        [η θ , c θ , γ θ ] denote the step size, the level of the injected Gaussian
+        noise and the thermal inertia, all w.r.t. the parameter of interest θ; similarly, [η ξ , c ξ , γ ξ ]
+        represent the quantities corresponding to the tempering variable ξ; K defines the number of steps in
+        simulating a unit interval
+        :param model:
+        :param N:
+        :param eta_theta0:
+        :param eta_xi0:
+        :param c_theta0:
+        :param c_xi0:
+        :param gamma_theta0:
+        :param gamma_xi0:
+        :param enable_cuda:
+        :param standard_interval:
+        :param gaussian_decay:
+        :param version:
+        :param temper_model:
+        """
         self.N = N
         self.model = model
         self.version = version
