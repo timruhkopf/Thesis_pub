@@ -7,6 +7,7 @@ from tqdm import tqdm
 # geoopt is the inofficial implementation of
 # https://openreview.net/pdf?id=r1eiqi09K7 in colloberation with the authors.
 # original code can be found @ https://github.com/geoopt/geoopt
+# https://geoopt.readthedocs.io/en/latest/index.html
 
 class Geoopt_interface:
     def sample(self, trainloader, n_burn, n_samples):
