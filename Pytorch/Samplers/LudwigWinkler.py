@@ -1,6 +1,6 @@
 import torch
 from Pytorch.Samplers.Samplers import Sampler
-from thirdparty_repo.ludwigwinkler.src.MCMC_Sampler import SGLD_Sampler, MALA_Sampler, SGNHT_Sampler
+from thirdparty_repo.ludwigwinkler.src.MCMC_Sampler import HMC_Sampler, SGLD_Sampler, MALA_Sampler, SGNHT_Sampler
 from torch.utils.data import TensorDataset, DataLoader
 from copy import copy, deepcopy
 
@@ -17,7 +17,9 @@ class LudwigWinkler(Sampler):
         if batch_size is not None:
             batch_size = self.data.shape[0]
 
-        self.model.dataloader = DataLoader(TensorDataset(self.data, self.target), shuffle=True, batch_size=batch_size)
+        self.model.dataloader = DataLoader(
+            TensorDataset(self.data, self.target),
+            shuffle=True, batch_size=batch_size)
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model.log_prob_ = copy(self.model.log_prob)
         self.model.log_prob = lambda X, y: {'log_prob': self.model.log_prob_(X, y)}
@@ -41,7 +43,8 @@ class LudwigWinkler(Sampler):
 
 
 class MALA(LudwigWinkler):
-    def __init__(self, model, X, y, batch_size, step_size, num_steps, burn_in, pretrain, tune, num_chains):
+    def __init__(self, model, X, y, batch_size, step_size, num_steps,
+                 burn_in, pretrain, tune, num_chains):
         LudwigWinkler.__init__(self, model, X, y, batch_size)
         self.sampler = MALA_Sampler(
             probmodel=self.model,
@@ -69,7 +72,8 @@ class SGNHT(LudwigWinkler):
 
 
 class SGLD(LudwigWinkler):
-    def __init__(self, model, X, y, batch_size, step_size, num_steps, burn_in, pretrain, tune, num_chains=7):
+    def __init__(self, model, X, y, batch_size, step_size, num_steps,
+                 burn_in, pretrain, tune, num_chains=7):
         LudwigWinkler.__init__(self, model, X, y, batch_size)
         self.sampler = SGLD_Sampler(
             probmodel=self.model,
@@ -81,13 +85,24 @@ class SGLD(LudwigWinkler):
             tune=tune)
 
 
+# class HMC(LudwigWinkler):
+#     def __init__(self, model, X, y, batch_size, step_size, num_steps,
+#                  num_chains, burn_in, pretrain=False, tune=False,
+#                  traj_length=5):
+#         LudwigWinkler.__init__(self, model, X, y, batch_size)
+#         self.sampler = HMC_Sampler(
+#             self.model, step_size, num_steps,
+#             num_chains, burn_in, pretrain=pretrain,
+#             tune=False, traj_length=traj_length)
+
+
 if __name__ == '__main__':
     import torch
     import torch.nn as nn
     import torch.distributions as td
     from Pytorch.Layer.Layer_Probmodel.Hidden_Probmodel import Hidden_ProbModel
 
-    no_in = 1
+    no_in = 2
     no_out = 1
 
     # single Hidden Unit Example
@@ -122,11 +137,17 @@ if __name__ == '__main__':
     # num_chains 		type=int, 	default=1
     num_chains = 1  # os.cpu_count() - 1
     batch_size = 50
-    hmc_traj_length = 5
+    hmc_traj_length = 24
     val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
     val_prediction_steps = 50
     val_converge_criterion = 20
     val_per_epoch = 200
+
+    # hmc = HMC(reg, X, y, X.shape[0],
+    #           step_size=step_size, num_steps=num_steps, burn_in=burn_in, pretrain=pretrain, tune=tune,
+    #           traj_length=hmc_traj_length,
+    #           num_chains=num_chains)
+    # hmc.sample()
 
     reg.reset_parameters()
     sgnht = SGNHT(reg, X, y, X.shape[0],
@@ -140,8 +161,8 @@ if __name__ == '__main__':
 
     from _collections import OrderedDict
 
-    sgnht.model.plot1d(X, y, true_model=sgnht.model.true_model, param=
-    [OrderedDict({'W': c.view((1,1))}) for i, c in enumerate(sgnht.chain) if     i % 100 == 0])
+    # sgnht.model.plot1d(X, y, true_model=sgnht.model.true_model, param=
+    # [OrderedDict({'W': c.view((1, 1))}) for i, c in enumerate(sgnht.chain) if i % 100 == 0])
 
     mala = MALA(reg, X, y, X.shape[0],
                 step_size, num_steps, burn_in, pretrain=True, tune=tune,
