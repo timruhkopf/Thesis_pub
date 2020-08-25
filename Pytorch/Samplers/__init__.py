@@ -1,4 +1,7 @@
-from Pytorch.Samplers.Ali import Ali
-from Pytorch.Samplers.cSG_MCMC import CSG_MCMC
-from Pytorch.Samplers.Hamil import Hamil
-from Pytorch.Samplers.LudwigWinkler import LudwigWinkler
+# VEC MODELS
+# from Pytorch.Samplers.TRASH.Ali import Ali  # MALA
+
+# PROBMODEL
+# from Pytorch.Samplers.TRASH.my_csgmcmc import CSG_MCMC as myCSG_MCMC # my class of cSGMCMC
+from Pytorch.Samplers.LudwigWinkler import MALA, SGLD, SGNHT # could also be HMC
+from Pytorch.Samplers.mygeoopt import myRHMC, myRSGLD, mySGRHMC
