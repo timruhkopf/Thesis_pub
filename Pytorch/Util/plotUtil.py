@@ -1,9 +1,127 @@
+import torch
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-import numpy as np
-
 import matplotlib.tri as mtri  # for trisurface with irregular grid
+
+
+class Plots:
+    @torch.no_grad()
+    def predict_states(self, X, chain=None):
+        """
+        predict f(X) based on true, current and chain's states
+        :param X: Torch.Tensor upon which the predictions are made
+        :param y: Torch.Tensor
+        :param chain: list of state_dicts
+        :param path: string: system path where to save to
+        :return:
+        """
+
+        # (1) PREDICT functions -----------------------------------------------
+        df = pd.DataFrame()
+
+        # predict current state
+        df['current'] = self.forward(X).view(X.shape[0],).numpy()
+        current = self.state_dict()
+
+        # predict true model
+        self.load_state_dict(self.true_model)
+        df['true'] = self.forward(X).view(X.shape[0],).numpy()
+
+        # predict chain
+        if chain is not None:
+            for i, c in enumerate(chain):
+                self.load_state_dict(c)
+                df[str(i)] = self.forward(X).view(X.shape[0],).numpy()
+
+            # return to current state
+            self.load_state_dict(current)
+
+        return df
+
+    def plot(self, X, y, chain=None, path=None, **kwargs):
+        """
+
+        :param X:
+        :param y:
+        :param chain: list of state_dicts
+        :param path: string
+        :param kwargs: additional arguments for respective plot function _plot1d/2d
+        :return:
+        """
+        # (2) MELT the frame for plotting format
+        df0 = self.predict_states(X, chain)
+
+
+        if X.shape[1]==1:
+            df0['X'] = X.view(X.shape[0], ).numpy()
+            df1 = df0.melt('X', value_name='y')
+            df1 = df1.rename(columns={'variable': 'functions'})
+
+            plt = self._plot1d(X, y, df1, **kwargs)
+        elif X.shape[1] == 2:
+            plt = self.plot2d(X, y, df0, **kwargs)
+
+        else:
+            print('Could not plot function, as input dim is >2')
+
+
+
+        if path is None:
+            plt.show()
+        else:
+            plt.savefig('{}.png'.format(path), bbox_inches='tight')
+
+    def _plot1d(self, X, y, df):
+        """
+
+        :param X:
+        :param y:
+        :param df: melted pandas df, containing all functions' predictions
+        """
+        fig, ax = plt.subplots(nrows=1, ncols=1)
+        fig.subplots_adjust(hspace=0.5)
+        sns.scatterplot(
+            x=torch.reshape(X, (X.shape[0],)).numpy(),
+            y=torch.reshape(y, (y.shape[0],)).numpy(), ax=ax)
+
+        sns.lineplot('X', y='y', hue='functions', alpha=0.5, data=df, ax=ax)
+
+        return fig
+
+    def plot2d(self, X, y, df, title):
+        X, y = X.numpy(), y.numpy()
+        triang = triangulate_remove_artifacts(X[:, 0], X[:, 1], -9.9, 9.9, -9.9, 9.9, plot=False)
+
+
+        fig = plt.figure()
+        plt.title('{}'.format(title))
+        plt.axis('off')
+
+        # if multi_subplots:
+        #     rows = int(torch.ceil(torch.sqrt(torch.tensor(len(df.keys()), dtype=torch.float32))).numpy())
+        #     ax1 = fig.add_subplot(rows, rows, 1, projection='3d')
+        # else:
+        ax1 = fig.add_subplot(111, projection='3d')
+        ax1.text2D(0.05, 0.95, title, transform=ax1.transAxes)
+
+        # ground truth model & data
+        ax1.plot_trisurf(triang, df['true'],
+                         cmap='jet', alpha=0.4)
+        ax1.scatter(X[:, 0], X[:, 1], y,
+                    marker='.', s=10, c="black", alpha=0.5)
+        ax1.view_init(elev=40, azim=-45)
+
+        import matplotlib.cm as cm
+        colors = cm.rainbow(torch.linspace(0, 1, len(df)).numpy())
+        for (k, v), c in zip(df.items(), colors):
+
+            if k != 'true':
+                ax1.scatter(X[:, 0], X[:, 1], v,
+                            marker='.', s=7, color=c, alpha=0.3)
+        return plt
+
 
 def triangulate_remove_artifacts(x, y, xl=0.1, xu=9.9, yl=0.1, yu=9.9, plot=True):
     """
@@ -37,3 +155,56 @@ def triangulate_remove_artifacts(x, y, xl=0.1, xu=9.9, yl=0.1, yu=9.9, plot=True
         plt.show()
 
     return triang
+
+
+if __name__ == '__main__':
+    from Pytorch.Layer.Hidden import Hidden
+    import torch.distributions as td
+    import torch.nn as nn
+    no_in = 1
+    no_out = 1
+
+    # single Hidden Unit Example
+    reg = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
+    reg.true_model = reg.state_dict()
+
+    # reg.W = reg.W_.data
+    # reg.b = reg.b_.data
+    reg.forward(X=torch.ones(100, no_in))
+    reg.prior_log_prob()
+
+    # generate data X, y
+    X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
+    X = X_dist.sample(torch.Size([100]))
+    y = reg.likelihood(X).sample()
+
+    from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
+
+    step_size = 0.01
+    num_steps = 500  # <-------------- important
+    pretrain = False
+    tune = False
+    burn_in = 200
+    # num_chains 		type=int, 	default=1
+    num_chains = 1  # os.cpu_count() - 1
+    batch_size = 50
+    hmc_traj_length = 24
+    val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
+    val_prediction_steps = 50
+    val_converge_criterion = 20
+    val_per_epoch = 200
+
+    reg.reset_parameters()
+    sgnht = SGNHT(reg, X, y, X.shape[0],
+                  step_size, num_steps, burn_in, pretrain=pretrain, tune=tune,
+                  hmc_traj_length=hmc_traj_length,
+                  num_chains=num_chains)
+    sgnht.sample()
+    print(sgnht.chain)
+
+
+    if no_in == 1:
+        kwargs = {}
+    elif no_in == 2:
+        kwargs = {'title': 'SOMETHING'}
+    reg.plot(X, y, chain=sgnht.chain, **kwargs)

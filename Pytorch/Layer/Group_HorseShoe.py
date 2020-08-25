@@ -8,7 +8,6 @@ from Pytorch.Layer.Group_lasso import Group_lasso
 
 class Group_HorseShoe(Hidden):
     prior_log_prob = Group_lasso.prior_log_prob
-    vec_to_attrs = Group_lasso.vec_to_attrs
 
     def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU()):
         nn.Module.__init__(self)

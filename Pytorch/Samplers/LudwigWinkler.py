@@ -33,14 +33,10 @@ class LudwigWinkler(Sampler):
             FloatTensor = torch.FloatTensor
             Tensor = torch.FloatTensor
 
-    def convert_chain(self):
-        vectorize = lambda D: torch.cat([a.view(a.nelement()) for a in D.values()])
-        return [vectorize(c) for c in self.sampler.chain.samples]
-
     def sample(self):
         self.sampler.sample_chains()
-        self.chain = self.convert_chain()
-
+        self.chain = self.sampler.chain.samples
+        self.log_probs = self.sampler.chain.log_probs
 
 class MALA(LudwigWinkler):
     def __init__(self, model, X, y, batch_size, step_size, num_steps,
@@ -100,13 +96,13 @@ if __name__ == '__main__':
     import torch
     import torch.nn as nn
     import torch.distributions as td
-    from Pytorch.Layer.Layer_Probmodel.Hidden_Probmodel import Hidden_ProbModel
+    from Pytorch.Layer.Hidden import Hidden
 
     no_in = 2
     no_out = 1
 
     # single Hidden Unit Example
-    reg = Hidden_ProbModel(no_in, no_out, bias=False, activation=nn.ReLU())
+    reg = Hidden(no_in, no_out, bias=False, activation=nn.ReLU())
 
     # reg.W = reg.W_.data
     # reg.b = reg.b_.data
@@ -126,8 +122,6 @@ if __name__ == '__main__':
 
     # log_prob sg mode:
     print(reg.log_prob(X, y))
-
-    num_samples = 1000
 
     step_size = 0.01
     num_steps = 5000  # <-------------- important
@@ -176,4 +170,9 @@ if __name__ == '__main__':
                 num_chains=num_chains)
     sgld.sample()
     print(sgld.chain)
-    sgld.model.plot(X, y)
+
+    if no_in ==1:
+        kwargs = {}
+    elif no_in == 2:
+        kwargs = {'multi_subplots':False, 'title':'SOMETHING'}
+    sgld.model.plot(X, y, **kwargs)
