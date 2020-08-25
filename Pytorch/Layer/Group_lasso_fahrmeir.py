@@ -11,10 +11,10 @@ class Group_lasso_farhmeir(Group_lasso):
         on the parameters tau and lamb. might help """
         super().__init__(no_in, no_out)
 
+        # overwrite default distrib. assumption
         self.dist['lamb'] = td.Gamma(0.01, 0.01)
         self.dist['tau'] = td.Exponential(0.5 * self.lamb ** 2)
 
-        self.reset_parameters()
         self.true_model = None
 
     def update_distributions(self):
@@ -36,9 +36,10 @@ class Group_lasso_farhmeir(Group_lasso):
             self.tau = self.dist['tau'].sample()
 
         self.dist['W_shrinked'].scale = self.tau
-        self.W = torch.cat([self.dist['W_shrinked'].sample().view(self.no_in, 1),
-                            self.dist['W'].sample().view(self.no_in, self.no_out - 1)],
-                           dim=1)
+        self.W.data = torch.cat(
+            [self.dist['W_shrinked'].sample().view(1, self.no_out),  # ASSUMING MERELY ONE VARIABLE TO BE SHRUNKEN
+             self.dist['W'].sample().view(self.no_in - 1, self.no_out)],
+            dim=0)
 
         self.b = self.dist['b'].sample()
 

@@ -28,13 +28,11 @@ class Group_lasso(Hidden):
         self.m = self.no_out  # single "group size" to be penalized
 
         # hyperparam of tau
-        self.lamb_ = nn.Parameter(torch.Tensor(1))
-        self.lamb = torch.tensor(1.)  # just to instantiate dist
-        self.dist['lamb'] = td.HalfCauchy(scale=1.)
+        self.lamb = nn.Parameter(torch.tensor(1.))
+        self.dist['lamb'] = td.HalfCauchy(scale=torch.tensor(1.))
 
         # hyperparam of W: single variance parameter for group
-        self.tau_ = nn.Parameter(torch.Tensor(1))
-        self.tau = torch.tensor(1.)  # just to instantiate dist
+        self.tau = nn.Parameter(torch.tensor(1.))
         self.dist['tau'] = td.Gamma((self.m + 1) / 2, (self.lamb ** 2) / 2)
 
         if self.bijected:
@@ -42,18 +40,14 @@ class Group_lasso(Hidden):
             self.dist['tau'] = td.TransformedDistribution(self.dist['tau'], LogTransform())
 
         # Group lasso structure of W
-        self.W_ = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
-        self.W = None
-        self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_out), self.tau)
+        self.W = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
         # FIXME: check sigma dependence in W_shrinked: \beta_g | tau²_g, sigma² ~ MVN
-        self.dist['W'] = td.Normal(torch.zeros((self.no_in-1) * self.no_out), 1.)
+        self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_out), self.tau)
+        self.dist['W'] = td.Normal(torch.zeros((self.no_in-1) * self.no_out), torch.tensor([1.]))
 
         # add optional bias
-        if self.bias:
-            self.b_ = nn.Parameter(torch.Tensor(self.no_out))
-            self.b = None
-            self.tau_b = 1.
-            self.b = None
+        if self.has_bias:
+            self.b = nn.Parameter(torch.Tensor(self.no_out))
             self.dist['b'] = td.Normal(0., 1.)
 
     def update_distributions(self):
@@ -77,33 +71,27 @@ class Group_lasso(Hidden):
     def reset_parameters(self, seperated=False):
         """sampling method to instantiate the parameters"""
 
-        self.lamb = self.dist['lamb'].sample()
+        self.lamb.data = self.dist['lamb'].sample()
         self.update_distributions()  # to ensure tau's dist is updated properly
 
         if seperated:  # allows XOR Decision in data generating procecss
             if self.bijected:
-                self.tau = self.dist['tau'].transforms[0](torch.tensor(0.001))
+                self.tau.data = self.dist['tau'].transforms[0](torch.tensor(0.001))
             else:
-                self.tau = torch.tensor(0.001)
-            self.update_distributions()  # to ensure W_shrinked's dist is updated properly
+                self.tau.data = torch.tensor(0.001)
         else:
-            self.tau = self.dist['tau'].sample()
-            self.update_distributions()  # to ensure W_shrinked's dist is updated properly
+            self.tau.data = self.dist['tau'].sample()
+
+        self.update_distributions()  # to ensure W_shrinked's dist is updated properly
 
         # partition W according to prior model
-        # Explicit assumption that only one variable is shrunken.
-        self.W = torch.cat([self.dist['W_shrinked'].sample().view(1, self.no_out),
-                            self.dist['W'].sample().view(self.no_in-1, self.no_out)],
-                           dim=0)
-        if self.bias:
-            self.b = self.dist['b'].sample()
+        self.W.data = torch.cat(
+            [self.dist['W_shrinked'].sample().view(1, self.no_out),  # ASSUMING MERELY ONE VARIABLE TO BE SHRUNKEN
+             self.dist['W'].sample().view(self.no_in-1, self.no_out)],
+            dim=0)
 
-        # setting the nn.Parameters's starting value
-        self.lamb_.data = self.lamb
-        self.tau_.data = self.tau
-        self.W_.data = self.W
-        if self.bias:
-            self.b_.data = self.b
+        if self.has_bias:
+            self.b.data = self.dist['b'].sample()
 
     def prior_log_prob(self):
         """evaluate each parameter in respective distrib."""
@@ -116,8 +104,8 @@ class Group_lasso(Hidden):
             value += self.dist[name].log_prob(self.get_param(name)).sum()
 
         # W's split & vectorized priors
-        value += self.dist['W_shrinked'].log_prob(self.W[:, 0]).sum() + \
-                 self.dist['W'].log_prob(self.W[:, 1:].reshape(self.no_in * (self.no_out - 1))).sum()
+        value += self.dist['W_shrinked'].log_prob(self.W[0, :]).sum() + \
+                 self.dist['W'].log_prob(self.W[1:,:].reshape((self.no_in -1) * self.no_out)).sum()
 
         return value
 
@@ -156,30 +144,21 @@ class Group_lasso(Hidden):
 
 
 if __name__ == '__main__':
-    glasso = Group_lasso(3, 1, bias=True, activation=nn.Identity())
-    glasso.true_model = glasso.vec
-
     # generate data
-    X_dist = td.Uniform(torch.tensor([-10., -10., -10.]), torch.tensor([10., 10., 10.]))
-    X = X_dist.sample(torch.Size([100])).view(100, 3)
-    X.detach()
-    X.requires_grad_()
+    no_in = 2
+    no_out = 1
+    X_dist = td.Uniform(torch.ones(no_in)*-10., torch.tensor(no_in)*10.)
+    X = X_dist.sample(torch.Size([100])).view(100, no_in)
 
+
+    glasso = Group_lasso(no_in, no_out, bias=False, activation=nn.Identity(), bijected=True)
+    glasso.reset_parameters(seperated=True)
+    glasso.true_model = glasso.state_dict()
     y = glasso.likelihood(X).sample()
 
-    # check reset_parameters
-    glasso.parameters_dict
-    glasso.vec_to_attrs(torch.cat([i * torch.ones(glasso.__getattribute__(p).nelement())
-                                   for i, p in enumerate(glasso.p_names)]))
-    glasso.parameters_dict
-    glasso(X)
-
-    glasso.reset_parameters()
-    glasso.parameters_dict
-    glasso(X)
-
-    # check prior_log_prob
-    glasso.reset_parameters()
+    # check reset_parameters &  check prior_log_prob
+    glasso.reset_parameters(seperated=True)
+    glasso.plot(X, y, **{'title':'G-lasso'})
     print(glasso.prior_log_prob())
 
     # check update_distributions
@@ -193,49 +172,34 @@ if __name__ == '__main__':
     # check alpha value
     # glasso.alpha
 
-    # check
-
     # check "shrinkage_regression" example on being samplable
-    import hamiltorch
+    from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
 
-    N = 2000
-    hamiltorch.set_random_seed(123)
+    num_samples = 1000
 
-    step_size = 0.15
-    num_samples = 50
-    num_steps_per_sample = 25
-    threshold = 1e-3
-    softabs_const = 10 ** 6
-    L = 25
-
-    glasso.closure_log_prob(X, y)
-    glasso.reset_parameters()
-    theta = hamiltorch.util.flatten(glasso)
-    print(glasso.log_prob(theta))
-
-    # FIXME: failing internally with Glasso during irmhmc sampling due to singular U in cholesky (MVN , fisher)
-    # params_irmhmc_bij = hamiltorch.sample(
-    #     log_prob_func=glasso.log_prob, params_init=theta, num_samples=N,
-    #     step_size=step_size, num_steps_per_sample=L, sampler=hamiltorch.Sampler.RMHMC,
-    #     integrator=hamiltorch.Integrator.IMPLICIT, fixed_point_max_iterations=1000,
-    #     fixed_point_threshold=1e-05)
+    step_size = 0.01
+    num_steps = 5000  # <-------------- important
+    pretrain = False
+    tune = False
+    burn_in = 2000
+    # num_chains 		type=int, 	default=1
+    num_chains = 1  # os.cpu_count() - 1
+    batch_size = 50
+    hmc_traj_length = 24
+    val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
+    val_prediction_steps = 50
+    val_converge_criterion = 20
+    val_per_epoch = 200
 
     glasso.reset_parameters()
-    theta = hamiltorch.util.flatten(glasso)
-    glasso.log_prob(theta)
+    sgnht = SGNHT(glasso, X, y, X.shape[0],
+                  step_size, num_steps, burn_in, pretrain=pretrain, tune=tune,
+                  hmc_traj_length=hmc_traj_length,
+                  num_chains=num_chains)
+    sgnht.sample()
+    print(sgnht.chain)
 
-    # HMC NUTS
-    N = 2000
-    step_size = .3
-    L = 5
-    burn = 500
-    N_nuts = burn + N
-    glasso.reset_parameters()
-    glasso.vec
-    params_hmc_nuts = hamiltorch.sample(log_prob_func=glasso.log_prob, params_init=theta,
-                                        num_samples=N_nuts, step_size=step_size, num_steps_per_sample=L,
-                                        sampler=hamiltorch.Sampler.HMC_NUTS, burn=burn,
-                                        desired_accept_rate=0.8)
-    glasso.invert_bij('tau')
-    glasso.invert_bij('lamb')
-    print()
+    import random
+
+    glasso.plot(X, y, chain=random.sample(sgnht.chain, len(sgnht.chain) // 10),
+                **{'title': 'G-lasso'})
