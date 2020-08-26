@@ -1,9 +1,14 @@
 import torch
 
-from Pytorch.Samplers.Sampler_Experimental import Sampler_Experimental
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from statsmodels.tsa.stattools import acf
+
+# from Pytorch.Samplers.Sampler_Experimental import Sampler_Experimental
 
 
-class Sampler(Sampler_Experimental):
+class Sampler:
     def __init__(self, model):
         """
         Samplers class, implementing all the functionality shared by the samplers:
@@ -14,16 +19,53 @@ class Sampler(Sampler_Experimental):
         """
         self.chain = list()  # list of 1D Tensors, representing the param state
         self.model = model
-        self.acceptance = None
+
+    def save(self, path):
+        torch.save(self, path)
+
+    @staticmethod
+    def load(path):
+        return torch.load(path)
+
+    def ess(self):
+        """
+        Effective Sample Size
+        following TACTHMC's formulation:
+        n/(1+2\sum_{k=1}^{inf} p(k)) with p(k) the autocorrelation at lag k """
+        return len(self.chain) / (1 + 2 * sum(self.acf))
 
     @property
     def chain_mat(self):
-        return torch.cat(self.chain).reshape(len(self.chain), -1)
+        vecs = [torch.cat([p.view(p.nelement()) for p in chain.values()], axis=0) for chain in self.chain]
+        return torch.stack(vecs, axis=0).numpy()
 
-    @property
-    def np_chain(self):
-        """:return: 2d-ndarray (numpy), each row representing a state"""
-        return self.chain_mat.numpy()
+        # return torch.cat(self.chain).reshape(len(self.chain), -1)
+
+    def traceplots(self, path=None):
+        df = pd.DataFrame(self.chain_mat)
+        df.plot(subplots=True, title='Traces')
+        if path is None:
+            plt.show()
+        else:
+            plt.savefig(path)
+
+    def acf_plots(self, nlags, path=None):
+        df = pd.DataFrame(self.chain_mat)
+        df_acf = pd.DataFrame(columns=df.columns)
+        for i, column in enumerate(list(df)):  # iterate over chain_mat columns
+            df_acf[i] = acf(df[column], nlags=nlags, fft=True)
+
+        self.acf = df_acf
+        self.ess = len(self.chain) / (1 + 2 * np.sum(self.acf, axis=0))
+        self.ess_min = int(min(self.ess))
+
+        df_acf.plot(subplots=True, title='Autocorrelation')
+
+        if path is None:
+            plt.show()
+        else:
+            plt.savefig(path)
+
 
     def clean_chain(self):
         """:returns the list of 1d Tensors, that are not consecutively same (i.e.
@@ -35,34 +77,6 @@ class Sampler(Sampler_Experimental):
 
         self.acceptance = len(self.chain) / N
         print(self.acceptance)
-
-    def save(self, path):
-        # import pickle
-
-        torch.save(self, path)
-        #
-        # with open(path, 'wb') as p:
-        #     pickle.dump(self, p)
-
-    @staticmethod
-    def load(path):
-        # import pickle
-
-        # with open(path, 'rb') as p:
-        #     return pickle.load(self, p)
-        return torch.load(path)
-
-    @torch.no_grad()
-    def predict(self, model, X):
-        """predict X for each on each accepted state of the chain"""
-        y = list()
-
-        for state in self.chain:
-            # deserialize it potentially
-            # TODO paralleliize the prediction for loop:
-            # https://stackoverflow.com/questions/9786102/how-do-i-parallelize-a-simple-python-loop
-            model.vec_to_attrs(state)
-            y.append(model.forward(X))
 
     def posterior_mean(self):
         return self.chain_mat.mean(dim=0)
@@ -81,41 +95,43 @@ class Sampler(Sampler_Experimental):
 
 
 if __name__ == '__main__':
-    from Pytorch.Models.GAM import GAM
-    import torch
-    import torch.distributions as td
-    from Tensorflow.Effects.bspline import get_design
+    s = Sampler(model=None)
+    chain = torch.distributions.Normal(0., scale=torch.tensor(1.)).sample([1000, 2])
+    new = torch.Tensor(1000, )
 
-    # saving model:
-    no_basis = 20
-    X_dist = td.Uniform(-10., 10)
-    X = X_dist.sample(torch.Size([100]))
-    Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=no_basis), dtype=torch.float32, requires_grad=False)
-    Z.detach()
+    alpah = torch.distributions.Normal(0., 0.1).sample([1000, 2])
+    alpha = torch.linspace(0.01, 0.05, 10)  # *torch.tensor([-1., 1.]*5)
+    new[0:10] = chain[:, 0][0:10]
 
-    gam = GAM(no_basis=no_basis, order=1)
-    gam.reset_parameters()
-    gam(Z)
+    for i, c in enumerate(chain[10:-1, 0]):
+        i += 10
+        new[i + 1] = sum(alpha * new[(i - 10):i]) + c
 
-    gam.forward(Z)
-    y = gam.likelihood(Z).sample()
+    s.chain = new
 
-    theta = gam.flatten()
+    # Version 1
+    x = s.chain.numpy()
+    x = (s.chain - s.chain.mean()).numpy()
 
-    from Pytorch.Samplers.TRASH.Hamil import Hamil
-    theta
-    hamil = Hamil(gam, Z, y, theta)
-    hamil.sample_NUTS(1000, 0.3, 5)
+    result = np.correlate(x, x, mode='full')
+    s.acf = result[result.size // 2:][1:]
 
-    hamil.model.vec
-    hamil.save(path='/home/tim/PycharmProjects/Thesis/Pytorch/Chains/hamil2')
-    hamil.model.vec_to_attrs(torch.ones_like(theta))
-    hamil2 = Hamil.load('/home/tim/PycharmProjects/Thesis/Pytorch/Chains/hamil2')
-    hamil2.forward(Z)
+    # version 2
+    s.acf = tidynamics.acf(x)[1: len(s.chain) // 10]
 
-    # FIXME X & Z in GAM PLOTTING !!!
-    hamil2.model.plot1d(X, Z, y)
+    # version 3
+    import scipy.signal as sc
 
-    sampler = Sampler()
-    sampler.chain.extend([torch.ones(10), torch.zeros(10), torch.ones(10)])
-    sampler.np_chain
+    s.acf = sc.correlate(x, x, mode='full', method='fft')[1:]
+
+    # plot any of the above versions
+    lag = np.arange(len(s.acf) - 1)
+    plt.plot(lag, s.acf[1:])
+    plt.show()
+
+    t = np.arange(len(s.chain))
+    plt.plot(t, s.chain)
+
+    s.autocorr1(x=x, t=2)
+
+    s.fast_autocorr(column=0)
