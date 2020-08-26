@@ -65,6 +65,11 @@ class Grid:
         # except:
         #     print()
 
+    def grid_exec(self):
+        """build up the parameter configs, that are to be executed on main function"""
+        raise NotImplementedError('')
+        # yield config
+
     def _create_hash(self):
         return '{model_file}_{commit}_{timestamp}'.format(
             commit=check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip(),
