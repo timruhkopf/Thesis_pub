@@ -1,3 +1,9 @@
+# CAREFULL: CURRENTLY OUTDATED
+
+
+
+
+
 This readme file is intended to introduce the structure on 
 writing the bayesian neural networks layers in Pytorch:
 
