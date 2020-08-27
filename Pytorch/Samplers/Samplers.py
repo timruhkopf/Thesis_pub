@@ -27,12 +27,18 @@ class Sampler:
     def load(path):
         return torch.load(path)
 
-    def ess(self):
+    def ess(self, nlags=500):
         """
         Effective Sample Size
         following TACTHMC's formulation:
         n/(1+2\sum_{k=1}^{inf} p(k)) with p(k) the autocorrelation at lag k """
-        return len(self.chain) / (1 + 2 * sum(self.acf))
+
+        if not hasattr(self, 'acf'):
+            self._calc_acf(nlags)
+
+        ess = len(self.chain) / (1 + 2 * np.sum(self.acf, axis=0))
+        self.ess_min = int(min(ess))
+        return ess
 
     @property
     def chain_mat(self):
@@ -42,6 +48,7 @@ class Sampler:
         # return torch.cat(self.chain).reshape(len(self.chain), -1)
 
     def traceplots(self, path=None):
+        """t"""
         df = pd.DataFrame(self.chain_mat)
         df.plot(subplots=True, title='Traces')
         if path is None:
@@ -49,17 +56,25 @@ class Sampler:
         else:
             plt.savefig(path)
 
-    def acf_plots(self, nlags, path=None):
+    def _calc_acf(self, nlags):
         df = pd.DataFrame(self.chain_mat)
         df_acf = pd.DataFrame(columns=df.columns)
         for i, column in enumerate(list(df)):  # iterate over chain_mat columns
             df_acf[i] = acf(df[column], nlags=nlags, fft=True)
 
         self.acf = df_acf
-        self.ess = len(self.chain) / (1 + 2 * np.sum(self.acf, axis=0))
-        self.ess_min = int(min(self.ess))
 
-        df_acf.plot(subplots=True, title='Autocorrelation')
+    def acf_plots(self, nlags, path=None):
+        """
+        Autocorrrelation function plot using Fast Fourier Transforms
+        connection between acf and fft: Wiener-Khintchine theorem:
+        https://www.itp.tu-berlin.de/fileadmin/a3233/grk/pototskyLectures2012/pototsky_lectures_part1.pdf
+        :param nlags: int. number of lags, that are to be displayed in"""
+
+        if not hasattr(self, 'acf'):
+            self._calc_acf(nlags)
+
+        self.acf.plot(subplots=True, title='Autocorrelation')
 
         if path is None:
             plt.show()
