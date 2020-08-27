@@ -34,17 +34,32 @@ class LudwigWinkler(Sampler):
             Tensor = torch.FloatTensor
 
     def sample(self):
+        """
+
+        :return: list of state_dicts (OrderedDicts) representing each state of the model
+        """
+
         self.sampler.sample_chains()
         self.chain = self.sampler.chain.samples
         self.log_probs = self.sampler.chain.log_probs
 
+        # check sampler did something meaningfull.
+        if len(self.chain) == 1:
+            raise ValueError('The chain did not progress beyond first step')
+
+        if all(any(torch.isnan(v)) for chain in
+               (self.chain[-1].values(), self.chain[0]) for v in chain):
+            raise ValueError('first and last entry contain nan')
+
+
+
 class MALA(LudwigWinkler):
-    def __init__(self, model, X, y, batch_size, step_size, num_steps,
+    def __init__(self, model, X, y, batch_size, epsilon, num_steps,
                  burn_in, pretrain, tune, num_chains):
         LudwigWinkler.__init__(self, model, X, y, batch_size)
         self.sampler = MALA_Sampler(
             probmodel=self.model,
-            step_size=step_size,
+            step_size=epsilon,
             num_steps=num_steps,
             burn_in=burn_in,
             pretrain=pretrain,
@@ -53,12 +68,12 @@ class MALA(LudwigWinkler):
 
 
 class SGNHT(LudwigWinkler):
-    def __init__(self, model, X, y, batch_size, step_size, num_steps, burn_in,
+    def __init__(self, model, X, y, batch_size, epsilon, num_steps, burn_in,
                  pretrain, tune, hmc_traj_length, num_chains):
         LudwigWinkler.__init__(self, model, X, y, batch_size)
         self.sampler = SGNHT_Sampler(
             probmodel=self.model,
-            step_size=step_size,
+            step_size=epsilon,
             num_steps=num_steps,
             burn_in=burn_in,
             pretrain=pretrain,
@@ -68,12 +83,12 @@ class SGNHT(LudwigWinkler):
 
 
 class SGLD(LudwigWinkler):
-    def __init__(self, model, X, y, batch_size, step_size, num_steps,
+    def __init__(self, model, X, y, batch_size, epsilon, num_steps,
                  burn_in, pretrain, tune, num_chains=7):
         LudwigWinkler.__init__(self, model, X, y, batch_size)
         self.sampler = SGLD_Sampler(
             probmodel=self.model,
-            step_size=step_size,
+            step_size=epsilon,
             num_steps=num_steps,
             num_chains=num_chains,
             burn_in=burn_in,
