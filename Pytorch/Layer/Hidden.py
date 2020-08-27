@@ -144,6 +144,7 @@ if __name__ == '__main__':
 
     # Estimation example
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
+
     num_samples = 1000
 
     step_size = 0.01
@@ -167,5 +168,59 @@ if __name__ == '__main__':
                   num_chains=num_chains)
     sgnht.sample()
     print(sgnht.chain)
+    import random
+    import numpy as np
+    import matplotlib.pyplot as plt
 
-    sgnht.model.plot(X, y, **{'title':'Hidden'})
+    sgnht.model.plot(X, y, random.sample(sgnht.chain, len(sgnht.chain) // 10), **{'title': 'Hidden'})
+
+    # traceplots
+    import pandas as pd
+    df = pd.DataFrame(sgnht.chain_mat)
+    df.plot(subplots=True, title='Traces')
+
+    # autocorrelation plot & ESS calculus
+    from statsmodels.graphics import tsaplots
+    from statsmodels.tsa.stattools import acf, pacf
+
+    x = sgnht.chain_mat
+    df_acf = pd.DataFrame(columns=df.columns)
+    for i, column in enumerate(list(df)):  # iterate over chain_mat columns
+        df_acf[i] = acf(df[column], nlags=1000, fft=True)
+
+    df_acf.plot(subplots=True, title='Autocorrelation')
+
+    sgnht.acf = df_acf
+    sgnht.ess = len(sgnht.chain) / (1 + 2 * np.sum(sgnht.acf, axis=0))
+    sgnht.min = int(min(sgnht.ess))
+
+    # (Experimental) -----------------------------------------------------------
+    x = x[:, 1]
+    a = acf(x, nlags=100, fft=True)
+    sgnht.acf = a
+    len(sgnht.chain) / (1 + 2 * sum(sgnht.acf))
+    print(sgnht.ess())
+    lag = np.arange(len(a))
+    # lag = np.arange(len(sgnht.acf))
+    plt.plot(lag, a)
+    plt.show()
+
+    tsaplots.plot_acf(x, lags=100)
+
+    # my own trials on autocorrelation plots
+    x = sgnht.chain_mat
+    x = x - np.mean(x, axis=0)
+    x = x[:, 0]
+
+    # Display the autocorrelation plot of your time series
+    fig = tsaplots.plot_acf(x, lags=1000, fft=True)
+    plt.show()
+
+    import tidynamics
+
+    sgnht.acf = tidynamics.acf(x)[1: len(sgnht.chain) // 3]
+    lag = np.arange(len(sgnht.acf))
+    plt.plot(lag, sgnht.acf)
+    plt.show()
+
+    sgnht.fast_autocorr(0)
