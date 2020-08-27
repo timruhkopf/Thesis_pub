@@ -9,14 +9,17 @@ from tqdm import tqdm
 # original code can be found @ https://github.com/geoopt/geoopt
 # https://geoopt.readthedocs.io/en/latest/index.html
 
-class Geoopt_interface:
-    def sample(self, trainloader, n_burn, n_samples):
+class Geoopt_interface(Sampler):
+
+    """geoopt samplers implementations is based on
+    Hamiltonian Monte-Carlo for Orthogonal Matrices"""
+    def sample(self, trainloader, burn_in, n_samples):
         """
 
         :param trainloader:
-        :param n_burn: number of burnin_steps
+        :param burn_in: number of burnin_steps
         :param n_samples: number of collected samples (steps)
-        :return:
+        :return: list of state_dicts (OrderedDicts) representing each state of the model
         """
         # FiXME: make it log_prob (and trainloader) dependent and ensure, that non-SG
         #  actually has batchsize of whole dataset!
@@ -26,7 +29,7 @@ class Geoopt_interface:
 
         # self.model.closure_log_prob(X, y)   # for non-SG
         print('Burn-in')
-        for _ in tqdm(range(n_burn)):
+        for _ in tqdm(range(burn_in)):
             X, y = next(trainloader.__iter__())
             self.step(partial(self.model.log_prob, X, y))
 
@@ -45,6 +48,14 @@ class Geoopt_interface:
             state = self.model.state_dict()
             # if not all([all(state[k] == v) for k, v in samples[-1].items()]): # this is imprecise
             self.chain.append(state)
+
+
+        if len(self.chain) == 1:
+            raise ValueError('The chain did not progress beyond first step')
+
+        if all(any(torch.isnan(v)) for chain in
+               (self.chain[-1].values(), self.chain[0]) for v in chain):
+            raise ValueError('first and last entry contain nan')
 
         self.log_probs
         self.state
@@ -72,8 +83,8 @@ class Geoopt_interface:
 
 
 class myRHMC(RHMC, Geoopt_interface, Sampler):
-    def __init__(self, model, epsilon, n_steps):
-        RHMC.__init__(self, params=model.parameters(), epsilon=epsilon, n_steps=n_steps)
+    def __init__(self, model, epsilon, L):
+        RHMC.__init__(self, params=model.parameters(), epsilon=epsilon, n_steps=L)
         self.model = model
 
 
@@ -84,33 +95,34 @@ class myRSGLD(RSGLD, Geoopt_interface, Sampler):
 
 
 class mySGRHMC(SGRHMC, Geoopt_interface, Sampler):
-    def __init__(self, model, epsilon, n_steps, alpha):
+    def __init__(self, model, epsilon, L, alpha):
         SGRHMC.__init__(self, params=model.parameters(), epsilon=epsilon,
-                        n_steps=n_steps, alpha=alpha)
+                        n_steps=L, alpha=alpha)
         self.model = model
 
 
 if __name__ == '__main__':
     # code taken from https://github.com/geoopt/geoopt/blob/bd6c687862e6692a018ea5201191cc982e74efcf/tests/test_rhmc.py
-    import numpy as np
-    import pytest
+
 
     import torch
     import torch.nn as nn
     import torch.distributions as td
     from torch.utils.data import TensorDataset, DataLoader
+    from copy import deepcopy
 
-    from Pytorch.Layer.Layer_Probmodel.Hidden_Probmodel import Hidden_ProbModel
+    from Pytorch.Layer.Hidden import Hidden
 
     no_in = 2
     no_out = 1
 
     # single Hidden Unit Example
-    model = Hidden_ProbModel(no_in, no_out, bias=True, activation=nn.Identity())
+    model = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
     model.forward(X=torch.ones(100, no_in))
     model.prior_log_prob()
 
-    original = model.state_dict()
+    model.true_model = deepcopy(model.state_dict())
+
 
     # generate data X, y
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
@@ -122,102 +134,15 @@ if __name__ == '__main__':
     trainloader = DataLoader(trainset, batch_size=batch_size,
                              shuffle=True, num_workers=0)
 
-    params = dict(sampler="RHMC", epsilon=0.02, n_steps=5)
-    params = dict(sampler="RSGLD", epsilon=1e-3)
-    params = dict(sampler="SGRHMC", epsilon=1e-3, n_steps=1, alpha=0.5  )
+    # params = dict(sampler="RHMC", epsilon=0.02, L=5)
+    # params = dict(sampler="RSGLD", epsilon=1e-3)
+    params = dict(sampler="SGRHMC", epsilon=1e-3, L=1, alpha=0.5  ) # FIXME: seems to diverge quickly
 
     Sampler = {'RHMC': myRHMC, 'RSGLD': myRSGLD, 'SGRHMC': mySGRHMC}[params.pop("sampler")]
     sampler = Sampler(model, **params)
 
-    points = sampler.sample(trainloader, n_burn=1000, n_samples=1000)
+    points = sampler.sample(trainloader, burn_in=1000, n_samples=1000)
 
-    model.plot2d(X, y, true_model=original, path=None, param=points[0:1000:100])
+    model.plot(X, y, chain= points[0:1000:100],path=None )
+
     print()
-
-
-    # @pytest.mark.parametrize(
-    #     "params",
-    #     [
-    #         dict(sampler="RHMC", epsilon=0.2, n_steps=5, n_burn=1000, n_samples=5000),
-    #         dict(sampler="RSGLD", epsilon=1e-3, n_burn=3000, n_samples=10000),
-    #         dict(
-    #             sampler="SGRHMC",
-    #             epsilon=1e-3,
-    #             n_steps=1,
-    #             alpha=0.5,
-    #             n_burn=3000,
-    #             n_samples=10000,
-    #         ),
-    #     ],
-    # )
-    # def test_sampling(params):
-    #     class NormalDist(torch.nn.Module):
-    #         def __init__(self, mu, sigma):
-    #             super().__init__()
-    #             self.d = torch.distributions.Normal(mu, sigma)
-    #             self.x = torch.nn.Parameter(torch.randn_like(mu))
-    #
-    #         def forward(self):
-    #             return self.d.log_prob(self.x).sum()
-    #
-    #     torch.manual_seed(42)
-    #     D = 2
-    #     n_burn, n_samples = params.pop("n_burn"), params.pop("n_samples")
-    #
-    #     mu = torch.randn([D])
-    #     sigma = torch.randn([D]).abs()
-    #
-    #     nd = NormalDist(mu, sigma)
-    #     Sampler = {'RHMC': myRHMC, 'RSGLD': myRSGLD, 'SGRHMC': mySGRHMC}[params.pop("sampler")]
-    #     sampler = Sampler(nd.parameters(), **params)
-    #
-    #     for _ in range(n_burn):
-    #         sampler.step(nd)
-    #
-    #     points = []
-    #     sampler.burnin = False
-    #
-    #     for _ in range(n_samples):
-    #         sampler.step(nd)
-    #         points.append(nd.x.detach().numpy().copy())
-    #
-    #     points = np.asarray(points)
-    #     points = points[::20]
-    #     assert nd.x.is_contiguous()
-    #     np.testing.assert_allclose(mu.numpy(), points.mean(axis=0), atol=1e-1)
-    #     np.testing.assert_allclose(sigma.numpy(), points.std(axis=0), atol=1e-1)
-    #
-    # test_sampling(dict(sampler="RHMC", epsilon=0.2, n_steps=5, n_burn=1000, n_samples=5000))
-    # test_sampling(dict(sampler="RSGLD", epsilon=1e-3, n_burn=3000, n_samples=10000))
-    # test_sampling(dict(sampler="SGRHMC",                       epsilon=1e-3,                       n_steps=1,                       alpha=0.5,                       n_burn=3000,
-    #                    n_samples=10000,
-    #                    ))
-
-    # def test_sampling2(params):
-    #     class NormalDist(torch.nn.Module):
-    #         def __init__(self, mu, sigma):
-    #             super().__init__()
-    #             self.d = torch.distributions.Normal(mu, sigma)
-    #             self.x = torch.nn.Parameter(torch.randn_like(mu))
-    #
-    #         def forward(self):
-    #             return self.d.log_prob(self.x).sum()
-    #
-    #     torch.manual_seed(42)
-    #     D = 2
-    #     n_burn, n_samples = params.pop("n_burn"), params.pop("n_samples")
-    #
-    #     mu = torch.randn([D])
-    #     sigma = torch.randn([D]).abs()
-    #
-    #     nd = NormalDist(mu, sigma)
-    #     Sampler = {'RHMC': myRHMC, 'RSGLD': myRSGLD, 'SGRHMC': mySGRHMC}[params.pop("sampler")]
-    #     sampler = Sampler(nd, **params)
-    #
-    #     points = sampler.sample(500, 1000)
-    #     print(points)
-    #
-    #
-    # test_sampling2(dict(sampler="RHMC", epsilon=0.2, n_steps=5, n_burn=1000, n_samples=5000))
-    # test_sampling2(dict(sampler="RSGLD", epsilon=1e-3, n_burn=3000, n_samples=10000))
-    # test_sampling2(dict(sampler="SGRHMC", epsilon=1e-3, n_steps=1, alpha=0.5, n_burn=3000, n_samples=10000))
