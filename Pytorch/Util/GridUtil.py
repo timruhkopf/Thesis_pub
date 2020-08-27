@@ -9,6 +9,36 @@ import pandas as pd
 
 class Grid:
     def __init__(self, root):
+        """
+        Grid is a delegation class, that ensures that multiple calls (of potentially
+        different configs) to a main function are being tracked and not interrupted
+        by a single config messing up.
+        unless root is an existing directory, it instantiates this directory with
+        a single result_table, that is added information on the "main" run,
+        tracking which config is run & whether or not it executed without error.
+        Each run is attributed a unique hash for identifiability.
+        In addition, it provides a pip_freeze.
+
+        When subclassing, to define a specific execution script please define main function
+
+        class Execution(Grid):
+            def main(param):
+                # ... do something
+
+        :param root: string: root directory path
+
+        :example:
+        gam_unittest = GAM_Grid(root=os.getcwd() if os.path.isdir(os.getcwd()) else \
+        os.getcwd() + '/Pytorch/Experiments')
+
+        # presuming, that the grid_exec_sgnht returns a generator, which yields two
+        # dicts; model_param, sampler_param. each such yielded config are part of a grid
+        prelim_configs = gam_unittest.grid_exec_sgnht(steps=1000,
+                        epsilons=np.arange(0.001, 0.05, 0.003),
+                        hmc_traj_lengths=[1, 2, 3, 5, 10, 15, 20, 25])
+        for prelim_config in prelim_configs:
+            gam_unittest.main(n=1000, n_val=100, sampler_name='SGNHT', **prelim_config)
+        """
         print('--------------------- progressing with: {name} --------------------- '.format(
             name=self.__class__.__name__))
         self.root = root
@@ -18,35 +48,31 @@ class Grid:
 
         # critical section: reference in bash different compared to
         # debug call from subclass' module
-        if not os.path.isfile(self.pathresults +'run_log.csv'):
-            df = pd.DataFrame(columns=[ 'id', 'success', 'config'])
+        if not os.path.isfile(self.pathresults + 'run_log.csv'):
+            df = pd.DataFrame(columns=['id', 'success', 'config'])
             df.to_csv(self.pathresults + 'run_log.csv')
 
         self.hash = None
+        self._pip_freeze()
         self.main = self.try_main(self.main)
-
-    def _log_main_function(self, func):
-        import inspect
-        source = inspect.getsource(func)
-        with open(self.pathresults + '{}.log'.format(self.hash), 'a') as file:
-            file.write('\n' + source)
-
 
     def try_main(self, func):
         """decorate main to ensure the main function runs smoothly"""
+
         def wrapper(*args, **kwargs):
             # Ensure, the execution is propperly logged & individual calls are hashed
             self.hash = self._create_hash()
-            print('specifically: {hash}'.format(hash=self.hash))
-            self._pip_freeze()
-            self._log_main_function(func)
+            print('running: {hash}'.format(hash=self.hash))
+            # self._log_main_function(func)
 
             try:
-                func(*args, **kwargs)
-                self.write_to_table(success=True, config_str=str(args)+ str(kwargs))
+                metrics = func(*args, **kwargs)
+                success = True
+                self.write_to_table(success=success, config_str=str(args) + str(kwargs), metrics=metrics)
 
             except Exception as error:
-                self.write_to_table(success=False, config_str=str(args)+ str(kwargs))
+                success = False
+                self.write_to_table(success=success, config_str=str(args) + str(kwargs))
                 import sys
                 import traceback
 
@@ -56,14 +82,13 @@ class Grid:
                     file.write('\n' + traceback.format_exc() + '\n')
                     file.write('ERROR triggered by main(args:{}, kwargs:{}) \n'.format(
                         str(args), str(kwargs)))
+
+            # print to console if run was a success
+            print({'id': [self.hash], 'success': [success], 'config': [str(args) + str(kwargs)]})
         return wrapper
 
     def main(self, model_config, sampler_config):
         raise NotImplementedError('Create a main function for your grid class')
-        # try:
-        #     print()
-        # except:
-        #     print()
 
     def grid_exec(self):
         """build up the parameter configs, that are to be executed on main function"""
@@ -73,19 +98,30 @@ class Grid:
     def _create_hash(self):
         return '{model_file}_{commit}_{timestamp}'.format(
             commit=check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip(),
-            model_file= self.__class__.__name__, # os.path.basename(__file__)[:-3],
+            model_file=self.__class__.__name__,  # os.path.basename(__file__)[:-3],
             timestamp=  # strftime("%Y%m%d_%H%M%S%", gmtime())
             datetime.now().strftime("%H%M%S%f")
         )
 
     def _pip_freeze(self):
         pipfreeze = freeze.freeze()
-        with open(self.pathresults + '/{}_pip_freeze.txt'.format(self.hash), 'w') as file:
+        with open(self.pathresults + '/pip_freeze.txt', 'w') as file:
             file.write('Torch ' + sys.version + '\n')
             for line in pipfreeze:
                 file.write(line + '\n')
             file.close()
 
-    def write_to_table(self, success, config_str):
-        df = pd.DataFrame({'id': [self.hash], 'success':[success], 'config':[config_str]})
+    def write_to_table(self, success, config_str, metrics={}):
+        df = pd.DataFrame({**{'id': [self.hash], 'success': [success], 'config': [config_str]}, **metrics})
         df.to_csv(self.pathresults + 'run_log.csv', mode='a', header=False)
+
+    # def _log_main_function(self, func):
+    #     """
+    #     write out the source code of the executed function
+    #     :param func:
+    #     :return:
+    #     """
+    #     import inspect
+    #     source = inspect.getsource(func)
+    #     with open(self.pathresults + '{}.log'.format(self.hash), 'a') as file:
+    #         file.write('\n' + source)

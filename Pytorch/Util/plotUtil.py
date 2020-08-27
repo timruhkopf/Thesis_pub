@@ -74,7 +74,7 @@ class Plots:
         else:
             plt.savefig('{}.png'.format(path), bbox_inches='tight')
 
-    def _plot1d(self, X, y, df):
+    def _plot1d(self, X, y, df, title=''):
         """
 
         :param X:
@@ -88,7 +88,7 @@ class Plots:
             y=torch.reshape(y, (y.shape[0],)).numpy(), ax=ax)
 
         sns.lineplot('X', y='y', hue='functions', alpha=0.5, data=df, ax=ax)
-
+        plt.title('{}'.format(title))
         return fig
 
     def plot2d(self, X, y, df, title=''):

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.stattools import acf
 
+
 # from Pytorch.Samplers.Sampler_Experimental import Sampler_Experimental
 
 
@@ -21,17 +22,28 @@ class Sampler:
         self.model = model
 
     def save(self, path):
-        torch.save(self, path)
+        import pickle
 
-    @staticmethod
-    def load(path):
-        return torch.load(path)
+        torch.save(self.model.state_dict(), path + '.model')
+        # self.__delattr__(self.model)
+
+        with open(path + '.sampler_pkl', "wb") as output_file:
+            d = {'chain': self.chain}
+            pickle.dump(d, output_file)
+
+    def load(self, path):
+        import pickle
+        with open(path + '.sampler_pkl', "rb") as input_file:
+            self.chain = pickle.load(input_file)['chain']
+
+        self.model.load_state_dict(torch.load(path + '.model'))
 
     def ess(self, nlags=500):
         """
         Effective Sample Size
         following TACTHMC's formulation:
-        n/(1+2\sum_{k=1}^{inf} p(k)) with p(k) the autocorrelation at lag k """
+        n/(1+2\sum_{k=1}^{inf} p(k)) with p(k) the autocorrelation at lag k
+        """
 
         if not hasattr(self, 'acf'):
             self._calc_acf(nlags)
@@ -80,7 +92,6 @@ class Sampler:
             plt.show()
         else:
             plt.savefig(path)
-
 
     def clean_chain(self):
         """:returns the list of 1d Tensors, that are not consecutively same (i.e.

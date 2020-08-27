@@ -1,8 +1,8 @@
-import torch
 from Pytorch.Samplers.Samplers import Sampler
 from thirdparty_repo.ludwigwinkler.src.MCMC_Sampler import HMC_Sampler, SGLD_Sampler, MALA_Sampler, SGNHT_Sampler
 from torch.utils.data import TensorDataset, DataLoader
 from copy import copy, deepcopy
+import torch
 
 
 class LudwigWinkler(Sampler):
@@ -95,7 +95,7 @@ class SGLD(LudwigWinkler):
             pretrain=pretrain,
             tune=tune)
 
-
+# # FAILING CONSISTENTLY
 # class HMC(LudwigWinkler):
 #     def __init__(self, model, X, y, batch_size, step_size, num_steps,
 #                  num_chains, burn_in, pretrain=False, tune=False,
@@ -165,6 +165,8 @@ if __name__ == '__main__':
                   num_chains=num_chains)
     sgnht.sample()
     print(sgnht.chain)
+
+
 
     sgnht.model.plot(X, y)  # function still error prone: multiple executions seem to change the plot
 

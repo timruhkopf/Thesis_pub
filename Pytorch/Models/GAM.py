@@ -133,7 +133,7 @@ class GAM(Hidden):
         return sum(const + kernel + self.dist['tau'].log_prob(self.tau))  # notice that tau can be on R if
         # self.bijected is true!
 
-    def plot(self, X, y, chain=None, path=None, **kwargs):
+    def plot(self, X, y, chain=None, path=None, title='', **kwargs):
         Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=self.no_basis), dtype=torch.float32,
                          requires_grad=False)
         df0 = self.predict_states(Z, chain)
@@ -151,6 +151,7 @@ class GAM(Hidden):
 
 if __name__ == '__main__':
     from copy import deepcopy
+
     # dense example
     no_basis = 20
     n = 1000
@@ -160,6 +161,7 @@ if __name__ == '__main__':
                      dtype=torch.float32, requires_grad=False)
 
     gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=True)
+    gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=False)
 
     gam.reset_parameters(tau=torch.tensor([0.01]))
     gam.true_model = deepcopy(gam.state_dict())
@@ -197,9 +199,15 @@ if __name__ == '__main__':
                   num_chains=num_chains)
     sgnht.sample()
     print(sgnht.chain)
+    if len(sgnht.chain) == 1:
+        raise ValueError('The chain did not progress beyond first step')
+
+    if all(any(torch.isnan(v)) for chain in (sgnht.chain[-1].values(), sgnht.chain[0]) for v in chain):
+        raise ValueError('first and last entry contain nan')
 
     # plot via stratified chain
     import random
-    gam.plot(X[1:100], y[1:100], chain=random.sample(sgnht.chain, len(sgnht.chain)//10 ))
+
+    gam.plot(X[1:100], y[1:100], chain=random.sample(sgnht.chain, len(sgnht.chain) // 10))
 
     # Todo use penalized K in GAM for prior_log_prob to improve identifiably
