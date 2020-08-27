@@ -4,6 +4,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri  # for trisurface with irregular grid
+from copy import deepcopy
 
 
 class Plots:
@@ -23,7 +24,7 @@ class Plots:
 
         # predict current state
         df['current'] = self.forward(X).view(X.shape[0],).numpy()
-        current = self.state_dict()
+        current = deepcopy(self.state_dict())
 
         # predict true model
         self.load_state_dict(self.true_model)
@@ -90,7 +91,7 @@ class Plots:
 
         return fig
 
-    def plot2d(self, X, y, df, title):
+    def plot2d(self, X, y, df, title=''):
         X, y = X.numpy(), y.numpy()
         triang = triangulate_remove_artifacts(X[:, 0], X[:, 1], -9.9, 9.9, -9.9, 9.9, plot=False)
 
