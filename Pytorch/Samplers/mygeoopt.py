@@ -3,6 +3,8 @@ from Pytorch.Samplers.Samplers import Sampler
 from functools import partial
 from tqdm import tqdm
 
+import torch
+
 
 # geoopt is the inofficial implementation of
 # https://openreview.net/pdf?id=r1eiqi09K7 in colloberation with the authors.
@@ -57,7 +59,7 @@ class Geoopt_interface(Sampler):
                (self.chain[-1].values(), self.chain[0]) for v in chain):
             raise ValueError('first and last entry contain nan')
 
-        self.log_probs
+        self.log_probs = torch.tensor(self.log_probs[burn_in:])
         self.state
         self.n_rejected
         self.rejection_rate
@@ -134,9 +136,9 @@ if __name__ == '__main__':
     trainloader = DataLoader(trainset, batch_size=batch_size,
                              shuffle=True, num_workers=0)
 
-    # params = dict(sampler="RHMC", epsilon=0.02, L=5)
+    params = dict(sampler="RHMC", epsilon=0.02, L=5)
     # params = dict(sampler="RSGLD", epsilon=1e-3)
-    params = dict(sampler="SGRHMC", epsilon=1e-3, L=1, alpha=0.5  ) # FIXME: seems to diverge quickly
+    # params = dict(sampler="SGRHMC", epsilon=1e-3, L=1, alpha=0.5  ) # FIXME: seems to diverge quickly
 
     Sampler = {'RHMC': myRHMC, 'RSGLD': myRSGLD, 'SGRHMC': mySGRHMC}[params.pop("sampler")]
     sampler = Sampler(model, **params)
@@ -144,5 +146,19 @@ if __name__ == '__main__':
     points = sampler.sample(trainloader, burn_in=1000, n_samples=1000)
 
     model.plot(X, y, chain= points[0:1000:100],path=None )
+
+    import os
+    sampler.save(path=os.getcwd() + '/sghnhtsavingtest')
+
+    model1 = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
+    params1 = dict(sampler="RHMC", epsilon=0.02, L=5)
+    Sampler1 = {'RHMC': myRHMC, 'RSGLD': myRSGLD, 'SGRHMC': mySGRHMC}[params1.pop("sampler")]
+
+    sampler1 = Sampler(model1, **params1)
+
+
+    a = sampler1.load(path=os.getcwd() + '/sghnhtsavingtest')
+
+
 
     print()

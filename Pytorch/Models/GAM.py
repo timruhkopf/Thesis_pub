@@ -47,7 +47,7 @@ class GAM(Hidden):
 
     def define_model(self):
         self.tau = nn.Parameter(torch.Tensor(1))
-        self.dist['tau'] = td.Gamma(0.1, 0.1)
+        self.dist['tau'] = td.Gamma(0.3, 0.3)
 
         if self.bijected:
             self.dist['tau'] = td.TransformedDistribution(self.dist['tau'], LogTransform())
@@ -105,13 +105,13 @@ class GAM(Hidden):
             self.W.data = torch.tensor(bspline_k.z, dtype=torch.float32).view(self.no_basis, self.no_out)
 
         elif mode == 'cum':  # sample based on actual cumulative randomwalk
-            bspline_cum = Bspline_cum(self.xgrid, coef_scale=0.3)
-            self.W.data = torch.tensor(bspline_cum.z, dtype=torch.float32).view(self.no_out, self.no_basis)
+            bspline_cum = Bspline_cum(self.xgrid, n_basis=self.no_basis, coef_scale=self.tau.detach().numpy())
+            self.W.data = torch.tensor(bspline_cum.z, dtype=torch.float32).view(self.no_basis, self.no_out)
 
         elif mode == 'U-MVN' and self.penK:  # Uniform for gamma0 & MVN (0, K[1:, 1:]**-1) as cov
             gamma = torch.cat(
                 [td.Uniform(torch.tensor([-1.]), torch.tensor([1.])).sample(),
-                 td.MultivariateNormal(torch.zeros(self.no_basis - 1), (self.tau ** -1) * self.cov).sample()],
+                 td.MultivariateNormal(torch.zeros(self.no_basis - 1), (self.tau) * self.cov).sample()],
                 dim=0).view(self.no_out, self.no_basis)
             self.W.data = gamma.view(self.no_basis, self.no_out)
 
@@ -146,7 +146,7 @@ class GAM(Hidden):
         if path is None:
             plt.show()
         else:
-            plt.savefig('{}.png'.format(path), bbox_inches='tight')
+            plt.savefig('{}'.format(path), bbox_inches='tight')
 
 
 if __name__ == '__main__':

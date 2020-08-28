@@ -4,6 +4,9 @@ from pip._internal.operations import freeze
 from datetime import datetime
 from subprocess import check_output
 
+import matplotlib
+matplotlib.use('Agg')
+
 import pandas as pd
 
 
@@ -42,8 +45,8 @@ class Grid:
         print('--------------------- progressing with: {name} --------------------- '.format(
             name=self.__class__.__name__))
         self.root = root
-        self.pathresults = root + '/results/'
-        if not os.path.isdir(self.pathresults[:-1]):
+        self.pathresults = root
+        if not os.path.isdir(self.pathresults):
             os.mkdir(self.pathresults)
 
         # critical section: reference in bash different compared to
@@ -96,9 +99,8 @@ class Grid:
         # yield config
 
     def _create_hash(self):
-        return '{model_file}_{commit}_{timestamp}'.format(
+        return '{commit}_{timestamp}'.format(
             commit=check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip(),
-            model_file=self.__class__.__name__,  # os.path.basename(__file__)[:-3],
             timestamp=  # strftime("%Y%m%d_%H%M%S%", gmtime())
             datetime.now().strftime("%H%M%S%f")
         )

@@ -69,7 +69,7 @@ class MALA(LudwigWinkler):
 
 class SGNHT(LudwigWinkler):
     def __init__(self, model, X, y, batch_size, epsilon, num_steps, burn_in,
-                 pretrain, tune, hmc_traj_length, num_chains):
+                 pretrain, tune, L, num_chains):
         LudwigWinkler.__init__(self, model, X, y, batch_size)
         self.sampler = SGNHT_Sampler(
             probmodel=self.model,
@@ -78,7 +78,7 @@ class SGNHT(LudwigWinkler):
             burn_in=burn_in,
             pretrain=pretrain,
             tune=tune,
-            traj_length=hmc_traj_length,
+            traj_length=L,
             num_chains=num_chains)
 
 
