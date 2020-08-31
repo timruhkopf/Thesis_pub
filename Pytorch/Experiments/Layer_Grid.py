@@ -1,17 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.distributions as td
-import numpy as np
 import matplotlib.pyplot as plt
 from inspect import getfullargspec
-
 import os
 from copy import deepcopy
 
+from Pytorch.Util.GridUtil import Grid
+from Pytorch.Experiments.SAMPLER_GRID import SAMPLER_GRID
 from Pytorch.Experiments.GAM_Grid import GAM_Grid
 
-
-class Layer_Grid(GAM_Grid):
+class Layer_Grid(Grid, SAMPLER_GRID):
     def main(self, n, n_val, seperated, model_class, model_param, sampler_param, sampler_name):
         self.basename = self.pathresults + \
                         '{}_{}'.format(str(model_class.__class__), sampler_name) + \
@@ -85,7 +84,7 @@ if __name__ == '__main__':
     # As it turns out, this interface can be used to sample from any layer! ---------
     from Pytorch.Layer.Hidden import Hidden
 
-    run = 'Hidden_test_grid_exec_SGRLD'
+    run = 'Hidden_test_grid_exec_SGRLD1'
     root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
         os.getcwd() + '/Results/{}/'.format(run)
 

@@ -1,12 +1,12 @@
 import torch
 import torch.distributions as td
-import numpy as np
+
 import matplotlib.pyplot as plt
 
 import os
 
 from Pytorch.Util.GridUtil import Grid
-from inspect import getfullargspec
+from Pytorch.Experiments.SAMPLER_GRID import SAMPLER_GRID
 
 
 # TODO : rearange plots of acf and traces
@@ -14,7 +14,7 @@ from inspect import getfullargspec
 #       references to chain_mat are on the object not the property thereafter!
 
 
-class GAM_Grid(Grid):
+class GAM_Grid(Grid, SAMPLER_GRID):
     def main(self, n, n_val, model_param, sampler_param, sampler_name='sgnht'):
         """
 
@@ -84,56 +84,6 @@ class GAM_Grid(Grid):
         with torch.no_grad():
             self.model.val_MSE = torch.nn.MSELoss()(self.model.forward(Z_val), y_val)
 
-    def set_up_sampler(self, model, X, y, sampler_name, sampler_param):
-        from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
-        from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
-        from torch.utils.data import TensorDataset, DataLoader
-
-        # (SAMPLER) Select sampler, set up  and sample -------------------------
-        # random init state
-        if 'mode' in getfullargspec(self.model.reset_parameters).args:
-            model.reset_parameters(mode='U-MVN')
-        else:
-            self.model.reset_parameters()
-
-        try:
-            batch_size = sampler_param.pop('batch_size')
-        except:
-            batch_size = X.shape[0]
-
-        # send data to device
-        X.to(self.device)
-        y.to(self.device)
-
-        if sampler_name in ['SGNHT', 'SGLD', 'MALA']:  # geoopt based models
-            Sampler = {'SGNHT': SGNHT,  # step_size, hmc_traj_length
-                       'MALA': MALA,  # step_size
-                       'SGLD': SGLD  # step_size
-                       }[sampler_name]
-            self.sampler = Sampler(model, X, y, batch_size, **sampler_param)
-            self.sampler.sample()
-
-        elif sampler_name in ['RHMC', 'SGRLD', 'SGRHMC']:
-
-            burn_in, n_samples = sampler_param.pop('burn_in'), sampler_param.pop('n_samples')
-
-            trainset = TensorDataset(X, y)
-            trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
-
-            Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
-                       'SGRLD': myRSGLD,  # epsilon
-                       'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
-                       }[sampler_name]
-            self.sampler = Sampler(model, **sampler_param)
-            self.sampler.sample(trainloader, burn_in, n_samples)
-
-        else:
-            raise ValueError('sampler_name was not correctly specified')
-
-        # save the sampler instance (containing the model instance as attribute)
-        # NOTICE: to recover the info, both the model class and the
-        # sampler class must be imported, to make them accessible
-        self.sampler.save(self.basename)
 
     def evaluate_model(self, X_val, Z_val, y_val):
         import random
@@ -142,7 +92,7 @@ class GAM_Grid(Grid):
         # plot a subset of the chain's predictions
         sampler = self.sampler
         sampler.model.plot(X_val, y_val, random.sample(sampler.chain, 30),
-                           path=self.basename + '_datamodel.png', title='')  # FIXME: PATH
+                           path=self.basename + '_datamodel', title='')  # FIXME: PATH
 
         # Efficiency of the sampler (Effective Sample Size)
         sampler.traceplots(path=self.basename + '_traces.png')  # FIXME path
@@ -201,67 +151,10 @@ class GAM_Grid(Grid):
                 'avg_MSE_diff': mse_diff.detach().numpy(),
                 'avg_log_prob_diff': log_diff.detach().numpy()}
 
-    # STATIC METHDODS: ---------------------------------------
-    # TODO: Check each Grid to be runnable configs & the defaults of param included in grid defaults
-    # ludwig based
-    def grid_exec_MALA(self, steps, batch_size, epsilons=np.arange(0.0001, 0.05, 0.002)):
-        for epsilon in epsilons:
-            yield dict(epsilon=epsilon, num_steps=steps, batch_size=batch_size, pretrain=False,
-                       tune=False, burn_in=int(steps * 0.10), num_chains=1)
-
-    def grid_exec_SGLD(self, steps, epsilons, batch_size):
-        return self.grid_exec_MALA(steps, epsilons, batch_size)
-
-    def grid_exec_SGNHT(self, steps, batch_size,
-                        epsilons=np.arange(0.001, 0.01, 0.002),
-                        Ls=[1, 2, 3, 5, 10]):
-        """
-
-        :param steps:
-        :param step_sizes:
-        :param Ls :hmc_traj_lengths:
-        :return: generator of tuples: sampler_name, model_param, sampler_param
-        """
-        for epsilon in epsilons:
-            for L in Ls:
-                yield dict(epsilon=epsilon, L=L, num_steps=steps, pretrain=False,
-                           tune=False, burn_in=int(steps * 0.10), num_chains=1,
-                           batch_size=batch_size)
-
-    # geoopt based
-    def grid_exec_RHMC(self, steps,
-                       epsilons=np.arange(0.001, 0.05, 0.005),
-                       Ls=[1, 2, 3, 5, 10]):
-        """
-
-        :param steps: number of sampler steps
-        :param epsilons: step_size
-        :param n_stepss: leapfrog steps
-        :return: generator of tuples:  model_param, sampler_param
-        """
-
-        for epsilon in epsilons:
-            for L in Ls:
-                yield dict(epsilon=epsilon, L=L, n_samples=steps,
-                           burn_in=int(steps * 0.10)
-                           )
-
-    def grid_exec_SGRHMC(self, steps, epsilons=np.arange(0.001, 0.01, 0.002),
-                         Ls=[1, 2, 3, 5, 10], alphas=np.arange(0., 0.99, 0.20)):
-        for epsilon in epsilons:
-            for L in Ls:
-                for alpha in alphas:
-                    yield dict(epsilon=epsilon, L=L, alpha=alpha,
-                               n_samples=steps,
-                               burn_in=int(steps * 0.10))
-
-    def grid_exec_SGRLD(self, steps, batch_size, epsilons=np.arange(0.0001, 0.01, 0.0005)):
-        for epsilon in epsilons:
-            yield dict(epsilon=epsilon, n_samples=steps, burn_in=int(steps * 0.10), batch_size=batch_size)
 
 
 if __name__ == '__main__':
-    run = 'GAM_test_grid_exec_SGRLD'
+    run = 'GAM_test_grid_exec_SGRLD1'
 
     root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
         os.getcwd() + '/Results/{}/'.format(run)
@@ -289,7 +182,7 @@ if __name__ == '__main__':
 
 
 
-    prelim_configs = gam_unittest.grid_exec_SGRLD(steps=1000)  # TODO: EXTEND THE GRID
+    prelim_configs = gam_unittest.grid_exec_SGRLD(steps=1000, batch_size=100)  # TODO: EXTEND THE GRID
     next(prelim_configs)
 
     sampler_name = 'SGRLD'
@@ -298,7 +191,7 @@ if __name__ == '__main__':
                           model_param=dict(no_basis=20, bijected=True),
                           sampler_param=prelim_config)
 
-    prelim_configs = gam_unittest.grid_exec_SGRHMC(steps=1000)
+    prelim_configs = gam_unittest.grid_exec_SGRHMC(steps=1000, batch_size=100)
     sampler_name = 'SGRHMC'
     for prelim_config in prelim_configs:
         gam_unittest.main(n=1000, n_val=100, sampler_name=sampler_name,
