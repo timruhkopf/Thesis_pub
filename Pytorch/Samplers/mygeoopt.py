@@ -53,10 +53,12 @@ class Geoopt_interface(Sampler):
 
 
         if len(self.chain) == 1:
+            print(self.chain)
             raise ValueError('The chain did not progress beyond first step')
 
-        if all(any(torch.isnan(v)) for chain in
-               (self.chain[-1].values(), self.chain[0]) for v in chain):
+        if any(any(torch.isnan(v)) if v.nelement() != 1 else torch.isnan(v) for chain in
+               (self.chain[-1].values(), self.chain[0].values()) for v in chain):
+            print(self.chain)
             raise ValueError('first and last entry contain nan')
 
         self.log_probs = torch.tensor(self.log_probs[burn_in:])
