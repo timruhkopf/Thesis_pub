@@ -22,7 +22,8 @@ class Layer_Grid(Grid, SAMPLER_GRID):
         if torch.cuda.is_available():
             torch.cuda.get_device_name(0)
 
-        self.set_up_datamodel(n, n_val, model_class, seperated, model_param)
+        no_in = model_param['no_in']
+        self.set_up_datamodel(n, n_val, no_in, model_class, seperated, model_param)
         X, y = self.data
 
         self.set_up_sampler(self.model, X, y, sampler_name, sampler_param)
@@ -30,8 +31,9 @@ class Layer_Grid(Grid, SAMPLER_GRID):
 
         return metrics  # to be written on Grid's result table
 
-    def set_up_datamodel(self, n, n_val, model_class, seperated, model_param):
-        no_in, no_out = model_param['no_in'], model_param['no_out']
+
+    def set_up_datamodel(self, n, n_val, no_in, model_class, seperated, model_param):
+
         X_dist = td.Uniform(torch.ones(no_in) * -10., torch.ones(no_in) * 10.)
         X = X_dist.sample(torch.Size([n])).view(n, no_in)
         X_val = X_dist.sample(torch.Size([n_val]))
