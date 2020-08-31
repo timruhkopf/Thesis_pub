@@ -157,8 +157,21 @@ def triangulate_remove_artifacts(x, y, xl=0.1, xu=9.9, yl=0.1, yu=9.9, plot=True
 
     return triang
 
+import torch.distributions as td
+import torch
+import matplotlib.pyplot as plt
+def plot_distribution(dist, support=torch.linspace(0., 10., 100)):
+    """plotting a distribution on support, as a tool to inspect the shape of a dist.
+    since dist.pdf is not available exp(dist.log_prob(support)) is displayed for shape info"""
+    y = torch.exp(dist.log_prob(support))
+    plt.plot(support.detach().numpy(), y.detach().numpy())
+    plt.show()
+
 
 if __name__ == '__main__':
+
+    plot_distribution(td.Gamma(0.3, 0.1))
+
     from Pytorch.Layer.Hidden import Hidden
     import torch.distributions as td
     import torch.nn as nn
