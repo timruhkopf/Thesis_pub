@@ -6,12 +6,10 @@ import matplotlib.pyplot as plt
 import os
 
 from Pytorch.Util.GridUtil import Grid
+from inspect import getfullargspec
 
 
-# TODO : PATHS for images must changed
 # TODO : rearange plots of acf and traces
-# TODO : ensure, that all main calls for one GRID instance will end up in a
-#       designated folder with a result_table
 # TODO : move chain_mat to Sampler.sample call, after checkup! ensure that all
 #       references to chain_mat are on the object not the property thereafter!
 
@@ -93,7 +91,10 @@ class GAM_Grid(Grid):
 
         # (SAMPLER) Select sampler, set up  and sample -------------------------
         # random init state
-        model.reset_parameters(mode='U-MVN')
+        if 'mode' in getfullargspec(self.model.reset_parameters).args:
+            model.reset_parameters(mode='U-MVN')
+        else:
+            self.model.reset_parameters()
 
         try:
             batch_size = sampler_param.pop('batch_size')
@@ -141,7 +142,7 @@ class GAM_Grid(Grid):
         # plot a subset of the chain's predictions
         sampler = self.sampler
         sampler.model.plot(X_val, y_val, random.sample(sampler.chain, 30),
-                           path=self.basename + '_datamodel.png', title='GAM')  # FIXME: PATH
+                           path=self.basename + '_datamodel.png', title='')  # FIXME: PATH
 
         # Efficiency of the sampler (Effective Sample Size)
         sampler.traceplots(path=self.basename + '_traces.png')  # FIXME path
@@ -200,6 +201,7 @@ class GAM_Grid(Grid):
                 'avg_MSE_diff': mse_diff.detach().numpy(),
                 'avg_log_prob_diff': log_diff.detach().numpy()}
 
+    # STATIC METHDODS: ---------------------------------------
     # TODO: Check each Grid to be runnable configs & the defaults of param included in grid defaults
     # ludwig based
     def grid_exec_MALA(self, steps, batch_size, epsilons=np.arange(0.0001, 0.05, 0.002)):
@@ -210,7 +212,7 @@ class GAM_Grid(Grid):
     def grid_exec_SGLD(self, steps, epsilons, batch_size):
         return self.grid_exec_MALA(steps, epsilons, batch_size)
 
-    def grid_exec_sgnht(self, steps, batch_size,
+    def grid_exec_SGNHT(self, steps, batch_size,
                         epsilons=np.arange(0.001, 0.01, 0.002),
                         Ls=[1, 2, 3, 5, 10]):
         """
@@ -253,9 +255,9 @@ class GAM_Grid(Grid):
                                n_samples=steps,
                                burn_in=int(steps * 0.10))
 
-    def grid_exec_SGRLD(self, steps, epsilons=np.arange(0.001, 0.01, 0.002)):
+    def grid_exec_SGRLD(self, steps, batch_size, epsilons=np.arange(0.0001, 0.01, 0.0005)):
         for epsilon in epsilons:
-            yield dict(epsilon=epsilon, n_samples=steps, burn_in=int(steps * 0.10))
+            yield dict(epsilon=epsilon, n_samples=steps, burn_in=int(steps * 0.10), batch_size=batch_size)
 
 
 if __name__ == '__main__':
@@ -271,7 +273,7 @@ if __name__ == '__main__':
     # batch_size = 50
     # preliminary configs to check which step sizes will work
 
-    # prelim_configs = gam_unittest.grid_exec_sgnht(steps=1000, batch_size=100)
+    # prelim_configs = gam_unittest.grid_exec_SGNHT(steps=1000, batch_size=100)
     # sampler_name = 'SGNHT'
     # for prelim_config in prelim_configs:
     #     gam_unittest.main(n=1000, n_val=100, sampler_name=sampler_name,
