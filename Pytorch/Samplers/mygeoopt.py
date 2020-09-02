@@ -56,8 +56,9 @@ class Geoopt_interface(Sampler):
             print(self.chain)
             raise ValueError('The chain did not progress beyond first step')
 
-        if any(any(torch.isnan(v)) if v.nelement() != 1 else torch.isnan(v) for chain in
-               (self.chain[-1].values(), self.chain[0].values()) for v in chain):
+        if any([torch.any(torch.isnan(v)) if v.nelement() != 1 else torch.isnan(v)
+                for chain in (self.chain[-1].values(), self.chain[0].values())
+                for v in chain]):
             print(self.chain)
             raise ValueError('first and last entry contain nan')
 

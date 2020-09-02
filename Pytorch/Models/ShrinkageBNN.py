@@ -3,11 +3,9 @@ import torch.distributions as td
 import torch.nn as nn
 
 from Pytorch.Models.BNN import BNN
+from Pytorch.Layer.Hidden import Hidden
 from Pytorch.Layer.Group_lasso import Group_lasso
 from Pytorch.Layer.Group_HorseShoe import Group_HorseShoe
-from Pytorch.Layer.Layer_Probmodel.Hidden_Probmodel import Hidden_ProbModel
-from Pytorch.Layer.Hidden import Hidden
-from Pytorch.Layer.Layer_Probmodel.Group_lasso_Probmodel import Group_lasso_Probmodel
 
 
 class ShrinkageBNN(BNN):
@@ -17,11 +15,8 @@ class ShrinkageBNN(BNN):
         # 'gspike': layer.Group_SpikeNSlab,
         'ghorse': Group_HorseShoe}
 
-    shrinkage_type_ProbM = {
-        'glasso': Group_lasso_Probmodel}
-
     def __init__(self, hunits=[2, 10, 1], activation=nn.ReLU(), final_activation=nn.Identity(),
-                 shrinkage='glasso', seperated=False, **gam_param):
+                 shrinkage='glasso', seperated=False, bijected=True, heteroscedast=False):
         """
         Shrinkage BNN is a regular BNN, but uses a shrinkage layer, which in the
         current implementation shrinks the first variable in the X vector,
@@ -36,23 +31,23 @@ class ShrinkageBNN(BNN):
         to be shrunken; i.e. provide a prior log prob model on the first column of W
         :param gam_param:
         """
-
+        if len(hunits) < 3:
+            raise ValueError('In its current form, shrinkage BNN works only for '
+                             'multiple layers: increase no. layers via hunits')
         self.shrinkage = shrinkage
         self.seperated = seperated
-        BNN.__init__(self, hunits=[2, 10, 1], activation=nn.ReLU(),
-                     final_activation=nn.Identity(), **gam_param)
+        self.bijected = bijected
+
+        BNN.__init__(self, hunits, activation, final_activation, heteroscedast)
 
     def define_model(self):
         # Defining the layers depending on the mode.
-        if isinstance(self, Vec_Model):
-            L = Hidden
-            S = self.shrinkage_type[self.shrinkage]
-        elif isinstance(self, Optim_Model):
-            L = Hidden_ProbModel
-            S = self.shrinkage_type_ProbM[self.shrinkage]
+
+        L = Hidden
+        S = self.shrinkage_type[self.shrinkage]
 
         self.layers = nn.Sequential(
-            S(self.hunits[0], self.hunits[1], True, self.activation),
+            S(self.hunits[0], self.hunits[1], True, self.activation, self.bijected),
             *[L(no_in, no_units, True, self.activation)
               for no_in, no_units in zip(self.hunits[1:-2], self.hunits[2:-1])],
             L(self.hunits[-2], self.hunits[-1], bias=False, activation=self.final_activation))
@@ -65,79 +60,81 @@ class ShrinkageBNN(BNN):
             self.sigma = torch.tensor(1.)
 
 
-from Pytorch.Util.ModelUtil import Vec_Model, Model_util, Optim_Model
-from thirdparty_repo.ludwigwinkler.src.MCMC_ProbModel import ProbModel
-
-
-class ShrinkageBNN_VEC(ShrinkageBNN, nn.Module, Vec_Model, Model_util):
-    def __init__(self, *args, **kwargs):
-        nn.Module.__init__(self)
-        ShrinkageBNN.__init__(self, *args, **kwargs)
-
-
-class ShrinkageBNN_OPTIM(ShrinkageBNN, ProbModel, Optim_Model, nn.Module, Model_util):
-    def __init__(self, *args, **kwargs):
-        nn.Module.__init__(self)
-        ShrinkageBNN.__init__(self, *args, **kwargs)
-
-
 if __name__ == '__main__':
-    from hamiltorch.util import flatten
+    import random
+    from copy import deepcopy
 
-    sbnn = ShrinkageBNN_VEC()
-
+    sbnn = ShrinkageBNN()
+    no_in = 2
+    no_out = 1
+    n = 1000
     # sampling with effect
+    # sbnn.reset_parameters(seperated=True)
     sbnn.reset_parameters(seperated=True)
-    sbnn.reset_parameters(seperated=False)
 
-    X_dist = td.Uniform(torch.tensor([-10., -10]), torch.tensor([10., 10]))
-    X = X_dist.sample(torch.Size([100]))
+    X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
+    X = X_dist.sample(torch.Size([n]))
+    # sbnn.reset_parameters(seperated=True)
+    sbnn.true_model = deepcopy(sbnn.state_dict())
     y = sbnn.likelihood(X).sample()
 
-    sbnn.closure_log_prob(X, y)
-    sbnn.log_prob(flatten(sbnn))
+    sbnn.log_prob(X, y)
 
-    import hamiltorch
-    import hamiltorch.util
+    from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
+    from torch.utils.data import TensorDataset, DataLoader
 
-    init_theta = flatten(sbnn)
+    burn_in, n_samples = 100, 1000
 
-    # HMC NUTS
-    N = 200
-    step_size = .3
-    L = 5
-    burn = 500
-    N_nuts = burn + N
-    params_hmc_nuts = hamiltorch.sample(
-        log_prob_func=sbnn.log_prob, params_init=init_theta,
-        num_samples=N_nuts, step_size=step_size, num_steps_per_sample=L,
-        sampler=hamiltorch.Sampler.HMC_NUTS, burn=burn,
-        desired_accept_rate=0.8)
+    trainset = TensorDataset(X, y)
+    trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
 
-    # (Optim model) ------------------------------------------------------------
-    from Pytorch.Samplers.LudwigWinkler import LudwigWinkler
+    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+               'SGRLD': myRSGLD,  # epsilon
+               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+               }['RHMC']
 
-    optim = ShrinkageBNN_OPTIM()
-    ludi = LudwigWinkler(optim, X, y, batch_size=X.shape[0])
+    sbnn.reset_parameters(seperated=False)
+    sbnn.plot(X, y, **{'title': 'Shrinkage BNN @ init'},
+              path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Shrinkage_BNN_RHMC_prelim/init')
 
-    num_samples = 200
-    sampler = 'sgnht'
-    step_size = 0.1
-    num_steps = 100
+    sampler = Sampler(sbnn, epsilon=0.001, L=2)
+    sampler.sample(trainloader, burn_in, n_samples)
+
+    import random
+
+    sampler.model.plot(X, y, chain=random.sample(sampler.chain, 30),
+                       path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Shrinkage_BNN_RHMC_prelim'
+                            '/datamodel',
+                       **{'title': 'Shrinkage BNN with subsampled chain'})
+    sampler.traceplots(path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Shrinkage_BNN_RHMC_prelim'
+                            '/traceplot')
+    sampler.acf_plots(nlags=500,
+                      path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Shrinkage_BNN_RHMC_prelim'
+                           '/acf')  # FIXME path
+
+    from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
+
+    step_size = 0.001
+    num_steps = 5000  # <-------------- important
     pretrain = False
     tune = False
     burn_in = 2000
     # num_chains 		type=int, 	default=1
     num_chains = 1  # os.cpu_count() - 1
     batch_size = 50
-    hmc_traj_length = 20
+    L = 10
     val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
     val_prediction_steps = 50
     val_converge_criterion = 20
     val_per_epoch = 200
 
-    ludi.sample_SGNHT(step_size, num_steps, burn_in, pretrain=False, tune=tune, hmc_traj_length=hmc_traj_length,
-                      num_chains=num_chains)
+    sbnn.reset_parameters()
+    sgnht = SGNHT(sbnn, X, y, X.shape[0],
+                  step_size, num_steps, burn_in, pretrain=pretrain, tune=tune,
+                  L=L,
+                  num_chains=num_chains)
+    sgnht.sample()
+    print(sgnht.chain)
+    import random
 
-    type(ludi.sampler.chain)
-    ludi.sampler.chain.__dict__
+    sgnht.model.plot(X, y, random.sample(sgnht.chain, 30), **{'title': 'Shrinkage BNN with subsampled chain'})
