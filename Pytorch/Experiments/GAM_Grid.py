@@ -92,11 +92,11 @@ class GAM_Grid(Grid, SAMPLER_GRID):
         # plot a subset of the chain's predictions
         sampler = self.sampler
         sampler.model.plot(X_val, y_val, random.sample(sampler.chain, 30),
-                           path=self.basename + '_datamodel', title='')  # FIXME: PATH
+                           path=self.basename + '_datamodel', title='')
 
         # Efficiency of the sampler (Effective Sample Size)
-        sampler.traceplots(path=self.basename + '_traces.png')  # FIXME path
-        sampler.acf_plots(nlags=500, path=self.basename + '_acf.png')  # FIXME path
+        sampler.traceplots(path=self.basename + '_traces.png')
+        sampler.acf_plots(nlags=500, path=self.basename + '_acf.png')
 
         sampler.ess(nlags=200)
         print(sampler.ess_min)
@@ -146,7 +146,7 @@ class GAM_Grid(Grid, SAMPLER_GRID):
         fig1.savefig(self.basename + '_Log_probs.png', bbox_inches='tight')
 
 
-        plt.close()
+        plt.close('all')
         return {'ess_min': sampler.ess_min,
                 'avg_MSE_diff': mse_diff.detach().numpy(),
                 'avg_log_prob_diff': log_diff.detach().numpy()}
