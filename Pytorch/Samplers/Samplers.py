@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from statsmodels.tsa.stattools import acf
-
+import math
 
 # from Pytorch.Samplers.Sampler_Experimental import Sampler_Experimental
 
@@ -60,9 +60,10 @@ class Sampler:
         # return torch.cat(self.chain).reshape(len(self.chain), -1)
 
     def traceplots(self, path=None):
-        """t"""
         df = pd.DataFrame(self.chain_mat)
-        df.plot(subplots=True, title='Traces')
+        s = int(math.ceil(math.sqrt(df.shape[1])))
+        df.plot(subplots=True, layout=(s, s), sharex=True, title='Traces')
+
         if path is None:
             plt.show()
         else:
@@ -86,7 +87,9 @@ class Sampler:
         if not hasattr(self, 'acf'):
             self._calc_acf(nlags)
 
-        self.acf.plot(subplots=True, title='Autocorrelation')
+
+        s = int(math.ceil(math.sqrt(self.acf.shape[1])))
+        self.acf.plot(subplots=True, layout=(s, s), sharey=True, sharex=True, title='Autocorrelation')
 
         if path is None:
             plt.show()
