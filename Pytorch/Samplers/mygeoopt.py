@@ -12,7 +12,6 @@ import torch
 # https://geoopt.readthedocs.io/en/latest/index.html
 
 class Geoopt_interface(Sampler):
-
     """geoopt samplers implementations is based on
     Hamiltonian Monte-Carlo for Orthogonal Matrices"""
     def sample(self, trainloader, burn_in, n_samples):
@@ -29,6 +28,11 @@ class Geoopt_interface(Sampler):
         #      def step(self, closure):
         #         logp = closure()
 
+        if 'SG' not in str(self) and trainloader.batch_size != len(trainloader.dataset):
+            raise ValueError('trainloader for non-SG Sampler must use the entire dataset at each step'
+                             ' set trainloader.batch_size = len(trainloader.dataset')
+
+
         # self.model.closure_log_prob(X, y)   # for non-SG
         print('Burn-in')
         for _ in tqdm(range(burn_in)):
@@ -38,9 +42,7 @@ class Geoopt_interface(Sampler):
         points = []
         self.burnin = False
 
-        print('Sampling')
-        # for i, epoch in tqdm(enumerate(range(epochs))):
-        #     print('Starting Epoch {}'.format(i))
+        print('\nSampling')
         self.chain = list()
 
         for _ in tqdm(range(n_samples)):
@@ -50,7 +52,6 @@ class Geoopt_interface(Sampler):
             state = self.model.state_dict()
             # if not all([all(state[k] == v) for k, v in samples[-1].items()]): # this is imprecise
             self.chain.append(state)
-
 
         if len(self.chain) == 1:
             print(self.chain)
@@ -92,11 +93,17 @@ class myRHMC(RHMC, Geoopt_interface, Sampler):
         RHMC.__init__(self, params=model.parameters(), epsilon=epsilon, n_steps=L)
         self.model = model
 
+    def __str__(self):
+        return 'myRHMC'
+
 
 class myRSGLD(RSGLD, Geoopt_interface, Sampler):
     def __init__(self, model, epsilon):
         RSGLD.__init__(self, params=model.parameters(), epsilon=epsilon)
         self.model = model
+
+    def __str__(self):
+        return 'myRSGLD'
 
 
 class mySGRHMC(SGRHMC, Geoopt_interface, Sampler):
@@ -105,10 +112,12 @@ class mySGRHMC(SGRHMC, Geoopt_interface, Sampler):
                         n_steps=L, alpha=alpha)
         self.model = model
 
+    def __str__(self):
+        return 'mySGRHMC'
+
 
 if __name__ == '__main__':
     # code taken from https://github.com/geoopt/geoopt/blob/bd6c687862e6692a018ea5201191cc982e74efcf/tests/test_rhmc.py
-
 
     import torch
     import torch.nn as nn
@@ -121,6 +130,7 @@ if __name__ == '__main__':
     no_in = 2
     no_out = 1
 
+    n = 100
     # single Hidden Unit Example
     model = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
     model.forward(X=torch.ones(100, no_in))
@@ -128,29 +138,32 @@ if __name__ == '__main__':
 
     model.true_model = deepcopy(model.state_dict())
 
-
     # generate data X, y
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
-    X = X_dist.sample(torch.Size([100]))
+    X = X_dist.sample(torch.Size([n]))
     y = model.likelihood(X).sample()
 
-    batch_size = 64
-    trainset = TensorDataset(X, y)
-    trainloader = DataLoader(trainset, batch_size=batch_size,
-                             shuffle=True, num_workers=0)
+
 
     params = dict(sampler="RHMC", epsilon=0.02, L=5)
     # params = dict(sampler="RSGLD", epsilon=1e-3)
     # params = dict(sampler="SGRHMC", epsilon=1e-3, L=1, alpha=0.5  ) # FIXME: seems to diverge quickly
 
     Sampler = {'RHMC': myRHMC, 'RSGLD': myRSGLD, 'SGRHMC': mySGRHMC}[params.pop("sampler")]
+
     sampler = Sampler(model, **params)
 
+    # if non SG sampler: batch_size = n else n can be smaller than N
+    batch_size = n
+    trainset = TensorDataset(X, y)
+    trainloader = DataLoader(trainset, batch_size=batch_size,
+                             shuffle=True, num_workers=0)
     points = sampler.sample(trainloader, burn_in=1000, n_samples=1000)
 
-    model.plot(X, y, chain= points[0:1000:100],path=None )
+    model.plot(X, y, chain=points[0:1000:100], path=None)
 
     import os
+
     sampler.save(path=os.getcwd() + '/sghnhtsavingtest')
 
     model1 = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
@@ -159,9 +172,6 @@ if __name__ == '__main__':
 
     sampler1 = Sampler(model1, **params1)
 
-
     a = sampler1.load(path=os.getcwd() + '/sghnhtsavingtest')
-
-
 
     print()
