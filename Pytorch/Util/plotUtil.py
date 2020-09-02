@@ -9,32 +9,36 @@ from copy import deepcopy
 
 class Plots:
     @torch.no_grad()
-    def predict_states(self, X, chain=None):
+    def predict_states(self, chain=None, *args):
         """
         predict f(X) based on true, current and chain's states
-        :param X: Torch.Tensor upon which the predictions are made
+
         :param y: Torch.Tensor
         :param chain: list of state_dicts
         :param path: string: system path where to save to
+        :param *args: Torch.Tensor(s) upon which the predictions are made using
+        the model's forward method. Normal models require this to be the
+        design matrix X. In the case of structured BNN this must be X and Z
+
         :return:
         """
 
         # (1) PREDICT functions -----------------------------------------------
         df = pd.DataFrame()
-
+        X = args[0]
         # predict current state
-        df['current'] = self.forward(X).view(X.shape[0],).numpy()
+        df['current'] = self.forward(*args).view(X.shape[0],).numpy()
         current = deepcopy(self.state_dict())
 
         # predict true model
         self.load_state_dict(self.true_model)
-        df['true'] = self.forward(X).view(X.shape[0],).numpy()
+        df['true'] = self.forward(*args).view(X.shape[0],).numpy()
 
         # predict chain
         if chain is not None:
             for i, c in enumerate(chain):
                 self.load_state_dict(c)
-                df[str(i)] = self.forward(X).view(X.shape[0],).numpy()
+                df[str(i)] = self.forward(*args).view(X.shape[0],).numpy()
 
             # return to current state
             self.load_state_dict(current)
@@ -52,7 +56,7 @@ class Plots:
         :return:
         """
         # (2) MELT the frame for plotting format
-        df0 = self.predict_states(X, chain)
+        df0 = self.predict_states(chain, X)
 
 
         if X.shape[1]==1:
@@ -74,7 +78,7 @@ class Plots:
         else:
             plt.savefig('{}.png'.format(path), bbox_inches='tight')
 
-    def _plot1d(self, X, y, df, title=''):
+    def _plot1d(self, X, y=None, df=None, title=''):
         """
 
         :param X:
@@ -83,9 +87,10 @@ class Plots:
         """
         fig, ax = plt.subplots(nrows=1, ncols=1)
         fig.subplots_adjust(hspace=0.5)
-        sns.scatterplot(
-            x=torch.reshape(X, (X.shape[0],)).numpy(),
-            y=torch.reshape(y, (y.shape[0],)).numpy(), ax=ax)
+        if y is not None:
+            sns.scatterplot(
+                x=torch.reshape(X, (X.shape[0],)).numpy(),
+                y=torch.reshape(y, (y.shape[0],)).numpy(), ax=ax)
 
         sns.lineplot('X', y='y', hue='functions', alpha=0.5, data=df, ax=ax)
         plt.title('{}'.format(title))

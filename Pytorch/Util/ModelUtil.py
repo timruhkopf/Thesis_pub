@@ -55,7 +55,7 @@ class Model_util(Plots):
     def invert_bij(self, name):
         return self.dist[name].transforms[0]._inverse(self.get_param(name))
 
-    def _chain_predict(self, chain, X):
+    def _chain_predict(self, chain, *args):
         """
 
         :param chain: list of 1d Tensors
@@ -71,6 +71,6 @@ class Model_util(Plots):
                 # TODO parallelize predictions
                 self.load_state_dict(p)
                 # self.update_distributions()
-                d.update({str(i): self.forward(X)})
+                d.update({str(i): self.forward(*args)})
 
         return d
