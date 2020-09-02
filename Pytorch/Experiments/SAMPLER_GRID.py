@@ -13,9 +13,19 @@ class SAMPLER_GRID:
         # (SAMPLER) Select sampler, set up  and sample -------------------------
         # random init state
         if 'mode' in getfullargspec(self.model.reset_parameters).args:
-            model.reset_parameters(mode='U-MVN')
+            model.reset_parameters(mode='U-MVN') # GAM model has multiple ways for init
         else:
             self.model.reset_parameters()
+
+        # import matplotlib
+        # import matplotlib.pyplot as plt
+        # matplotlib.use('Tkagg')
+        # plt.ion()
+        from copy import deepcopy
+        init = deepcopy(self.model.state_dict())
+        self.model.load_state_dict (self.model.true_model)
+        self.model.plot(*self.data_val,chain=[init], path=self.basename +'_initmodel')
+        self.model.load_state_dict(init)
 
         try:
             batch_size = sampler_param.pop('batch_size')
