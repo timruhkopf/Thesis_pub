@@ -22,7 +22,7 @@ class Group_lasso(Hidden):
         self.bijected = bijected
         Hidden.__init__(self, no_in, no_out, bias, activation)
         self.dist['alpha'] = td.LogNormal(0., scale=1. / 20.)
-        self.alpha_chain = list()
+
 
     def define_model(self):
         self.m = self.no_out  # single "group size" to be penalized
@@ -32,11 +32,12 @@ class Group_lasso(Hidden):
         self.dist['lamb'] = td.HalfCauchy(scale=torch.tensor(1.))
 
         # hyperparam of W: single variance parameter for group
+        # self.lamb = 1.
         self.tau = nn.Parameter(torch.tensor(1.))
         self.dist['tau'] = td.Gamma((self.m + 1) / 2, (self.lamb ** 2) / 2)
 
         if self.bijected:
-            self.dist['lamb'] = td.TransformedDistribution(self.dist['lamb'], LogTransform())
+            # self.dist['lamb'] = td.TransformedDistribution(self.dist['lamb'], LogTransform())
             self.dist['tau'] = td.TransformedDistribution(self.dist['tau'], LogTransform())
 
         # Group lasso structure of W
@@ -120,8 +121,8 @@ class Group_lasso(Hidden):
 
         # 1- : since small tau indicate high shrinkage & the possibility to
         # estimate using GAM, this means that alpha should be (close to) 1
-        self.alpha_chain.append(1 - self.dist['alpha'].cdf(tau))
-        return self.alpha_chain[-1]
+        return 1 - self.dist['alpha'].cdf(tau)
+
 
     @property
     def alpha_probab(self):
@@ -139,7 +140,6 @@ class Group_lasso(Hidden):
         # be careful as the mapping is informative prior knowledge!
         # Note further, that alpha is not learned!
         pi = 1 - self.dist['alpha'].cdf(tau)
-        self.alpha_chain.append(pi)
         return td.Bernoulli(pi).sample()
 
 
