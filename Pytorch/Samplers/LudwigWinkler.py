@@ -27,7 +27,7 @@ class LudwigWinkler(Sampler):
         if torch.cuda.is_available():
             device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
             FloatTensor = torch.cuda.FloatTensor
-            Tensor = torch.cuda.FloatTensorf
+            Tensor = torch.cuda.FloatTensor
         else:
             device = torch.device('cpu')
             FloatTensor = torch.FloatTensor
@@ -48,11 +48,11 @@ class LudwigWinkler(Sampler):
             print(self.chain)
             raise ValueError('The chain did not progress beyond first step')
 
-        if any(any(torch.isnan(v)) if v.nelement() != 1 else torch.isnan(v) for chain in
-               (self.chain[-1].values(), self.chain[0].values()) for v in chain):
+        if any([torch.any(torch.isnan(v)) if v.nelement() != 1 else torch.isnan(v)
+                for chain in (self.chain[-1].values(), self.chain[0].values())
+                for v in chain]):
             print(self.chain)
             raise ValueError('first and last entry contain nan')
-
 
 
 class MALA(LudwigWinkler):
@@ -96,6 +96,7 @@ class SGLD(LudwigWinkler):
             burn_in=burn_in,
             pretrain=pretrain,
             tune=tune)
+
 
 # # FAILING CONSISTENTLY
 # class HMC(LudwigWinkler):
@@ -168,8 +169,6 @@ if __name__ == '__main__':
     sgnht.sample()
     print(sgnht.chain)
 
-
-
     sgnht.model.plot(X, y)  # function still error prone: multiple executions seem to change the plot
 
     from _collections import OrderedDict
@@ -190,8 +189,8 @@ if __name__ == '__main__':
     sgld.sample()
     print(sgld.chain)
 
-    if no_in ==1:
+    if no_in == 1:
         kwargs = {}
     elif no_in == 2:
-        kwargs = {'multi_subplots':False, 'title':'SOMETHING'}
+        kwargs = {'multi_subplots': False, 'title': 'SOMETHING'}
     sgld.model.plot(X, y, **kwargs)
