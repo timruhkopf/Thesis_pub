@@ -84,21 +84,21 @@ class Layer_Grid(Grid, SAMPLER_GRID):
 if __name__ == '__main__':
 
     # As it turns out, this interface can be used to sample from any layer! ---------
-    from Pytorch.Layer.Hidden import Hidden
-
-    run = 'Hidden_test_grid_exec_SGRLD1'
-    root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-        os.getcwd() + '/Results/{}/'.format(run)
-
-    hidden_unittest = Layer_Grid(root)
-    prelim_configs = hidden_unittest.grid_exec_SGRLD(steps=1000, batch_size=100)
-    n = 1000
-    n_val = 100
-    model_param = dict(no_in=2, no_out=1, bias=False, activation=nn.Identity())
-
-    for config in prelim_configs:
-        hidden_unittest.main(n=n, n_val=n_val, seperated=None, model_class=Hidden, model_param=model_param,
-                             sampler_name='SGRLD', sampler_param=config)
+    # from Pytorch.Layer.Hidden import Hidden
+    #
+    # run = 'Hidden_test_grid_exec_SGRLD1'
+    # root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+    #     os.getcwd() + '/Results/{}/'.format(run)
+    #
+    # hidden_unittest = Layer_Grid(root)
+    # prelim_configs = hidden_unittest.grid_exec_SGRLD(steps=1000, batch_size=100)
+    # n = 1000
+    # n_val = 100
+    # model_param = dict(no_in=2, no_out=1, bias=False, activation=nn.Identity())
+    #
+    # for config in prelim_configs:
+    #     hidden_unittest.main(n=n, n_val=n_val, seperated=None, model_class=Hidden, model_param=model_param,
+    #                          sampler_name='SGRLD', sampler_param=config)
 
     from Pytorch.Layer.Group_lasso import Group_lasso
 
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     n = 1000
     n_val = 100
     model_param = dict(no_in=2, no_out=1, bias=False,
-                       activation=nn.Identity(), bijected=True)  # TODO CHECK not bijected
+                       activation=nn.ReLU(), bijected=True)  # TODO CHECK not bijected
 
     for config in prelim_configs:
         glasso_unittest.main(n=n, n_val=n_val, seperated=True, model_class=Group_lasso, model_param=model_param,

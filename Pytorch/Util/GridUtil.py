@@ -34,9 +34,9 @@ class Grid:
         gam_unittest = GAM_Grid(root=os.getcwd() if os.path.isdir(os.getcwd()) else \
         os.getcwd() + '/Pytorch/Experiments')
 
-        # presuming, that the grid_exec_sgnht returns a generator, which yields two
+        # presuming, that the grid_exec_SGNHT returns a generator, which yields two
         # dicts; model_param, sampler_param. each such yielded config are part of a grid
-        prelim_configs = gam_unittest.grid_exec_sgnht(steps=1000,
+        prelim_configs = gam_unittest.grid_exec_SGNHT(steps=1000,
                         epsilons=np.arange(0.001, 0.05, 0.003),
                         hmc_traj_lengths=[1, 2, 3, 5, 10, 15, 20, 25])
         for prelim_config in prelim_configs:
