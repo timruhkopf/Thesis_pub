@@ -1,9 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.distributions as td
-
-from hamiltorch.util import flatten
-from itertools import accumulate
 import inspect
 
 from Pytorch.Layer.Hidden import Hidden
@@ -112,27 +109,44 @@ if __name__ == '__main__':
     # check accumulation of parameters & parsing
     bnn.log_prob(X, y)
 
-    from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
+    from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
+    from torch.utils.data import TensorDataset, DataLoader
 
-    param = dict(step_size=0.001,
-                 num_steps=5000,  # <-------------- important
-                 pretrain=False,
-                 tune=False,
-                 burn_in=2000,
-                 # num_chains 		type=int, 	default=1
-                 num_chains=1,  # os.cpu_count() - 1
-                 hmc_traj_length=24)
+    burn_in, n_samples = 100, 1000
 
-    batch_size = 50
-    val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
-    val_prediction_steps = 50
-    val_converge_criterion = 20
-    val_per_epoch = 200
+    trainset = TensorDataset(X, y)
+    trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
 
+    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+               'SGRLD': myRSGLD,  # epsilon
+               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+               }['RHMC']
+    sampler = Sampler(bnn, epsilon=0.001, L=2)
+    sampler.sample(trainloader, burn_in, n_samples)
 
-    sgnht = SGNHT(bnn, X, y, X.shape[0], **param)
-    sgnht.sample()
-    print(sgnht.chain)
-
-    import random
-    sgnht.model.plot(X, y, random.sample(sgnht.chain, len(sgnht.chain) // 10))
+    # from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
+    #
+    # param = dict(epsilon=0.001,
+    #              num_steps=5000,  # <-------------- important
+    #              pretrain=False,
+    #              tune=False,
+    #              burn_in=2000,
+    #              # num_chains 		type=int, 	default=1
+    #              num_chains=1,  # os.cpu_count() - 1
+    #              L=24)
+    #
+    # batch_size = 50
+    # val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
+    # val_prediction_steps = 50
+    # val_converge_criterion = 20
+    # val_per_epoch = 200
+    #
+    # bnn.reset_parameters()
+    # sgnht = SGNHT(bnn, X, y, batch_size=X.shape[0], **param)
+    # sgnht.sample()
+    # print(sgnht.chain)
+    #
+    # import random
+    # sgnht.model.plot(X, y, random.sample(sgnht.chain, 30))
+    #
+    # sgnht.model.plot(X, y, sgnht.chain[0:10])

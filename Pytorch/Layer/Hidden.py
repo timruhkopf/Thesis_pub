@@ -143,10 +143,24 @@ if __name__ == '__main__':
     print(reg.log_prob(X, y))
 
     # Estimation example
+    from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
+    from torch.utils.data import TensorDataset, DataLoader
+
+    burn_in, n_samples = 100, 1000
+
+    trainset = TensorDataset(X, y)
+    trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
+
+    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+               'SGRLD': myRSGLD,  # epsilon
+               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+               }['RHMC']
+    sampler = Sampler(reg, epsilon=0.001, L=2)
+    sampler.sample(trainloader, burn_in, n_samples)
+
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
 
     num_samples = 1000
-
     step_size = 0.01
     num_steps = 5000  # <-------------- important
     pretrain = False
@@ -155,7 +169,7 @@ if __name__ == '__main__':
     # num_chains 		type=int, 	default=1
     num_chains = 1  # os.cpu_count() - 1
     batch_size = 50
-    hmc_traj_length = 24
+    L = 24
     val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
     val_prediction_steps = 50
     val_converge_criterion = 20
@@ -164,7 +178,7 @@ if __name__ == '__main__':
     reg.reset_parameters()
     sgnht = SGNHT(reg, X, y, X.shape[0],
                   step_size, num_steps, burn_in, pretrain=pretrain, tune=tune,
-                  hmc_traj_length=hmc_traj_length,
+                  L=L,
                   num_chains=num_chains)
     sgnht.sample()
     print(sgnht.chain)
@@ -172,7 +186,7 @@ if __name__ == '__main__':
     import numpy as np
     import matplotlib.pyplot as plt
 
-    sgnht.model.plot(X, y, random.sample(sgnht.chain, len(sgnht.chain) // 10), **{'title': 'Hidden'})
+    sgnht.model.plot(X, y, random.sample(sgnht.chain, 100), **{'title': 'Hidden'})
 
     # traceplots
     import pandas as pd
@@ -195,32 +209,32 @@ if __name__ == '__main__':
     sgnht.min = int(min(sgnht.ess))
 
     # (Experimental) -----------------------------------------------------------
-    x = x[:, 1]
-    a = acf(x, nlags=100, fft=True)
-    sgnht.acf = a
-    len(sgnht.chain) / (1 + 2 * sum(sgnht.acf))
-    print(sgnht.ess())
-    lag = np.arange(len(a))
+    # x = x[:, 1]
+    # a = acf(x, nlags=100, fft=True)
+    # sgnht.acf = a
+    # len(sgnht.chain) / (1 + 2 * sum(sgnht.acf))
+    # print(sgnht.ess())
+    # lag = np.arange(len(a))
+    # # lag = np.arange(len(sgnht.acf))
+    # plt.plot(lag, a)
+    # plt.show()
+    #
+    # tsaplots.plot_acf(x, lags=100)
+    #
+    # # my own trials on autocorrelation plots
+    # x = sgnht.chain_mat
+    # x = x - np.mean(x, axis=0)
+    # x = x[:, 0]
+    #
+    # # Display the autocorrelation plot of your time series
+    # fig = tsaplots.plot_acf(x, lags=1000, fft=True)
+    # plt.show()
+    #
+    # import tidynamics
+    #
+    # sgnht.acf = tidynamics.acf(x)[1: len(sgnht.chain) // 3]
     # lag = np.arange(len(sgnht.acf))
-    plt.plot(lag, a)
-    plt.show()
-
-    tsaplots.plot_acf(x, lags=100)
-
-    # my own trials on autocorrelation plots
-    x = sgnht.chain_mat
-    x = x - np.mean(x, axis=0)
-    x = x[:, 0]
-
-    # Display the autocorrelation plot of your time series
-    fig = tsaplots.plot_acf(x, lags=1000, fft=True)
-    plt.show()
-
-    import tidynamics
-
-    sgnht.acf = tidynamics.acf(x)[1: len(sgnht.chain) // 3]
-    lag = np.arange(len(sgnht.acf))
-    plt.plot(lag, sgnht.acf)
-    plt.show()
-
-    sgnht.fast_autocorr(0)
+    # plt.plot(lag, sgnht.acf)
+    # plt.show()
+    #
+    # sgnht.fast_autocorr(0)
