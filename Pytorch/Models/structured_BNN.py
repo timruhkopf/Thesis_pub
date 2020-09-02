@@ -21,6 +21,8 @@ class Structured_BNN(ShrinkageBNN):
         self.hunits = hunits
         self.activation = activation
         self.final_activation = final_activation
+        self.seperated = seperated
+        self.bijected = bijected
 
         # define_model (components)
         self.gam = GAM(**gam_param)
@@ -144,7 +146,7 @@ if __name__ == '__main__':
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
     X = X_dist.sample(torch.Size([n])).view(n, no_in)
     Z = torch.tensor(get_design(X[:, 0].numpy(), degree=2, no_basis=no_basis),
-                     dtype=torch.float32, requires_grad=False)
+                     dtype=torch.float32)
 
     glasso = Structured_BNN(gam_param={'xgrid': (0, 10, 0.5), 'order': 1, 'no_basis': 20,
                                        'no_out': 1, 'activation': nn.Identity()},
