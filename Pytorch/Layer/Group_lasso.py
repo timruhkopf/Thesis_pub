@@ -23,33 +23,43 @@ class Group_lasso(Hidden):
         Hidden.__init__(self, no_in, no_out, bias, activation)
         self.dist['alpha'] = td.LogNormal(0., scale=1. / 20.)
 
-
     def define_model(self):
         self.m = self.no_out  # single "group size" to be penalized
 
         # hyperparam of tau
-        self.lamb = nn.Parameter(torch.tensor(1.))
-        self.dist['lamb'] = td.HalfCauchy(scale=torch.tensor(1.))
+        # FIXME: when lamb is a nn.Parameter, the model fails - only in
+        #   a model with a glroup lasso layer AND a GAM.
+        #   making it non learnable, the model runs (if W_shrinked is also not part of prior_log_prob)
+        #   self.lamb = nn.Parameter(torch.tensor([1.]))
+        self.lamb = torch.tensor([0.1])  # FIXME: check how this dist looks like
+        self.dist['lamb'] = td.HalfCauchy(scale=torch.tensor([1.]))
 
         # hyperparam of W: single variance parameter for group
-        # self.lamb = 1.
         self.tau = nn.Parameter(torch.tensor(1.))
         self.dist['tau'] = td.Gamma((self.m + 1) / 2, (self.lamb ** 2) / 2)
 
         if self.bijected:
-            # self.dist['lamb'] = td.TransformedDistribution(self.dist['lamb'], LogTransform())
+            self.dist['lamb'] = td.TransformedDistribution(self.dist['lamb'], LogTransform())
             self.dist['tau'] = td.TransformedDistribution(self.dist['tau'], LogTransform())
 
         # Group lasso structure of W
-        self.W = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
+        self.W_shrinked = nn.Parameter(torch.Tensor(1, self.no_out))
+        self.W = nn.Parameter(torch.Tensor(self.no_in - 1, self.no_out))
+
         # FIXME: check sigma dependence in W_shrinked: \beta_g | tau²_g, sigma² ~ MVN
         self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_out), self.tau.clone().detach())
-        self.dist['W'] = td.Normal(torch.zeros((self.no_in-1) * self.no_out), torch.tensor([1.]))
+        self.dist['W'] = td.Normal(torch.zeros((self.no_in - 1) * self.no_out), torch.tensor([1.]))
 
         # add optional bias
         if self.has_bias:
             self.b = nn.Parameter(torch.Tensor(self.no_out))
-            self.dist['b'] = td.Normal(0., 1.)
+            self.dist['b'] = td.Normal(torch.zeros(self.no_out), 1.)
+
+    def forward(self, X):
+        XW = X[:, :1] @ self.W_shrinked + X[:, 1:] @ self.W   # self.W_shrinked is top row of complete W mat
+        if self.has_bias:
+            XW += self.b
+        return self.activation(XW)
 
     def update_distributions(self):
         """due to the hierarchical structure, the distributions parameters must be updated
@@ -60,6 +70,7 @@ class Group_lasso(Hidden):
 
         # BE WELL AWARE of the required inverse of the bijector in order to update
         # the conditional distributions accordingly
+
         if self.bijected:
             self.dist['tau'].base_dist.rate = \
                 self.dist['lamb'].transforms[0]._inverse(self.lamb) ** 2 / 2
@@ -77,19 +88,19 @@ class Group_lasso(Hidden):
 
         if seperated:  # allows XOR Decision in data generating procecss
             if self.bijected:
-                self.tau.data = self.dist['tau'].transforms[0](torch.tensor(0.001))
+                self.tau.data = self.dist['tau'].transforms[0](torch.tensor([0.001]))
             else:
-                self.tau.data = torch.tensor(0.001)
+                self.tau.data = torch.tensor([0.001])
         else:
             self.tau.data = self.dist['tau'].sample()
 
         self.update_distributions()  # to ensure W_shrinked's dist is updated properly
 
         # partition W according to prior model
-        self.W.data = torch.cat(
-            [self.dist['W_shrinked'].sample().view(1, self.no_out),  # ASSUMING MERELY ONE VARIABLE TO BE SHRUNKEN
-             self.dist['W'].sample().view(self.no_in-1, self.no_out)],
-            dim=0)
+        self.W.data = self.dist['W'].sample().view(self.no_in - 1, self.no_out)
+
+        # ASSUMING MERELY ONE VARIABLE TO BE SHRUNKEN
+        self.W_shrinked.data = self.dist['W_shrinked'].sample().view(1, self.no_out)
 
         if self.has_bias:
             self.b.data = self.dist['b'].sample()
@@ -97,16 +108,15 @@ class Group_lasso(Hidden):
     def prior_log_prob(self):
         """evaluate each parameter in respective distrib."""
 
-        param_names = self.p_names
-        param_names.remove('W')
-
         value = torch.tensor(0.)
-        for name in param_names:
-            value += self.dist[name].log_prob(self.get_param(name)).sum()
+        # for name in self.p_names:
+        #     value += self.dist[name].log_prob(self.get_param(name)).sum()
 
-        # W's split & vectorized priors
-        value += self.dist['W_shrinked'].log_prob(self.W[0, :]).sum() + \
-                 self.dist['W'].log_prob(self.W[1:,:].reshape((self.no_in -1) * self.no_out)).sum()
+        value += self.dist['tau'].log_prob(self.tau).sum()
+        value += self.dist['b'].log_prob(self.b).sum()
+
+        value += self.dist['W_shrinked'].log_prob(self.W_shrinked).sum()
+        value += self.dist['W'].log_prob(self.W.reshape((self.no_in - 1) * self.no_out)).sum()
 
         return value
 
@@ -117,13 +127,11 @@ class Group_lasso(Hidden):
         # FIXME alpha value for mu in likelihood depending on used shrinkage layer
 
         # as update_params already changed the tau value here explicitly
-        tau = self.dist['W_shrinked'].scale
-        tau.requires_grad_(False)
+        tau = self.dist['W_shrinked'].scale.clone().detach()
 
         # 1- : since small tau indicate high shrinkage & the possibility to
         # estimate using GAM, this means that alpha should be (close to) 1
         return 1 - self.dist['alpha'].cdf(tau)
-
 
     @property
     def alpha_probab(self):
@@ -136,7 +144,6 @@ class Group_lasso(Hidden):
         interactions with other variables)
         """
         tau = self.dist['W_shrinked'].scale
-        tau.requires_grad_(False)
 
         # map tau to [0,1] interval, making it a probability
         # be careful as the mapping is informative prior knowledge!
@@ -149,18 +156,18 @@ if __name__ == '__main__':
     # generate data
     no_in = 2
     no_out = 1
-    X_dist = td.Uniform(torch.ones(no_in)*-10., torch.tensor(no_in)*10.)
-    X = X_dist.sample(torch.Size([100])).view(100, no_in)
+    n = 1000
+    X_dist = td.Uniform(torch.ones(no_in) * -10., torch.tensor(no_in) * 10.)
+    X = X_dist.sample(torch.Size([n])).view(n, no_in)
 
-
-    glasso = Group_lasso(no_in, no_out, bias=False, activation=nn.Identity(), bijected=True)
+    glasso = Group_lasso(no_in, no_out, bias=True, activation=nn.Identity(), bijected=True)
     glasso.reset_parameters(seperated=True)
     glasso.true_model = glasso.state_dict()
     y = glasso.likelihood(X).sample()
 
     # check reset_parameters &  check prior_log_prob
     glasso.reset_parameters(seperated=True)
-    glasso.plot(X, y, **{'title':'G-lasso'})
+    glasso.plot(X, y, **{'title': 'G-lasso'})
     print(glasso.prior_log_prob())
 
     # check update_distributions
@@ -173,6 +180,32 @@ if __name__ == '__main__':
 
     # check alpha value
     # glasso.alpha
+
+    # from torch.utils.tensorboard import SummaryWriter
+    # writer = SummaryWriter()
+    # writer.add_graph(glasso, input_to_model=X, verbose=True) # FAILS unexpectedly
+    # writer.close()
+
+    # check sampling ability.
+    from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
+    from torch.utils.data import TensorDataset, DataLoader
+
+    burn_in, n_samples = 100, 1000
+
+    trainset = TensorDataset(X, y)
+    trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
+
+    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+               'SGRLD': myRSGLD,  # epsilon
+               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+               }['RHMC']
+
+    glasso.reset_parameters(False)
+    # glasso.plot(X_joint, y)
+
+    torch.autograd.set_detect_anomaly(True)
+    sampler = Sampler(glasso, epsilon=0.001, L=2)
+    sampler.sample(trainloader, burn_in, n_samples)
 
     # check "shrinkage_regression" example on being samplable
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
