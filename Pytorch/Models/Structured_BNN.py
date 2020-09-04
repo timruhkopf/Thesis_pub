@@ -1,7 +1,8 @@
 import pandas as pd
 import torch
-import torch.distributions as td
 import torch.nn as nn
+import torch.distributions as td
+
 
 from Pytorch.Models.GAM import GAM
 from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
@@ -46,8 +47,8 @@ class Structured_BNN(nn.Module):
         (batch shaped tensor)
         :return:
         """
-        X, Z = self.split_design(X)
-        return self.bnn.forward(X) + self.alpha * self.gam(Z)
+        # X, Z = self.split_design(X)
+        return self.bnn.forward(X[:, :-self.no_basis]) + self.alpha * self.gam(X[:, -self.no_basis:])
 
     def prior_log_prob(self):
         """surrogate for the hidden layers' prior log prob"""
@@ -72,7 +73,13 @@ class Structured_BNN(nn.Module):
 
     @property
     def alpha(self):
-        return self.bnn.layers[0].alpha  # TODO - Try alternative version with Bernoulli
+        tau = self.bnn.layers[0].tau.clone().detach()
+        tau.requires_grad_(False)
+        return tau
+
+    # @property
+    # def alpha(self):
+    #     return self.bnn.layers[0].alpha  # TODO - Try alternative version with Bernoulli
 
     @torch.no_grad()
     def _predict_states(self, X, chain=None):
