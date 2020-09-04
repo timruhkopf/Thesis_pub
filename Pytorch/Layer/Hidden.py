@@ -125,6 +125,7 @@ class Hidden(nn.Module, Model_util):
 if __name__ == '__main__':
     no_in = 2
     no_out = 1
+    n = 1000
 
     # single Hidden Unit Example
     reg = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
@@ -137,7 +138,7 @@ if __name__ == '__main__':
 
     # generate data X, y
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
-    X = X_dist.sample(torch.Size([100]))
+    X = X_dist.sample(torch.Size([n]))
     y = reg.likelihood(X).sample()
 
     print(reg.log_prob(X, y))
@@ -149,7 +150,7 @@ if __name__ == '__main__':
     burn_in, n_samples = 100, 1000
 
     trainset = TensorDataset(X, y)
-    trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
+    trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
 
     Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
                'SGRLD': myRSGLD,  # epsilon
@@ -176,7 +177,13 @@ if __name__ == '__main__':
     val_per_epoch = 200
 
     reg.reset_parameters()
-    sgnht = SGNHT(reg, X, y, X.shape[0],
+    from torch.utils.data import TensorDataset, DataLoader
+
+    burn_in, n_samples = 100, 1000
+
+    trainset = TensorDataset(X, y)
+    trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
+    sgnht = SGNHT(reg, trainloader,
                   step_size, num_steps, burn_in, pretrain=pretrain, tune=tune,
                   L=L,
                   num_chains=num_chains)

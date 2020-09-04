@@ -142,7 +142,7 @@ if __name__ == '__main__':
     # val_per_epoch = 200
     #
     # bnn.reset_parameters()
-    # sgnht = SGNHT(bnn, X, y, batch_size=X.shape[0], **param)
+    # sgnht = SGNHT(bnn, trainloader, **param)
     # sgnht.sample()
     # print(sgnht.chain)
     #

@@ -6,23 +6,20 @@ import torch
 
 
 class LudwigWinkler(Sampler):
-    def __init__(self, model, X, y, batch_size=None):
+    def __init__(self, model,trainloader):
         """interface to https://github.com/ludwigwinkler/
         BE AWARE, that the entire repo is build on Pytorch.Optim, which require
         that each parameter used and optimized is a nn.Parameter!"""
         self.model = copy(model)
-        self.data = X
-        self.target = y
 
-        if batch_size is not None:
-            batch_size = self.data.shape[0]
+        if 'SG' not in str(self) and trainloader.batch_size != len(trainloader.dataset):
+            raise ValueError('trainloader for non-SG Sampler must use the entire dataset at each step'
+                             ' set trainloader.batch_size = len(trainloader.dataset')
 
-        self.model.dataloader = DataLoader(
-            TensorDataset(self.data, self.target),
-            shuffle=True, batch_size=batch_size)
+        self.model.dataloader = trainloader
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model.log_prob_ = copy(self.model.log_prob)
-        self.model.log_prob = lambda X, y: {'log_prob': self.model.log_prob_(X, y)}
+        self.model.log_prob = lambda *data: {'log_prob': self.model.log_prob_(*data)}
 
         if torch.cuda.is_available():
             device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -56,9 +53,9 @@ class LudwigWinkler(Sampler):
 
 
 class MALA(LudwigWinkler):
-    def __init__(self, model, X, y, batch_size, epsilon, num_steps,
+    def __init__(self, model, trainloader, epsilon, num_steps,
                  burn_in, pretrain, tune, num_chains):
-        LudwigWinkler.__init__(self, model, X, y, batch_size)
+        LudwigWinkler.__init__(self, model, trainloader)
         self.sampler = MALA_Sampler(
             probmodel=self.model,
             step_size=epsilon,
@@ -68,11 +65,14 @@ class MALA(LudwigWinkler):
             tune=tune,
             num_chains=num_chains)
 
+    def __repr__(self):
+        return 'MALA'
+
 
 class SGNHT(LudwigWinkler):
-    def __init__(self, model, X, y, batch_size, epsilon, num_steps, burn_in,
+    def __init__(self, model, trainloader, epsilon, num_steps, burn_in,
                  pretrain, tune, L, num_chains):
-        LudwigWinkler.__init__(self, model, X, y, batch_size)
+        LudwigWinkler.__init__(self, model, trainloader)
         self.sampler = SGNHT_Sampler(
             probmodel=self.model,
             step_size=epsilon,
@@ -83,11 +83,14 @@ class SGNHT(LudwigWinkler):
             traj_length=L,
             num_chains=num_chains)
 
+    def __repr__(self):
+        return 'SGNHT'
+
 
 class SGLD(LudwigWinkler):
-    def __init__(self, model, X, y, batch_size, epsilon, num_steps,
+    def __init__(self, model, trainloader,  epsilon, num_steps,
                  burn_in, pretrain, tune, num_chains=7):
-        LudwigWinkler.__init__(self, model, X, y, batch_size)
+        LudwigWinkler.__init__(self, model, trainloader)
         self.sampler = SGLD_Sampler(
             probmodel=self.model,
             step_size=epsilon,
@@ -97,6 +100,8 @@ class SGLD(LudwigWinkler):
             pretrain=pretrain,
             tune=tune)
 
+    def __repr__(self):
+        return 'SGLD'
 
 # # FAILING CONSISTENTLY
 # class HMC(LudwigWinkler):

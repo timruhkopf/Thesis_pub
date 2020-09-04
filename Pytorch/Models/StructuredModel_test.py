@@ -170,25 +170,50 @@ if __name__ == '__main__':
 
     trainset = TensorDataset(X, Z, y)
     trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
+    #
+    # Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+    #            'SGRLD': myRSGLD,  # epsilon
+    #            'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+    #            }['RHMC']
+    #
+    # # h.reset_parameters(False)
+    # # glasso.plot(X_joint, y)
+    #
+    # torch.autograd.set_detect_anomaly(True)
+    # h.reset_parameters()
+    # sampler = Sampler(h, epsilon=0.001, L=2)
+    # sampler.sample(trainloader, burn_in, n_samples)
+    #
+    # print(sampler.chain_mat)
+    # print(sampler.model.a)
+    # import random
+    # h.plot(X[:100], Z[:100], y[:100],  chain=random.sample(sampler.chain, 100),
+    #             **{'title': 'structuredBNN'})
 
-    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
-               'SGRLD': myRSGLD,  # epsilon
-               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
-               }['RHMC']
+    from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
 
-    # h.reset_parameters(False)
-    # glasso.plot(X_joint, y)
+    num_samples = 1000
+    step_size = 0.01
+    num_steps = 5000  # <-------------- important
+    pretrain = False
+    tune = False
+    burn_in = 2000
+    # num_chains 		type=int, 	default=1
+    num_chains = 1  # os.cpu_count() - 1
+    batch_size = 50
+    L = 24
+    val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
+    val_prediction_steps = 50
+    val_converge_criterion = 20
+    val_per_epoch = 200
 
-    torch.autograd.set_detect_anomaly(True)
     h.reset_parameters()
-    sampler = Sampler(h, epsilon=0.001, L=2)
-    sampler.sample(trainloader, burn_in, n_samples)
+    sgnht = SGNHT(h, trainloader,
+                  step_size, num_steps, burn_in, pretrain=pretrain, tune=tune,
+                  L=L,
+                  num_chains=num_chains)
+    sgnht.sample()
 
-    print(sampler.chain_mat)
-    print(sampler.model.a)
-    import random
-    h.plot(X[:100], Z[:100], y[:100],  chain=random.sample(sampler.chain, 100),
-                **{'title': 'structuredBNN'})
-
+    print()
 
     # [(name, p.grad) for name, p in self.model.named_parameters()]
