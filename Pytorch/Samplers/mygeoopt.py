@@ -14,6 +14,7 @@ import torch
 class Geoopt_interface(Sampler):
     """geoopt samplers implementations is based on
     Hamiltonian Monte-Carlo for Orthogonal Matrices"""
+
     def sample(self, trainloader, burn_in, n_samples):
         """
 
@@ -32,27 +33,41 @@ class Geoopt_interface(Sampler):
             raise ValueError('trainloader for non-SG Sampler must use the entire dataset at each step'
                              ' set trainloader.batch_size = len(trainloader.dataset')
 
-
         # self.model.closure_log_prob(X, y)   # for non-SG
-        print('Burn-in')
-        for _ in tqdm(range(burn_in)):
-            X, y = next(trainloader.__iter__())
-            self.step(partial(self.model.log_prob, X, y))
 
+        print('Burn-in')
+        self.chain = list()
+        for _ in tqdm(range(burn_in)):
+            data = next(trainloader.__iter__())
+            self.step(partial(self.model.log_prob, *data))
+            state = self.model.state_dict()
+            # if not all([all(state[k] == v) for k, v in samples[-1].items()]): # this is imprecise
+            self.chain.append(state)
+
+        self.check_chain()
+
+        print('\nSampling')
         points = []
         self.burnin = False
 
-        print('\nSampling')
-        self.chain = list()
-
+        self.chain = list()  # reset the chain
         for _ in tqdm(range(n_samples)):
-            X, y = next(trainloader.__iter__())
-            self.step(partial(self.model.log_prob, X, y))
+            data = next(trainloader.__iter__())
+            self.step(partial(self.model.log_prob, *data))
 
             state = self.model.state_dict()
             # if not all([all(state[k] == v) for k, v in samples[-1].items()]): # this is imprecise
             self.chain.append(state)
 
+        self.check_chain()
+        self.log_probs = torch.tensor(self.log_probs[burn_in:])
+        self.state
+        self.n_rejected
+        self.rejection_rate
+
+        return self.chain
+
+    def check_chain(self):
         if len(self.chain) == 1:
             print(self.chain)
             raise ValueError('The chain did not progress beyond first step')
@@ -62,13 +77,6 @@ class Geoopt_interface(Sampler):
                 for v in chain]):
             print(self.chain)
             raise ValueError('first and last entry contain nan')
-
-        self.log_probs = torch.tensor(self.log_probs[burn_in:])
-        self.state
-        self.n_rejected
-        self.rejection_rate
-
-        return self.chain
 
     def clean_chain(self):
         # a = [1,1,2,3,4,4,5,6,7,8,9,9,8]
@@ -142,8 +150,6 @@ if __name__ == '__main__':
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
     X = X_dist.sample(torch.Size([n]))
     y = model.likelihood(X).sample()
-
-
 
     params = dict(sampler="RHMC", epsilon=0.02, L=5)
     # params = dict(sampler="RSGLD", epsilon=1e-3)
