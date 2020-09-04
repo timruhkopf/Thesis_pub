@@ -43,7 +43,7 @@ class Group_lasso(Hidden):
         # Group lasso structure of W
         self.W = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
         # FIXME: check sigma dependence in W_shrinked: \beta_g | tau²_g, sigma² ~ MVN
-        self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_out), self.tau)
+        self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_out), self.tau.clone().detach())
         self.dist['W'] = td.Normal(torch.zeros((self.no_in-1) * self.no_out), torch.tensor([1.]))
 
         # add optional bias
@@ -64,10 +64,10 @@ class Group_lasso(Hidden):
             self.dist['tau'].base_dist.rate = \
                 self.dist['lamb'].transforms[0]._inverse(self.lamb) ** 2 / 2
             self.dist['W_shrinked'].scale = \
-                self.dist['tau'].transforms[0]._inverse(self.tau)
+                self.dist['tau'].transforms[0]._inverse(self.tau.clone().detach())
         else:
             self.dist['tau'].rate = self.lamb ** 2 / 2
-            self.dist['W_shrinked'].scale = self.tau
+            self.dist['W_shrinked'].scale = self.tau.clone().detach()
 
     def reset_parameters(self, seperated=False):
         """sampling method to instantiate the parameters"""
@@ -118,6 +118,7 @@ class Group_lasso(Hidden):
 
         # as update_params already changed the tau value here explicitly
         tau = self.dist['W_shrinked'].scale
+        tau.requires_grad_(False)
 
         # 1- : since small tau indicate high shrinkage & the possibility to
         # estimate using GAM, this means that alpha should be (close to) 1
@@ -135,6 +136,7 @@ class Group_lasso(Hidden):
         interactions with other variables)
         """
         tau = self.dist['W_shrinked'].scale
+        tau.requires_grad_(False)
 
         # map tau to [0,1] interval, making it a probability
         # be careful as the mapping is informative prior knowledge!
@@ -185,7 +187,7 @@ if __name__ == '__main__':
     # num_chains 		type=int, 	default=1
     num_chains = 1  # os.cpu_count() - 1
     batch_size = 50
-    hmc_traj_length = 24
+    L = 24
     val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
     val_prediction_steps = 50
     val_converge_criterion = 20
@@ -194,7 +196,7 @@ if __name__ == '__main__':
     glasso.reset_parameters()
     sgnht = SGNHT(glasso, X, y, X.shape[0],
                   step_size, num_steps, burn_in, pretrain=pretrain, tune=tune,
-                  hmc_traj_length=hmc_traj_length,
+                  L=L,
                   num_chains=num_chains)
     sgnht.sample()
     print(sgnht.chain)
