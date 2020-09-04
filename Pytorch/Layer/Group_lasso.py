@@ -21,7 +21,7 @@ class Group_lasso(Hidden):
         """
         self.bijected = bijected
         Hidden.__init__(self, no_in, no_out, bias, activation)
-        self.dist['alpha'] = td.LogNormal(0., scale=1. / 20.)
+        self.dist['alpha'] = td.HalfCauchy(0.3)
 
     def define_model(self):
         self.m = self.no_out  # single "group size" to be penalized
@@ -47,7 +47,7 @@ class Group_lasso(Hidden):
         self.W = nn.Parameter(torch.Tensor(self.no_in - 1, self.no_out))
 
         # FIXME: check sigma dependence in W_shrinked: \beta_g | tau²_g, sigma² ~ MVN
-        self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_out), self.tau.clone().detach())
+        self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_out), self.tau ) #.clone().detach())
         self.dist['W'] = td.Normal(torch.zeros((self.no_in - 1) * self.no_out), torch.tensor([1.]))
 
         # add optional bias
@@ -63,26 +63,27 @@ class Group_lasso(Hidden):
 
     def update_distributions(self):
         """due to the hierarchical structure, the distributions parameters must be updated
-        Note, that this function is intended to be called immediately after vec_to_attr
-        in order to get thr correct log prob. This function does not """
-        # self.dist['tau'].__init__((self.m + 1) / 2, self.lamb ** 2)
-        # self.dist['W_shrinked'].__init__(torch.zeros(self.no_in), self.tau)
+        Note, that this function is intended to be called immediately after invoking
+        log_prob (see Model_util.log_prob) to take the updated parameters (via last
+        sampler.step and update the conditional distributions accordingly"""
 
         # BE WELL AWARE of the required inverse of the bijector in order to update
         # the conditional distributions accordingly
+        # print(self.tau)
+        # print(self.dist['tau'].transforms[0]._inverse(self.tau.clone().detach()))
 
         if self.bijected:
             self.dist['tau'].base_dist.rate = \
                 self.dist['lamb'].transforms[0]._inverse(self.lamb) ** 2 / 2
             self.dist['W_shrinked'].scale = \
-                self.dist['tau'].transforms[0]._inverse(self.tau.clone().detach())
+                self.dist['tau'].transforms[0]._inverse(self.tau.clone().detach()) # CAREFULL, THIS is ESSENTIAL for
+            # the model to run -and not invoke a second backward (in which already gradients have been lost)
         else:
             self.dist['tau'].rate = self.lamb ** 2 / 2
-            self.dist['W_shrinked'].scale = self.tau.clone().detach()
+            self.dist['W_shrinked'].scale = self.tau #.clone().detach()
 
     def reset_parameters(self, seperated=False):
         """sampling method to instantiate the parameters"""
-
         self.lamb.data = self.dist['lamb'].sample()
         self.update_distributions()  # to ensure tau's dist is updated properly
 
@@ -109,14 +110,8 @@ class Group_lasso(Hidden):
         """evaluate each parameter in respective distrib."""
 
         value = torch.tensor(0.)
-        # for name in self.p_names:
-        #     value += self.dist[name].log_prob(self.get_param(name)).sum()
-
-        value += self.dist['tau'].log_prob(self.tau).sum()
-        value += self.dist['b'].log_prob(self.b).sum()
-
-        value += self.dist['W_shrinked'].log_prob(self.W_shrinked).sum()
-        value += self.dist['W'].log_prob(self.W.reshape((self.no_in - 1) * self.no_out)).sum()
+        for name in self.p_names:
+            value += self.dist[name].log_prob(self.get_param(name)).sum()
 
         return value
 
@@ -127,11 +122,26 @@ class Group_lasso(Hidden):
         # FIXME alpha value for mu in likelihood depending on used shrinkage layer
 
         # as update_params already changed the tau value here explicitly
-        tau = self.dist['W_shrinked'].scale.clone().detach()
+        if self.bijected:
+            print(self.tau)
+            print(self.dist['W_shrinked'].scale)
+            # self.dist['W_shrinked'].scale += torch.tensor(1.)
+            tau = self.dist['tau'].transforms[0]._inverse(self.dist['W_shrinked'].scale)
+            print(tau)
+            print(self.dist['alpha'].cdf(tau))
+        else:
+            tau = self.dist['W_shrinked'].scale
+
+        tau.requires_grad_(False)
 
         # 1- : since small tau indicate high shrinkage & the possibility to
         # estimate using GAM, this means that alpha should be (close to) 1
-        return 1 - self.dist['alpha'].cdf(tau)
+        return  1 - self.dist['alpha'].cdf(tau)
+
+    # @property
+    # def alpha(self):
+    #     return torch.tensor(1.)
+
 
     @property
     def alpha_probab(self):
@@ -143,13 +153,21 @@ class Group_lasso(Hidden):
         favour alpha = 0 i.e. estimating x_1 in the bnn without gam (considering all
         interactions with other variables)
         """
-        tau = self.dist['W_shrinked'].scale
+        if self.bijected:
+            tau = self.dist['tau'].transforms[0]._inverse(self.dist['W_shrinked'].scale)
+        else:
+            tau = self.dist['W_shrinked'].scale
 
         # map tau to [0,1] interval, making it a probability
         # be careful as the mapping is informative prior knowledge!
         # Note further, that alpha is not learned!
-        pi = 1 - self.dist['alpha'].cdf(tau)
-        return td.Bernoulli(pi).sample()
+        pi = torch.tensor(1.) - self.dist['alpha'].cdf(tau)
+        if pi.item() < 0.01:
+            pi = torch.tensor([0.01])
+        print(pi)
+        delta = td.Bernoulli(pi).sample() # FIXME despite working on its own seems to cause an error in the sampler
+        print(delta)
+        return delta
 
 
 if __name__ == '__main__':
@@ -157,7 +175,7 @@ if __name__ == '__main__':
     no_in = 2
     no_out = 1
     n = 1000
-    X_dist = td.Uniform(torch.ones(no_in) * -10., torch.tensor(no_in) * 10.)
+    X_dist = td.Uniform(torch.ones(no_in) * -10., torch.ones(no_in) * 10.)
     X = X_dist.sample(torch.Size([n])).view(n, no_in)
 
     glasso = Group_lasso(no_in, no_out, bias=True, activation=nn.Identity(), bijected=True)
