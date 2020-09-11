@@ -116,7 +116,7 @@ class Plots:
         ax1.plot_trisurf(triang, df['true'],
                          cmap='jet', alpha=0.4)
         ax1.scatter(X[:, 0], X[:, 1], y,
-                    marker='.', s=10, c="black", alpha=0.5)
+                    marker='.', s=10, c="black", alpha=0.5, label='Observed data')
         ax1.view_init(elev=40, azim=-45)
 
         import matplotlib.cm as cm
@@ -125,7 +125,8 @@ class Plots:
 
             if k != 'true':
                 ax1.scatter(X[:, 0], X[:, 1], v,
-                            marker='.', s=7, color=c, alpha=0.3)
+                            marker='.', s=7, color=c, alpha=0.3, label = k)
+        ax1.legend()
         return plt
 
 
@@ -175,7 +176,8 @@ def plot_distribution(dist, support=torch.linspace(0., 10., 100)):
 
 if __name__ == '__main__':
 
-    plot_distribution(td.Gamma(0.3, 0.1))
+    plot_distribution(td.LogNormal(-1., scale=1. / 2.))
+    plot_distribution(td.HalfCauchy(0.3))
 
     from Pytorch.Layer.Hidden import Hidden
     import torch.distributions as td
