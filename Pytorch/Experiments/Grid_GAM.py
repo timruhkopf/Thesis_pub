@@ -34,9 +34,8 @@ class GAM_Grid(Grid, SAMPLER_GRID):
             torch.cuda.get_device_name(0)
 
         self.set_up_datamodel(n, n_val, model_param)
-        X, Z, y = self.data
 
-        self.set_up_sampler(self.model, Z, y, sampler_name, sampler_param)
+        self.set_up_sampler(self.model, sampler_name, sampler_param)
         metrics = self.evaluate_model(*self.data_val)
 
         return metrics  # to be written on Grid's result table

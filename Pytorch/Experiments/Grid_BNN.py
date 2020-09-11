@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 from Pytorch.Util.GridUtil import Grid
 from Pytorch.Experiments.SAMPLER_GRID import SAMPLER_GRID
-from Pytorch.Experiments.Layer_Grid import Layer_Grid
-from Pytorch.Experiments.GAM_Grid import GAM_Grid
+from Pytorch.Experiments.Grid_Layer import Layer_Grid
+from Pytorch.Experiments.Grid_GAM import GAM_Grid
 
 
 class BNN_Grid(Grid, SAMPLER_GRID):
@@ -24,9 +24,8 @@ class BNN_Grid(Grid, SAMPLER_GRID):
 
         self.set_up_datamodel(n, n_val, no_in=model_param['hunits'][0],
                               model_class=model_class, seperated=seperated, model_param=model_param)
-        X, y = self.data
 
-        self.set_up_sampler(self.model, X, y, sampler_name, sampler_param)
+        self.set_up_sampler(self.model, sampler_name, sampler_param)
         X_val, y_val = self.data_val
         metrics = self.evaluate_model(X_val, y_val)
 
@@ -63,40 +62,56 @@ if __name__ == '__main__':
 
     import torch.nn as nn
 
+    steps = 1000
+    n = 1000
+    n_val = 100
+
     # (0) BNN ------------------------------------------------------------------
     # SUCCESSFULLY RUNNING
     from Pytorch.Models.BNN import BNN
 
-    run = 'BNN_test_grid_exec_SGNHT'
+    # run = 'BNN_SGNHT'
+    # root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+    #     os.getcwd() + '/Results/{}/'.format(run)
+    #
+    # bnn_unittest = BNN_Grid(root)
+    # prelim_configs = bnn_unittest.grid_exec_SGNHT(steps=steps, batch_size=100)
+    #
+    # model_param = dict(hunits=[1, 10, 5, 1], activation=nn.ReLU(),
+    #                    final_activation=nn.Identity(), heteroscedast=False)
+    #
+    # for config in prelim_configs:
+    #     bnn_unittest.main(n=n, n_val=n_val, seperated=True, model_class=BNN, model_param=model_param,
+    #                       sampler_name='SGNHT', sampler_param=config)
+
+    # (0.1) BNN RHMC -------------------------------------------------
+    run = 'BNN_RHMC'
     root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
         os.getcwd() + '/Results/{}/'.format(run)
 
     bnn_unittest = BNN_Grid(root)
-    prelim_configs = bnn_unittest.grid_exec_SGNHT(steps=1000, batch_size=100)
+    prelim_configs = bnn_unittest.grid_exec_RHMC(steps=steps)
 
-    n = 1000
-    n_val = 100
     model_param = dict(hunits=[1, 10, 5, 1], activation=nn.ReLU(),
                        final_activation=nn.Identity(), heteroscedast=False)
 
     for config in prelim_configs:
         bnn_unittest.main(n=n, n_val=n_val, seperated=True, model_class=BNN, model_param=model_param,
-                          sampler_name='SGNHT', sampler_param=config)
+                          sampler_name='RHMC', sampler_param=config)
 
     # (1.0) shrinkageBNN RHMC -------------------------------------------------
     from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
 
     # FIXME: consistently fails.
-    run = 'shrinkageBNN_test_grid_exec_RHMC'
+    run = 'shrinkageBNN_RHMC'
     root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
         os.getcwd() + '/Results/{}/'.format(run)
 
     bnn_shrinkage_unittest = BNN_Grid(root)
-    prelim_configs = bnn_shrinkage_unittest.grid_exec_RHMC(steps=1000)
+    prelim_configs = bnn_shrinkage_unittest.grid_exec_RHMC(steps=steps)
 
-    n = 1000
-    n_val = 100
-    model_param = dict(hunits=[2, 3, 1], activation=nn.ReLU(),
+
+    model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
                        final_activation=nn.Identity(),
                        shrinkage='glasso', seperated=True, bijected=True,
                        heteroscedast=False)
@@ -110,18 +125,14 @@ if __name__ == '__main__':
     # (1.1) shrinkageBNN ---------------------------------------------------------
     from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
 
-    # FIXME: consistently fails.
-
-    run = 'shrinkageBNN_test_grid_exec_SGRLD'
+    run = 'shrinkageBNN_SGRLD'
     root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
         os.getcwd() + '/Results/{}/'.format(run)
 
     bnn_shrinkage_unittest = BNN_Grid(root)
-    prelim_configs = bnn_shrinkage_unittest.grid_exec_SGRLD(steps=100, batch_size=100)
+    prelim_configs = bnn_shrinkage_unittest.grid_exec_SGRLD(steps=steps, batch_size=100)
 
-    n = 1000
-    n_val = 100
-    model_param = dict(hunits=[2, 3, 1], activation=nn.ReLU(),
+    model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
                        final_activation=nn.Identity(),
                        shrinkage='glasso', seperated=True, bijected=True,
                        heteroscedast=False)
@@ -134,32 +145,3 @@ if __name__ == '__main__':
 
     print()
 
-    # (2) Structured BNN --------------------------------------------------------
-    ## TODO Move this to a seperate Grid class
-    # from Pytorch.Models.structured_BNN import Structured_BNN
-    #
-    # run = 'structuredBNN_test_grid_exec_SGNHT'
-    # root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-    #     os.getcwd() + '/Results/{}/'.format(run)
-    #
-    # bnn_structured_unittest = BNN_Grid(root)
-    # prelim_configs = bnn_structured_unittest.grid_exec_SGNHT(steps=1000, batch_size=100)
-    #
-    # n = 10000
-    # n_val = 100
-    # model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
-    #                    final_activation=nn.Identity(),
-    #                    shrinkage='glasso', seperated=False, heteroscedast=False)
-    #
-    # for config in prelim_configs:
-    #     bnn_structured_unittest.main(
-    #         n=n, n_val=n_val, seperated=True,
-    #         model_class=Structured_BNN, model_param=model_param,
-    #         sampler_name='SGNHT', sampler_param=config)
-    # model_param = dict(
-    #     gam_param={'xgrid': (0, 10, 0.5), 'order': 1, 'no_basis': 20,
-    #                'no_out': 1, 'activation': nn.Identity()},
-    #     hunits=[2, 10, 1], shrinkage='glasso', activation=nn.ReLU(), final_activation=nn.ReLU())
-    #
-
-    print()

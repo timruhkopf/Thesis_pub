@@ -8,7 +8,7 @@ from copy import deepcopy
 
 from Pytorch.Util.GridUtil import Grid
 from Pytorch.Experiments.SAMPLER_GRID import SAMPLER_GRID
-from Pytorch.Experiments.GAM_Grid import GAM_Grid
+from Pytorch.Experiments.Grid_GAM import GAM_Grid
 
 class Layer_Grid(Grid, SAMPLER_GRID):
     def main(self, n, n_val, seperated, model_class, model_param, sampler_param, sampler_name):
@@ -24,9 +24,9 @@ class Layer_Grid(Grid, SAMPLER_GRID):
 
         no_in = model_param['no_in']
         self.set_up_datamodel(n, n_val, no_in, model_class, seperated, model_param)
-        X, y = self.data
 
-        self.set_up_sampler(self.model, X, y, sampler_name, sampler_param)
+
+        self.set_up_sampler(self.model, sampler_name, sampler_param)
         metrics = self.evaluate_model(*self.data_val)
 
         return metrics  # to be written on Grid's result table
@@ -39,6 +39,7 @@ class Layer_Grid(Grid, SAMPLER_GRID):
         X_val = X_dist.sample(torch.Size([n_val]))
 
         self.model = model_class(**model_param)
+
 
         if 'seperated' in getfullargspec(self.model.reset_parameters).args:
             self.model.reset_parameters(seperated)
