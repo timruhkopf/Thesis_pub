@@ -34,8 +34,8 @@ class GAM(Hidden):
 
             # replaced Bspline_K with the actual penalize call for K
             from Tensorflow.Effects.SamplerPrecision import penalize_nullspace
-            sig_Q = 0.99
-            sig_Q0 = 0.01
+            sig_Q = 1.
+            sig_Q0 = 0.05
             threshold = 10 ** -3
 
             Sigma, penQ = penalize_nullspace(self.K.numpy(), sig_Q, sig_Q0, threshold, plot=False)
@@ -136,7 +136,7 @@ class GAM(Hidden):
     def plot(self, X, y, chain=None, path=None, title='', **kwargs):
         Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=self.no_basis), dtype=torch.float32,
                          requires_grad=False)
-        df0 = self.predict_states(Z, chain)
+        df0 = self.predict_states(chain, Z)
 
         df0['X'] = X.view(X.shape[0], ).numpy()
         df1 = df0.melt('X', value_name='y')
@@ -161,12 +161,14 @@ if __name__ == '__main__':
                      dtype=torch.float32, requires_grad=False)
 
     gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=True)
-    gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=False)
+    # gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=False)
 
-    gam.reset_parameters(tau=torch.tensor([0.01]))
+    gam.reset_parameters(mode='U-MVN')
+    # gam.reset_parameters(tau=torch.tensor([0.01]))
     gam.true_model = deepcopy(gam.state_dict())
     y = gam.likelihood(Z).sample()
-    gam.reset_parameters()
+
+    gam.reset_parameters(tau=torch.tensor([0.01]))
     gam.plot(X, y)
 
     gam.forward(Z)
@@ -180,7 +182,7 @@ if __name__ == '__main__':
     # num_chains 		type=int, 	default=1
     num_chains = 1  # os.cpu_count() - 1
     batch_size = 50
-    hmc_traj_length = 24
+    L = 24
     val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
     val_prediction_steps = 50
     val_converge_criterion = 20
@@ -191,13 +193,20 @@ if __name__ == '__main__':
     #           traj_length=hmc_traj_length,
     #           num_chains=num_chains)
     # hmc.sample()
-    from Pytorch.Samplers.LudwigWinkler import SGNHT
 
-    sgnht = SGNHT(gam, Z, y, X.shape[0],
-                  step_size, num_steps, burn_in, pretrain=pretrain, tune=tune,
-                  hmc_traj_length=hmc_traj_length,
-                  num_chains=num_chains)
+    from Pytorch.Samplers.LudwigWinkler import SGNHT
+    from torch.utils.data import TensorDataset, DataLoader
+
+    burn_in, n_samples = 100, 1000
+
+    trainset = TensorDataset(Z, y)
+    trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
+
+    sgnht = SGNHT(gam, trainloader, epsilon=step_size, num_steps=num_steps,
+                  burn_in=burn_in, pretrain=pretrain, tune=tune,
+                  L=L, num_chains=num_chains)
     sgnht.sample()
+
     print(sgnht.chain)
     if len(sgnht.chain) == 1:
         raise ValueError('The chain did not progress beyond first step')
@@ -208,6 +217,6 @@ if __name__ == '__main__':
     # plot via stratified chain
     import random
 
-    gam.plot(X[1:100], y[1:100], chain=random.sample(sgnht.chain, len(sgnht.chain) // 10))
+    gam.plot(X[1:100], y[1:100], chain=random.sample(sgnht.chain, 20))
 
     # Todo use penalized K in GAM for prior_log_prob to improve identifiably
