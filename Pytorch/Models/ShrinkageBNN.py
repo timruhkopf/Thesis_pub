@@ -3,7 +3,7 @@ import torch.distributions as td
 import torch.nn as nn
 
 from Pytorch.Models.BNN import BNN
-from Pytorch.Layer.Hidden import Hidden
+from Pytorch.Layer.Hidden import Hidden, Hidden_flat
 from Pytorch.Layer.Group_lasso import Group_lasso
 from Pytorch.Layer.Group_HorseShoe import Group_HorseShoe
 
@@ -15,8 +15,13 @@ class ShrinkageBNN(BNN):
         # 'gspike': layer.Group_SpikeNSlab,
         'ghorse': Group_HorseShoe}
 
+    layer_type = {
+        'flat': Hidden_flat,
+        'normal': Hidden
+    }
+
     def __init__(self, hunits=[2, 10, 1], activation=nn.ReLU(), final_activation=nn.Identity(),
-                 shrinkage='glasso', seperated=False, bijected=True, heteroscedast=False):
+                 shrinkage='glasso', prior= 'flat', seperated=False, bijected=True, heteroscedast=False):
         """
         Shrinkage BNN is a regular BNN, but uses a shrinkage layer, which in the
         current implementation shrinks the first variable in the X vector,
@@ -37,13 +42,14 @@ class ShrinkageBNN(BNN):
         self.shrinkage = shrinkage
         self.seperated = seperated
         self.bijected = bijected
+        self.prior = prior
 
         BNN.__init__(self, hunits, activation, final_activation, heteroscedast)
 
     def define_model(self):
         # Defining the layers depending on the mode.
 
-        L = Hidden
+        L = self.layer_type[self.prior]
         S = self.shrinkage_type[self.shrinkage]
 
         self.layers = nn.Sequential(
@@ -110,7 +116,7 @@ if __name__ == '__main__':
                             '/traceplot')
     sampler.acf_plots(nlags=500,
                       path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Shrinkage_BNN_RHMC_prelim'
-                           '/acf')  # FIXME path
+                           '/acf')
 
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
 

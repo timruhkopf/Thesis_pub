@@ -8,13 +8,14 @@ from Pytorch.Models.GAM import GAM
 from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
 from Pytorch.Util.ModelUtil import Model_util
 
-import torch.nn as nn
 
 
-class H(nn.Module, Model_util):
+class StructuredBNN(nn.Module, Model_util):
+
+
     def __init__(self, hunits=[2, 3, 1], shrinkage='glasso',
                  activation=nn.ReLU(), final_activation=nn.ReLU(),
-                 seperated=True, bijected=True,
+                 seperated=True, bijected=True, alpha_type='cdf',
                  no_basis=20):
         super().__init__()
         self.no_basis = no_basis
@@ -25,24 +26,22 @@ class H(nn.Module, Model_util):
         self.bijected = bijected
 
         # define the model components
-        self.bnn = ShrinkageBNN(hunits, activation, final_activation, shrinkage, seperated, bijected)
+        self.bnn = ShrinkageBNN(hunits, activation, final_activation, shrinkage,
+                                seperated=seperated, bijected=bijected, prior='flat')
         self.gam = GAM(no_basis=no_basis)
+
+        self.alpha = { # all of the below are properties!
+            'cdf':  lambda: self.bnn.layers[0].alpha,
+            'Be': lambda: self.bnn.layers[0].alpha_probab,
+            'constant': lambda: self.bnn.layers[0].alpha_const
+        }[alpha_type]
 
         self.reset_parameters()
 
-        self.a = list()
+
 
     def forward(self, X, Z):
-        self.a.append(self.alpha)
-        return self.bnn.forward(X) + self.alpha * self.gam.forward(Z)
-
-    @property
-    def alpha(self):
-        return self.bnn.layers[0].alpha
-
-    # @property
-    # def alpha(self):
-    #     return self.bnn.layers[0].alpha_probab
+        return self.bnn.forward(X) + self.alpha() * self.gam.forward(Z)
 
     def prior_log_prob(self):
         """surrogate for the hidden layers' prior log prob"""
@@ -96,6 +95,12 @@ class H(nn.Module, Model_util):
         df['true'] = self.forward(X, Z).view(X.shape[0], ).numpy()
         df_gam['true'] = self.gam.forward(Z).view(X.shape[0], ).numpy()
 
+        # predict true model
+        if hasattr(self, 'init_model'):
+            self.load_state_dict(self.init_model)
+            df['init'] = self.forward(X, Z).view(X.shape[0], ).numpy()
+            df_gam['init'] = self.gam.forward(Z).view(X.shape[0], ).numpy()
+
         # predict chain
         if chain is not None:
             for i, c in enumerate(chain):
@@ -112,7 +117,6 @@ class H(nn.Module, Model_util):
         # predict the entire model
         df0, df1 = self._predict_states(X, Z, chain)  # df1 is gam only prediction
 
-
         plt1 = self.plot2d(X, y, df0, **kwargs)
 
         # predict merely the GAM part to ensure it does not deteriorate
@@ -127,8 +131,6 @@ class H(nn.Module, Model_util):
         else:
             plt1.savefig('{}.png'.format(path), bbox_inches='tight')
             plt2.savefig('{}_GAM.png'.format(path), bbox_inches='tight')
-
-
 
 
 if __name__ == '__main__':
@@ -149,17 +151,16 @@ if __name__ == '__main__':
     # X_joint = torch.cat([X, Z], dim=1)
     # X_joint.requires_grad_(True)
 
-    h = H(hunits=[2, 10, 1], bijected=True)
+    h = StructuredBNN(hunits=[2, 10, 1], bijected=True)
     h.reset_parameters(True)
     h.true_model = deepcopy(h.state_dict())
     # L = h(X).sum()
     # L.backward()
 
-
     # h.alpha
     # h.h1.layers
 
-    y = h.likelihood(X,Z).sample()
+    y = h.likelihood(X, Z).sample()
     # h.plot(X, Z, y) # Fixme: canvas fails
 
     # check sampling ability.
@@ -170,25 +171,25 @@ if __name__ == '__main__':
 
     trainset = TensorDataset(X, Z, y)
     trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
-    #
-    # Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
-    #            'SGRLD': myRSGLD,  # epsilon
-    #            'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
-    #            }['RHMC']
-    #
-    # # h.reset_parameters(False)
-    # # glasso.plot(X_joint, y)
-    #
-    # torch.autograd.set_detect_anomaly(True)
-    # h.reset_parameters()
-    # sampler = Sampler(h, epsilon=0.001, L=2)
-    # sampler.sample(trainloader, burn_in, n_samples)
-    #
-    # print(sampler.chain_mat)
-    # print(sampler.model.a)
-    # import random
-    # h.plot(X[:100], Z[:100], y[:100],  chain=random.sample(sampler.chain, 100),
-    #             **{'title': 'structuredBNN'})
+
+    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+               'SGRLD': myRSGLD,  # epsilon
+               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+               }['RHMC']
+
+    # h.reset_parameters(False)
+    # glasso.plot(X_joint, y)
+
+    torch.autograd.set_detect_anomaly(True)
+    h.reset_parameters()
+    sampler = Sampler(h, epsilon=0.001, L=2)
+    sampler.sample(trainloader, burn_in, n_samples)
+
+    print(sampler.chain_mat)
+    print(sampler.model.a)
+    import random
+    h.plot(X[:100], Z[:100], y[:100],  chain=random.sample(sampler.chain, 100),
+                **{'title': 'structuredBNN'})
 
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
 

@@ -136,11 +136,7 @@ class Group_lasso(Hidden):
 
         # 1- : since small tau indicate high shrinkage & the possibility to
         # estimate using GAM, this means that alpha should be (close to) 1
-        return  1 - self.dist['alpha'].cdf(tau)
-
-    # @property
-    # def alpha(self):
-    #     return torch.tensor(1.)
+        return 1 - self.dist['alpha'].cdf(tau)
 
 
     @property
@@ -165,10 +161,13 @@ class Group_lasso(Hidden):
         if pi.item() < 0.01:
             pi = torch.tensor([0.01])
         print(pi)
-        delta = td.Bernoulli(pi).sample() # FIXME despite working on its own seems to cause an error in the sampler
+        delta = td.Bernoulli(pi).sample()  # FIXME despite working on its own seems to cause an error in the sampler
         print(delta)
         return delta
 
+    @property
+    def alpha_const(self):
+        return torch.tensor(1.)
 
 if __name__ == '__main__':
     # generate data
