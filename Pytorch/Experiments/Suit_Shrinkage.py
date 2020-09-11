@@ -53,7 +53,7 @@ run = name + '_SGLD'
 root = rooting(run)
 
 bnn_unittest = cls_Grid(root)
-prelim_configs = bnn_unittest.grid_exec_SGLD(steps, epsilons=, batch_size=batch)
+prelim_configs = bnn_unittest.grid_exec_SGLD(steps, batch_size=batch)
 
 for config in prelim_configs:
     bnn_unittest.main(
