@@ -46,6 +46,10 @@ class Grid:
             name=self.__class__.__name__))
         self.root = root
         self.pathresults = root
+        # Result folder
+        result = '/'.join(self.pathresults.split('/')[:-2])
+        if not os.path.isdir(result):
+            os.mkdir(result)
         if not os.path.isdir(self.pathresults):
             os.mkdir(self.pathresults)
 
