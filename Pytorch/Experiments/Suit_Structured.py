@@ -43,7 +43,7 @@ run = name + '_MALA'
 root = rooting(run)
 
 bnn_unittest = cls_Grid(root)
-prelim_configs = bnn_unittest.grid_exec_MALA(steps, batch_size=batch)
+prelim_configs = bnn_unittest.grid_exec_MALA(steps=steps, batch_size=batch)
 
 for config in prelim_configs:
     bnn_unittest.main(
@@ -56,7 +56,7 @@ run = name + '_SGLD'
 root = rooting(run)
 
 bnn_unittest = cls_Grid(root)
-prelim_configs = bnn_unittest.grid_exec_SGLD(steps, batch_size=batch)
+prelim_configs = bnn_unittest.grid_exec_SGLD(steps=steps, batch_size=batch)
 
 for config in prelim_configs:
     bnn_unittest.main(
@@ -82,7 +82,7 @@ run = name + '_SGRLD'
 root = rooting(run)
 
 bnn_unittest = cls_Grid(root)
-prelim_configs = bnn_unittest.grid_exec_SGRLD(steps=steps, batch_size=100)
+prelim_configs = bnn_unittest.grid_exec_SGRLD(steps=steps, batch_size=batch)
 
 for config in prelim_configs:
     bnn_unittest.main(
@@ -95,7 +95,7 @@ run = name + '_SGRHMC'
 root = rooting(run)
 
 bnn_unittest = cls_Grid(root)
-prelim_configs = bnn_unittest.grid_exec_SGRHMC(steps, batch)
+prelim_configs = bnn_unittest.grid_exec_SGRHMC(steps=steps, batch_size=batch)
 
 for config in prelim_configs:
     bnn_unittest.main(
