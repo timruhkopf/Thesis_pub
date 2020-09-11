@@ -134,7 +134,7 @@ if __name__ == '__main__':
 
     model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
                        final_activation=nn.Identity(),
-                       shrinkage='glasso', seperated=True, bijected=True,
+                       seperated=True, bijected=True,
                        heteroscedast=False)
 
     for config in prelim_configs:

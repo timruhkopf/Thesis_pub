@@ -8,10 +8,14 @@ from Pytorch.Models.GAM import GAM
 from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
 from Pytorch.Util.ModelUtil import Model_util
 
+from copy import deepcopy
+
+import matplotlib
+
+matplotlib.use('agg')
 
 
 class StructuredBNN(nn.Module, Model_util):
-
 
     def __init__(self, hunits=[2, 3, 1], shrinkage='glasso',
                  activation=nn.ReLU(), final_activation=nn.ReLU(),
