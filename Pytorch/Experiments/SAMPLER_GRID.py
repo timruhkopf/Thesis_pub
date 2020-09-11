@@ -102,9 +102,9 @@ class SAMPLER_GRID:
         # TODO: Check each Grid to be runnable configs & the defaults of param included in grid defaults
         # ludwig based
 
-    def grid_exec_MALA(self, steps, batch_size, epsilons=np.arange(0.0001, 0.03, 0.003)):
+    def grid_exec_MALA(self, steps, epsilons=np.arange(0.0001, 0.03, 0.003)):
         for epsilon in epsilons:
-            yield dict(epsilon=epsilon, num_steps=steps, batch_size=batch_size, pretrain=False,
+            yield dict(epsilon=epsilon, num_steps=steps, pretrain=False,
                        tune=False, burn_in=int(steps * 0.10), num_chains=1)
 
     def grid_exec_SGLD(self, steps, batch_size, epsilons=np.arange(0.0001, 0.03, 0.003)):
