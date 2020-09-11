@@ -100,36 +100,61 @@ class Hidden(nn.Module, Model_util):
         make sure to pass self.log_prob to the sampler, since self.my_log_prob
         is a convenience mask
 
-        Notice, that self.log_prob has two modes operandi:
-        (1) self.log_prob(X,y), which returns the log_prob with current state of
+         self.log_prob(X,y), which returns the log_prob with current state of
         'parameters'. This is particularly handy with optim based samplers,
         since 'parameters' are literally nn.Parameters and update their state based
-        on optim proposals (always up to date)
-
-        (2) self.log_prob(X,y, vec), modus is available iff inherits from VecModel
-        (-> and used for vec based samplers such as Hamiltorchs). When vec,
-        the vector representation (1D Tensor) of the model is provided, the model's
-        surrogate 'parameter' (not nn.Parameter) are updated - and the models state
-        under vec is evaluated for X & y
-
-        Irrespective of the mode choice, the self.log_prob operates as a SG-Flavour,
-        i.e. is called with ever new X & y batches. However, working with Samplers
-        operating on the entire Dataset at every step, the method can be modified
-        calling  self.closure_log_prob(X, y) to fix every consequent call to
-        self.log_prob()  or self.log_prob(vec) on the provided dataset X, y
-        (using functools.partial)"""
+        on optim proposals (always up to date)"""
         return self.prior_log_prob().sum() + \
                self.likelihood(X).log_prob(y).sum()
 
 
+class Hidden_flat(Hidden):
+    def define_model(self):
+        """
+        formulate the model with truncated flat priors
+        :return:
+        """
+        self.dist = {'W': td.Uniform(torch.ones(self.no_in, self.no_out) * -100.,
+                                     torch.ones(self.no_in, self.no_out) * 100)}  # todo refactor this to td.Normal()
+
+        self.W = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
+
+        if self.has_bias:
+            self.dist['b'] = td.Uniform(torch.ones(self.no_out) * -100.,
+                                        torch.ones(self.no_out) * 100)
+            self.b = nn.Parameter(torch.Tensor(self.no_out))
+
+    def prior_log_prob(self):
+        value = torch.tensor(0.)
+        for name in self.p_names:
+            value += self.dist[name].log_prob(self.get_param(name)).sum()
+
+        return value
+
+
 if __name__ == '__main__':
+    from copy import deepcopy
+
     no_in = 2
     no_out = 1
     n = 1000
 
+    flat = Hidden_flat(no_in, no_out, bias=True, activation=nn.ReLU())
+    flat.true_model = deepcopy(flat.state_dict())
+    flat.forward(X=torch.ones(100, no_in))
+
+    X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
+    X = X_dist.sample(torch.Size([n]))
+    y = flat.likelihood(X).sample()
+
+    flat.prior_log_prob()
+    flat.reset_parameters()
+    flat.plot(X, y)
+
+
     # single Hidden Unit Example
     reg = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
-    reg.true_model = reg.state_dict()
+    reg.true_model = deepcopy(reg.state_dict())
 
     # reg.W = reg.W_.data
     # reg.b = reg.b_.data
@@ -197,6 +222,7 @@ if __name__ == '__main__':
 
     # traceplots
     import pandas as pd
+
     df = pd.DataFrame(sgnht.chain_mat)
     df.plot(subplots=True, title='Traces')
 

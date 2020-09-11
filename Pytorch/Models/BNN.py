@@ -3,12 +3,15 @@ import torch.nn as nn
 import torch.distributions as td
 import inspect
 
-from Pytorch.Layer.Hidden import Hidden
+from Pytorch.Layer.Hidden import Hidden, Hidden_flat
 from Pytorch.Util.ModelUtil import Model_util
 
 
 class BNN(nn.Module, Model_util):
-    def __init__(self, hunits=[1, 10, 5, 1], activation=nn.ReLU(), final_activation=nn.Identity(), heteroscedast=False):
+    L = {'flat': Hidden_flat, 'normal': Hidden}
+
+    def __init__(self, hunits=[1, 10, 5, 1], activation=nn.ReLU(), final_activation=nn.Identity(),
+                 heteroscedast=False, prior='flat'):
         """
         Bayesian Neural Network, consisting of hidden layers.
         :param hunits: list of integers, specifying the input dimensions of hidden units
@@ -20,6 +23,7 @@ class BNN(nn.Module, Model_util):
         """
         nn.Module.__init__(self)
         self.heteroscedast = heteroscedast
+        self.prior = prior
         self.hunits = hunits
         self.activation = activation
         self.final_activation = final_activation
@@ -31,11 +35,12 @@ class BNN(nn.Module, Model_util):
 
     # CLASSICS METHODS ---------------------------------------------------------
     def define_model(self):
+        L = self.L[self.prior]
         # Defining the layers depending on the mode.
         self.layers = nn.Sequential(
-            *[Hidden(no_in, no_units, True, self.activation)
+            *[L(no_in, no_units, True, self.activation)
               for no_in, no_units in zip(self.hunits[:-2], self.hunits[1:-1])],
-            Hidden(self.hunits[-2], self.hunits[-1], bias=False, activation=self.final_activation))
+            L(self.hunits[-2], self.hunits[-1], bias=False, activation=self.final_activation))
 
         if self.heteroscedast:
             self.sigma_ = nn.Parameter(torch.Tensor(1))
@@ -83,10 +88,10 @@ class BNN(nn.Module, Model_util):
 
 
 if __name__ == '__main__':
-    no_in = 1
+    no_in = 2
     no_out = 1
     n = 1000
-    bnn = BNN(hunits=[no_in, 10, 5, no_out], activation=nn.ReLU())
+    bnn = BNN(hunits=[no_in, 10, 5, no_out], activation=nn.ReLU(), prior='flat')
 
     # generate data
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
@@ -97,7 +102,7 @@ if __name__ == '__main__':
     bnn.true_model = deepcopy(bnn.state_dict())
     y = bnn.likelihood(X).sample()
 
-    # bnn.reset_parameters()
+    bnn.reset_parameters()
     bnn.plot(X, y)
 
     # check forward path
