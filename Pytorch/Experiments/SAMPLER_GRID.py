@@ -107,8 +107,8 @@ class SAMPLER_GRID:
             yield dict(epsilon=epsilon, num_steps=steps, pretrain=False,
                        tune=False, burn_in=int(steps * 0.10), num_chains=1)
 
-    def grid_exec_SGLD(self, steps, batch_size, epsilons=np.arange(0.0001, 0.03, 0.003)):
-        return self.grid_exec_MALA(steps, epsilons, batch_size)
+    def grid_exec_SGLD(self, steps, epsilons=np.arange(0.0001, 0.03, 0.003)):
+        return self.grid_exec_MALA(steps, epsilons)
 
     def grid_exec_SGNHT(self, steps, batch_size,
                         epsilons=np.arange(0.0001, 0.03, 0.003),

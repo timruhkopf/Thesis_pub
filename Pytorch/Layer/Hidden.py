@@ -149,11 +149,12 @@ if __name__ == '__main__':
 
     flat.prior_log_prob()
     flat.reset_parameters()
+    flat.init_model = deepcopy(flat.state_dict())
     flat.plot(X, y)
 
 
     # single Hidden Unit Example
-    reg = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
+    reg = Hidden(no_in, no_out, bias=True, activation=nn.ReLU())
     reg.true_model = deepcopy(reg.state_dict())
 
     # reg.W = reg.W_.data
@@ -166,6 +167,7 @@ if __name__ == '__main__':
     X = X_dist.sample(torch.Size([n]))
     y = reg.likelihood(X).sample()
 
+    reg.plot(X, y)
     print(reg.log_prob(X, y))
 
     # Estimation example
@@ -181,8 +183,11 @@ if __name__ == '__main__':
                'SGRLD': myRSGLD,  # epsilon
                'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
                }['RHMC']
-    sampler = Sampler(reg, epsilon=0.001, L=2)
+    sampler = Sampler(flat, epsilon=0.001, L=2)
     sampler.sample(trainloader, burn_in, n_samples)
+    import random
+
+    sampler.model.plot(X, y, random.sample(sampler.chain, 20))
 
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
 

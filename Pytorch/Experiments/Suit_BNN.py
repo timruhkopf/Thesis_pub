@@ -13,18 +13,17 @@ n = 1000
 n_val = 100
 batch = 100
 
-
 rooting = lambda run: os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
     os.getcwd() + '/Results/{}/'.format(run)
 
-steps = 1000
-n = 1000
+steps = 100
+n = 100
 n_val = 100
 batch = 100
 
 model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
                    final_activation=nn.Identity(),
-
+                   prior='normal',
                    heteroscedast=False)
 
 rooting = lambda run: os.getcwd() + '/Results/{}/'.format(run) \
@@ -70,7 +69,7 @@ run = name + '_SGLD'
 root = rooting(run)
 
 bnn_unittest = cls_Grid(root)
-prelim_configs = bnn_unittest.grid_exec_SGLD(steps=steps, batch_size=batch)
+prelim_configs = bnn_unittest.grid_exec_SGLD(steps=steps)
 
 for config in prelim_configs:
     try:
@@ -112,6 +111,7 @@ for config in prelim_configs:
             sampler_name='SGRLD', sampler_param=config)
     except:
         print('SGRLD failed')
+
 # (5) SGRHMC -------------------------------------------------
 
 run = name + '_SGRHMC'
