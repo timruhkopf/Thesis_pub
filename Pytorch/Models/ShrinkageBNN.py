@@ -101,7 +101,7 @@ if __name__ == '__main__':
 
     sbnn.reset_parameters(seperated=False)
     sbnn.plot(X, y, **{'title': 'Shrinkage BNN @ init'},
-              path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Shrinkage_BNN_RHMC_prelim/init')
+              path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/init')
 
     sampler = Sampler(sbnn, epsilon=0.001, L=2)
     sampler.sample(trainloader, burn_in, n_samples)
@@ -109,13 +109,13 @@ if __name__ == '__main__':
     import random
 
     sampler.model.plot(X, y, chain=random.sample(sampler.chain, 30),
-                       path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Shrinkage_BNN_RHMC_prelim'
+                       path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results'
                             '/datamodel',
                        **{'title': 'Shrinkage BNN with subsampled chain'})
-    sampler.traceplots(path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Shrinkage_BNN_RHMC_prelim'
+    sampler.traceplots(path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results'
                             '/traceplot')
     sampler.acf_plots(nlags=500,
-                      path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Shrinkage_BNN_RHMC_prelim'
+                      path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results'
                            '/acf')
 
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
@@ -134,8 +134,13 @@ if __name__ == '__main__':
     val_converge_criterion = 20
     val_per_epoch = 200
 
+    burn_in, n_samples = 100, 1000
+
+    trainset = TensorDataset(X, y)
+    trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
+
     sbnn.reset_parameters()
-    sgnht = SGNHT(sbnn, X, y, X.shape[0],
+    sgnht = SGNHT(sbnn, trainloader,
                   step_size, num_steps, burn_in, pretrain=pretrain, tune=tune,
                   L=L,
                   num_chains=num_chains)

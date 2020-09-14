@@ -142,8 +142,9 @@ class Structured_BNN_Grid(Grid, SAMPLER_GRID):
 
         plt.close('all')
         return {'ess_min': sampler.ess_min,
-                'avg_MSE_diff': mse_diff.detach().numpy(),
-                'avg_log_prob_diff': log_diff.detach().numpy()}
+                'avg_MSE_diff': mse_diff.detach().numpy(), 'true_MSE': sampler.model.val_MSE.detach().numpy(),
+                'avg_log_prob_diff': log_diff.detach().numpy(),
+                'true_log_prob': sampler.model.val_logprob.detach().numpy()}
 
 
 if __name__ == '__main__':

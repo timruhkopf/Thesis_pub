@@ -79,7 +79,7 @@ class Grid:
                 import sys
                 import traceback
 
-                with open(self.pathresults + '{}.log'.format(self.hash), 'a') as file:
+                with open(self.pathresults + '{}_{}.log'.format(self.runfolder, self.hash), 'a') as file:
                     # catch the entire error message:
                     # exc_type, exc_value, exc_traceback = sys.exc_info()
                     file.write('\n' + traceback.format_exc() + '\n')
@@ -119,7 +119,7 @@ class Grid:
         config['model_class'] = config['model_class'].__name__
         config1 = pd.json_normalize(config, sep='_')
 
-        df = pd.DataFrame({**{'id': self.hash, 'success': success}, **metrics, **config1}, index=None)
+        df = pd.DataFrame({**{'id': self.hash, 'success': success}, **config1, **metrics}, index=None)
 
         # if order is not None:
         #     df = df[order + [col for col in df.columns if col not in order]]

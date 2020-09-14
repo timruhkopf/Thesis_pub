@@ -34,7 +34,7 @@ class GAM(Hidden):
 
             # replaced Bspline_K with the actual penalize call for K
             from Tensorflow.Effects.SamplerPrecision import penalize_nullspace
-            sig_Q = 1.
+            sig_Q = 0.95
             sig_Q0 = 0.05
             threshold = 10 ** -3
 
