@@ -86,6 +86,7 @@ class Grid:
                     file.write('ERROR triggered by main(args:{}, kwargs:{}) \n'.format(
                         str(args), str(kwargs)))
 
+            matplotlib.pyplot.close('all')
             # print to console if run was a success
             print({'id': [self.hash], 'success': [success], 'config': [str(args) + str(kwargs)]})
 
@@ -114,10 +115,14 @@ class Grid:
                 file.write(line + '\n')
             file.close()
 
-    def write_to_table(self, success, config, metrics={}):
+    def write_to_table(self, success, config, metrics={}, order=None):
+        config['model_class'] = config['model_class'].__name__
         config1 = pd.json_normalize(config, sep='_')
-        config1.model_class = config1.model_class.map(lambda x: x.__name__)
-        df = pd.DataFrame({**{'id': self.hash, 'success': success}, **config1, **metrics}, index=None)
+
+        df = pd.DataFrame({**{'id': self.hash, 'success': success}, **metrics, **config1}, index=None)
+
+        # if order is not None:
+        #     df = df[order + [col for col in df.columns if col not in order]]
 
         # critical section: reference in bash different compared to
         # debug call from subclass' module

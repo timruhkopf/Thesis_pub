@@ -11,7 +11,7 @@ class BNN(nn.Module, Model_util):
     L = {'flat': Hidden_flat, 'normal': Hidden}
 
     def __init__(self, hunits=[1, 10, 5, 1], activation=nn.ReLU(), final_activation=nn.Identity(),
-                 heteroscedast=False, prior='flat'):
+                 heteroscedast=False, prior='normal'):
         """
         Bayesian Neural Network, consisting of hidden layers.
         :param hunits: list of integers, specifying the input dimensions of hidden units
