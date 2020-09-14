@@ -51,7 +51,10 @@ class Grid:
         result = '/'.join(self.pathresults.split('/')[:-2])
         self.runfolder = self.pathresults.split('/')[-2]
         if not os.path.isdir(result):
-            os.mkdir(result)
+            try:
+                os.mkdir(result)
+            except FileExistsError:
+                print('file result existed, still continuing')
         if not os.path.isdir(self.pathresults):
             os.mkdir(self.pathresults)
 
@@ -79,7 +82,7 @@ class Grid:
                 import sys
                 import traceback
 
-                with open(self.pathresults + '{}.log'.format(self.hash), 'a') as file:
+                with open(self.pathresults + '{}_{}.log'.format(self.runfolder, self.hash), 'a') as file:
                     # catch the entire error message:
                     # exc_type, exc_value, exc_traceback = sys.exc_info()
                     file.write('\n' + traceback.format_exc() + '\n')
@@ -117,9 +120,9 @@ class Grid:
 
     def write_to_table(self, success, config, metrics={}, order=None):
         config['model_class'] = config['model_class'].__name__
-        config1 = pd.json_normalize(config, sep='_')
+        config1 = pd.io.json.json_normalize(config, sep='_')  # pd.json_normalize()
 
-        df = pd.DataFrame({**{'id': self.hash, 'success': success}, **metrics, **config1}, index=None)
+        df = pd.DataFrame({**{'id': self.hash, 'success': success}, **config1, **metrics}, index=None)
 
         # if order is not None:
         #     df = df[order + [col for col in df.columns if col not in order]]

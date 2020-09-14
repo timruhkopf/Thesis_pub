@@ -15,7 +15,7 @@ from Pytorch.Experiments.SAMPLER_GRID import SAMPLER_GRID
 
 
 class GAM_Grid(Grid, SAMPLER_GRID):
-    def main(self, n, n_val, model_param, sampler_param, sampler_name='sgnht'):
+    def main(self, n, n_val, model_class, model_param, sampler_name, sampler_param, seperated=False):
         """
 
         :param n:
@@ -27,6 +27,7 @@ class GAM_Grid(Grid, SAMPLER_GRID):
         and written to Grid's result table
         """
         import torch
+        self.model_class = model_class
         self.basename = self.pathresults + 'GAM_{}'.format(sampler_name) + self.hash
         # set up device
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -66,7 +67,7 @@ class GAM_Grid(Grid, SAMPLER_GRID):
         Z_val = torch.tensor(get_design(X_val.numpy(), degree=2, no_basis=model_param['no_basis']),
                              dtype=torch.float32, requires_grad=False)
 
-        self.model = GAM(order=1, **model_param)
+        self.model = self.model_class(**model_param)
         self.model.to(self.device)
         self.model.reset_parameters(mode='U-MVN')
         print('state: ', self.model.state_dict())
@@ -74,8 +75,8 @@ class GAM_Grid(Grid, SAMPLER_GRID):
         y = self.model.likelihood(Z).sample()
         y_val = self.model.likelihood(Z_val).sample()
 
-        self.data = (X, Z, y)
-        self.data_val = (X_val, Z_val, y_val)
+        self.data = (Z, y)
+        self.data_val = (X_val, y_val)
 
         # save the true state & true model's performance on validation
         self.model.true_model = deepcopy(self.model.state_dict())
@@ -147,8 +148,9 @@ class GAM_Grid(Grid, SAMPLER_GRID):
 
         plt.close('all')
         return {'ess_min': sampler.ess_min,
-                'avg_MSE_diff': mse_diff.detach().numpy(),
-                'avg_log_prob_diff': log_diff.detach().numpy()}
+                'avg_MSE_diff': mse_diff.detach().numpy(), 'true_MSE': sampler.model.val_MSE.detach().numpy(),
+                'avg_log_prob_diff': log_diff.detach().numpy(),
+                'true_log_prob': sampler.model.val_logprob.detach().numpy()}
 
 
 
