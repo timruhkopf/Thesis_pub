@@ -38,10 +38,11 @@ class GAM(Hidden):
             sig_Q0 = 0.05
             threshold = 10 ** -3
 
-            Sigma, penQ = penalize_nullspace(self.K.numpy(), sig_Q, sig_Q0, threshold, plot=False)
+            Sigma, penQ = penalize_nullspace(self.K.numpy(), sig_Q, sig_Q0, threshold, plot=True)
             self.K = torch.from_numpy(penQ).clone().detach().type(torch.FloatTensor)
 
         self.cov = torch.inverse(self.K[1:, 1:])  # FIXME: Multivariate Normal cholesky decomp fails!
+        print(self.cov)
 
         Hidden.__init__(self, no_basis, no_out, bias=False, activation=activation)
 
@@ -69,7 +70,7 @@ class GAM(Hidden):
         # Notice, the explicit prior formulation of W does not allow an update of W's tau here:
         # instead it must be updated in prior_log_prob explicitly
 
-    def reset_parameters(self, tau=torch.tensor([1.]), mode='U-MVN'):
+    def reset_parameters(self, tau=torch.tensor([1.]), mode='cum'):
         """
         Sample the prior model, instantiating the data model
         :param xgrid: defining space for the Bspline expansion. Notice, that
@@ -163,12 +164,12 @@ if __name__ == '__main__':
     gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=True)
     # gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=False)
 
-    gam.reset_parameters(mode='U-MVN')
+    gam.reset_parameters(mode='cum')
     # gam.reset_parameters(tau=torch.tensor([0.01]))
     gam.true_model = deepcopy(gam.state_dict())
     y = gam.likelihood(Z).sample()
 
-    gam.reset_parameters(tau=torch.tensor([0.01]))
+    gam.reset_parameters(tau=torch.tensor([2.]))
     gam.plot(X, y)
 
     gam.forward(Z)
@@ -208,6 +209,7 @@ if __name__ == '__main__':
     sgnht.sample()
 
     print(sgnht.chain)
+
     if len(sgnht.chain) == 1:
         raise ValueError('The chain did not progress beyond first step')
 

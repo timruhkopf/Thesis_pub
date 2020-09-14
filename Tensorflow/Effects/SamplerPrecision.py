@@ -164,8 +164,8 @@ def penalize_nullspace(Q, sig_Q=0.01, sig_Q0=0.01, threshold=10 ** -3, plot = Fa
     penQ = sig_Q * Q + sig_Q0 * S0
     penSIGMA = np.linalg.inv(penQ)
 
-    print('Eigenvalues: ', eigval, '\n')
-    print('Nullspace Matrix: ', U0)
+    # print('Eigenvalues: ', eigval, '\n')
+    # print('Nullspace Matrix: ', U0)
 
     if plot:
         fig = plt.figure()

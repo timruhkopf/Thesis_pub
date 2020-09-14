@@ -69,7 +69,7 @@ class GAM_Grid(Grid, SAMPLER_GRID):
 
         self.model = self.model_class(**model_param)
         self.model.to(self.device)
-        self.model.reset_parameters(mode='U-MVN')
+        self.model.reset_parameters(mode='cum')
         print('state: ', self.model.state_dict())
 
         y = self.model.likelihood(Z).sample()

@@ -10,7 +10,7 @@ class Bspline_cum(Effects1D):
         super(Bspline_cum, self).__init__(xgrid)
         self._random_coef(size=n_basis, loc=0, scale=coef_scale, seed=seed, **kwargs)
         self._generate_bspline(degree)
-        self.plot_bspline()
+        # self.plot_bspline()
 
     def _random_coef(self, size, seed=None, **kwargs):
         """
