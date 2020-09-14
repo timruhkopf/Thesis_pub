@@ -8,7 +8,7 @@ cls = BNN
 name = cls.__name__
 cls_Grid = BNN_Grid
 
-steps = 10000
+steps = 10000 * 2
 n = 1000
 n_val = 100
 batch = 100
