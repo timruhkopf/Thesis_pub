@@ -5,6 +5,7 @@ from datetime import datetime
 from subprocess import check_output
 
 import matplotlib
+
 matplotlib.use('Agg')
 
 import pandas as pd
@@ -48,16 +49,11 @@ class Grid:
         self.pathresults = root
         # Result folder
         result = '/'.join(self.pathresults.split('/')[:-2])
+        self.runfolder = self.pathresults.split('/')[-2]
         if not os.path.isdir(result):
             os.mkdir(result)
         if not os.path.isdir(self.pathresults):
             os.mkdir(self.pathresults)
-
-        # critical section: reference in bash different compared to
-        # debug call from subclass' module
-        if not os.path.isfile(self.pathresults + 'run_log.csv'):
-            df = pd.DataFrame(columns=['id', 'success', 'config'])
-            df.to_csv(self.pathresults + 'run_log.csv')
 
         self.hash = None
         self._pip_freeze()
@@ -75,11 +71,11 @@ class Grid:
             try:
                 metrics = func(*args, **kwargs)
                 success = True
-                self.write_to_table(success=success, config_str=str(args) + str(kwargs), metrics=metrics)
+                self.write_to_table(success=success, config=kwargs, metrics=metrics)
 
             except Exception as error:
                 success = False
-                self.write_to_table(success=success, config_str=str(args) + str(kwargs))
+                self.write_to_table(success=success, config=kwargs)
                 import sys
                 import traceback
 
@@ -92,6 +88,7 @@ class Grid:
 
             # print to console if run was a success
             print({'id': [self.hash], 'success': [success], 'config': [str(args) + str(kwargs)]})
+
         return wrapper
 
     def main(self, model_config, sampler_config):
@@ -117,9 +114,17 @@ class Grid:
                 file.write(line + '\n')
             file.close()
 
-    def write_to_table(self, success, config_str, metrics={}):
-        df = pd.DataFrame({**{'id': [self.hash], 'success': [success], 'config': [config_str]}, **metrics})
-        df.to_csv(self.pathresults + 'run_log.csv', mode='a', header=False)
+    def write_to_table(self, success, config, metrics={}):
+        config1 = pd.json_normalize(config, sep='_')
+        config1.model_class = config1.model_class.map(lambda x: x.__name__)
+        df = pd.DataFrame({**{'id': self.hash, 'success': success}, **config1, **metrics}, index=None)
+
+        # critical section: reference in bash different compared to
+        # debug call from subclass' module
+        if not os.path.isfile(self.pathresults + '{}_run_log.csv'.format(self.runfolder)):
+            df.to_csv(self.pathresults + '{}_run_log.csv'.format(self.runfolder), header=True)
+        else:
+            df.to_csv(self.pathresults + '{}_run_log.csv'.format(self.runfolder), mode='a', header=False)
 
     # def _log_main_function(self, func):
     #     """
@@ -131,3 +136,8 @@ class Grid:
     #     source = inspect.getsource(func)
     #     with open(self.pathresults + '{}.log'.format(self.hash), 'a') as file:
     #         file.write('\n' + source)
+
+
+if __name__ == '__main__':
+    path = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/BNN_RHMC/BNN_RHMC_run_log.csv'
+    df = pd.read_csv(path)

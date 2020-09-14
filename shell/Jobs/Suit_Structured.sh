@@ -32,10 +32,8 @@ echo 'be aware to change to /Thesis/ and start script using "bash shell/Jobs/Uni
 
 
 # make sure not to add .py ending when calling a module file
-python3 -m Pytorch.Experiments.Suit_Structured  &>/usr/users/truhkop/Thesis/Suit_Structured.out
-#python3 -m Pytorch.Experiments.Hidden_Nuts  &>/usr/users/truhkop/Thesis/Hidden_Nuts_run.out
-#python3 -m Pytorch.Experiments.GAM_Nuts &>/usr/users/truhkop/Thesis/GAM_Nuts_run.out
-# python /home/uni08/truhkop/Masterthesis/Python/test_server_main.py &>/home/uni08/truhkop/results &
+python3 -m Pytorch.Experiments.Suit_Structured # &>/usr/users/truhkop/Thesis/Suit_Structured.out
 
-echo "#### finished successfully ####"
+
+echo "#### finished shell successfully ####"
 wait
