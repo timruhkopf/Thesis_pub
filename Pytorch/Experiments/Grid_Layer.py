@@ -10,11 +10,10 @@ from Pytorch.Util.GridUtil import Grid
 from Pytorch.Experiments.SAMPLER_GRID import SAMPLER_GRID
 from Pytorch.Experiments.Grid_GAM import GAM_Grid
 
+
 class Layer_Grid(Grid, SAMPLER_GRID):
     def main(self, n, n_val, seperated, model_class, model_param, sampler_param, sampler_name):
-        self.basename = self.pathresults + \
-                        '{}_{}'.format(str(model_class.__class__), sampler_name) + \
-                        self.hash
+        self.basename = self.pathresults + '{}_{}_{}'.format(str(model_class.__name__), sampler_name, self.hash)
         self.model_class = model_class
 
         # set up device
@@ -25,12 +24,10 @@ class Layer_Grid(Grid, SAMPLER_GRID):
         no_in = model_param['no_in']
         self.set_up_datamodel(n, n_val, no_in, model_class, seperated, model_param)
 
-
         self.set_up_sampler(self.model, sampler_name, sampler_param)
         metrics = self.evaluate_model(*self.data_val)
 
         return metrics  # to be written on Grid's result table
-
 
     def set_up_datamodel(self, n, n_val, no_in, model_class, seperated, model_param):
 
@@ -39,7 +36,6 @@ class Layer_Grid(Grid, SAMPLER_GRID):
         X_val = X_dist.sample(torch.Size([n_val]))
 
         self.model = model_class(**model_param)
-
 
         if 'seperated' in getfullargspec(self.model.reset_parameters).args:
             self.model.reset_parameters(seperated)
@@ -88,8 +84,8 @@ if __name__ == '__main__':
     # from Pytorch.Layer.Hidden import Hidden
     #
     # run = 'Hidden_test_grid_exec_SGRLD1'
-    # root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-    #     os.getcwd() + '/Results/{}/'.format(run)
+    # root = os.getcwd() + '/Results1/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+    #     os.getcwd() + '/Results1/{}/'.format(run)
     #
     # hidden_unittest = Layer_Grid(root)
     # prelim_configs = hidden_unittest.grid_exec_SGRLD(steps=1000, batch_size=100)
