@@ -21,4 +21,5 @@ cls_Grid = Layer_Grid
 
 model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU())
 
-samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch)
+samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons=np.arange(0.0001, 0.05, 0.002),
+         Ls=[1, 2, 3, 5])

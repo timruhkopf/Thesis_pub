@@ -25,4 +25,5 @@ cls_Grid = GAM_Grid
 model_param = dict(xgrid=(0, 10, 0.5), order=1, no_basis=20, no_out=1,
                    activation=nn.Identity(), bijected=False, penK=True)
 
-samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch)
+samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons=np.arange(0.0001, 0.05, 0.002),
+         Ls=[1, 2, 3, 5])

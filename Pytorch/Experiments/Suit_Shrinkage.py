@@ -4,6 +4,8 @@ from Pytorch.Experiments.Grid_BNN import BNN_Grid
 from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
 
 from Pytorch.Experiments.Suit_Samplers import samplers
+import numpy as np
+
 # (CONFIG) ---------------------------------------------------------------------
 
 cls = ShrinkageBNN
@@ -20,7 +22,8 @@ model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
                    shrinkage='glasso', seperated=True, bijected=True,
                    heteroscedast=False)
 
-rooting = lambda run: os.getcwd() + '/Results/{}/'.format(run) \
-    if os.path.isdir(os.getcwd()) else os.getcwd() + '/Results/{}/'.format(run)
+rooting = lambda run: os.getcwd() + '/Results1/{}/'.format(run) \
+    if os.path.isdir(os.getcwd()) else os.getcwd() + '/Results1/{}/'.format(run)
 
-samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch)
+samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons=np.arange(0.0001, 0.05, 0.002),
+         Ls=[1, 2, 3, 5])
