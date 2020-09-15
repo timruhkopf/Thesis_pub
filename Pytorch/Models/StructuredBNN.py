@@ -65,6 +65,7 @@ class StructuredBNN(nn.Module, Model_util):
         # Resample the BNN part
         self.bnn.reset_parameters(seperated)
         self.gam.reset_parameters(**kwargs)
+        self.init_model = deepcopy(self.state_dict())
 
     def update_distributions(self):
         self.gam.update_distributions()

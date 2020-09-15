@@ -6,6 +6,8 @@ import inspect
 from Pytorch.Layer.Hidden import Hidden, Hidden_flat
 from Pytorch.Util.ModelUtil import Model_util
 
+from copy import deepcopy
+
 
 class BNN(nn.Module, Model_util):
     L = {'flat': Hidden_flat, 'normal': Hidden}
@@ -64,6 +66,8 @@ class BNN(nn.Module, Model_util):
 
         for h in self.layers[1:]:
             h.reset_parameters()
+
+        self.init_model = deepcopy(self.state_dict())
 
     def prior_log_prob(self):
         """surrogate for the hidden layers' prior log prob"""

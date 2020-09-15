@@ -27,18 +27,22 @@ class Plots:
         df = pd.DataFrame()
         X = args[0]
         # predict current state
-        df['current'] = self.forward(*args).view(X.shape[0],).numpy()
+        df['current'] = self.forward(*args).view(X.shape[0], ).numpy()
         current = deepcopy(self.state_dict())
 
         # predict true model
         self.load_state_dict(self.true_model)
-        df['true'] = self.forward(*args).view(X.shape[0],).numpy()
+        df['true'] = self.forward(*args).view(X.shape[0], ).numpy()
+
+        if hasattr(self, 'init_model'):
+            self.load_state_dict(self.init_model)
+            df['init'] = self.forward(*args).view(X.shape[0], ).numpy()
 
         # predict chain
         if chain is not None:
             for i, c in enumerate(chain):
                 self.load_state_dict(c)
-                df[str(i)] = self.forward(*args).view(X.shape[0],).numpy()
+                df[str(i)] = self.forward(*args).view(X.shape[0], ).numpy()
 
             # return to current state
             self.load_state_dict(current)
@@ -126,7 +130,7 @@ class Plots:
             if k != 'true':
                 ax1.scatter(X[:, 0], X[:, 1], v,
                             marker='.', s=7, color=c, alpha=0.3, label = k)
-        ax1.legend()
+        ax1.legend(loc='upper left', )
         return plt
 
 

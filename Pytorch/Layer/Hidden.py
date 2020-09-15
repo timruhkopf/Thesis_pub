@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 
+from copy import deepcopy
 from Pytorch.Util.ModelUtil import Model_util
 
 
@@ -60,6 +61,8 @@ class Hidden(nn.Module, Model_util):
 
         if self.has_bias:
             nn.init.normal_(self.b)
+
+        self.init_model = deepcopy(self.state_dict())
 
     def update_distributions(self):
         # here no hierarchical distributions exists

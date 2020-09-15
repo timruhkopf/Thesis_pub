@@ -38,7 +38,7 @@ class GAM(Hidden):
             sig_Q0 = 0.05
             threshold = 10 ** -3
 
-            Sigma, penQ = penalize_nullspace(self.K.numpy(), sig_Q, sig_Q0, threshold, plot=True)
+            Sigma, penQ = penalize_nullspace(self.K.numpy(), sig_Q, sig_Q0, threshold, plot=False)
             self.K = torch.from_numpy(penQ).clone().detach().type(torch.FloatTensor)
 
         self.cov = torch.inverse(self.K[1:, 1:])  # FIXME: Multivariate Normal cholesky decomp fails!
@@ -118,6 +118,8 @@ class GAM(Hidden):
 
         else:
             raise ValueError('Mode is incorreclty specified')
+
+        self.init_model = deepcopy(self.state_dict())
 
     def prior_log_prob(self):
         """
