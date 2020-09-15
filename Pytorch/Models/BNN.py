@@ -86,6 +86,10 @@ class BNN(nn.Module, Model_util):
         for h in self.layers:
             h.update_distributions()
 
+    @staticmethod
+    def check_chain(chain):
+        return Model_util.check_chain_seq(chain)
+
 
 if __name__ == '__main__':
     no_in = 2

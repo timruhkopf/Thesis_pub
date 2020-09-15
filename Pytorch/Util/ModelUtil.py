@@ -2,6 +2,8 @@ import torch
 import torch.distributions as td
 from Pytorch.Util.plotUtil import Plots
 
+from math import prod
+
 
 class Model_util(Plots):
 
@@ -74,3 +76,39 @@ class Model_util(Plots):
                 d.update({str(i): self.forward(*args)})
 
         return d
+
+    @staticmethod
+    def check_chain(chain):
+        """method, that sampler interfaces call to ensure chain did actually
+        do something meaningfull. This is the default method for non nn.Sequential based models.
+        Overwrite this method for any nn.Sequential based method"""
+        if len(chain) == 1:
+            print(chain)
+            raise RuntimeError('The chain did not progress beyond first step')
+
+        if any([torch.any(torch.isnan(v)) if v.nelement() != 1 else torch.isnan(v)
+                for chain in (chain[-1].values(), chain[0].values())
+                for v in chain]):
+            print(chain[0], chain[-1])
+            raise RuntimeError('first and last entry contain nan')
+
+        if all(all(a == b) for a, b in zip(chain[0].values(), chain[-1].values())):
+            print(chain[0], chain[-1])
+            raise RuntimeError('first and last entry are the same')
+
+    @staticmethod
+    def check_chain_seq(chain):
+        if len(chain) == 1:
+            print(chain)
+            raise RuntimeError('The chain did not progress beyond first step')
+
+        if any([torch.any(torch.isnan(v)) if v.nelement() != 1 else torch.isnan(v)
+                for chain in (chain[-1].values(), chain[0].values())
+                for v in chain]):
+            print(chain[0], chain[-1])
+            raise RuntimeError('first and last entry contain nan')
+
+        if all(all(a.view(prod(a.shape)) == b.view(prod(a.shape))) for a, b in
+               zip(chain[0].values(), chain[-1].values())):
+            print(chain[0], '\n', chain[-1])
+            raise RuntimeError('first and last entry are the same')

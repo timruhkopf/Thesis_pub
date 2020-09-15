@@ -44,7 +44,7 @@ class Geoopt_interface(Sampler):
             # if not all([all(state[k] == v) for k, v in samples[-1].items()]): # this is imprecise
             self.chain.append(state)
 
-        self.check_chain()
+        self.model.check_chain(self.chain)
 
         print('\nSampling')
         points = []
@@ -59,7 +59,7 @@ class Geoopt_interface(Sampler):
             # if not all([all(state[k] == v) for k, v in samples[-1].items()]): # this is imprecise
             self.chain.append(state)
 
-        self.check_chain()
+        self.model.check_chain(self.chain)
         self.log_probs = torch.tensor(self.log_probs[burn_in:])
         self.state
         self.n_rejected
@@ -67,16 +67,7 @@ class Geoopt_interface(Sampler):
 
         return self.chain
 
-    def check_chain(self):
-        if len(self.chain) == 1:
-            print(self.chain)
-            raise ValueError('The chain did not progress beyond first step')
 
-        if any([torch.any(torch.isnan(v)) if v.nelement() != 1 else torch.isnan(v)
-                for chain in (self.chain[-1].values(), self.chain[0].values())
-                for v in chain]):
-            print(self.chain)
-            raise ValueError('first and last entry contain nan')
 
     def clean_chain(self):
         # a = [1,1,2,3,4,4,5,6,7,8,9,9,8]

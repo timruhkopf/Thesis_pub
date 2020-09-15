@@ -16,6 +16,7 @@ matplotlib.use('agg')
 
 
 class StructuredBNN(nn.Module, Model_util):
+    check_chain = Model_util.check_chain_seq
 
     def __init__(self, hunits=[2, 3, 1], shrinkage='glasso',
                  activation=nn.ReLU(), final_activation=nn.ReLU(),

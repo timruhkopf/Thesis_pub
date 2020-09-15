@@ -6,7 +6,7 @@ import torch
 
 
 class LudwigWinkler(Sampler):
-    def __init__(self, model,trainloader):
+    def __init__(self, model, trainloader):
         """interface to https://github.com/ludwigwinkler/
         BE AWARE, that the entire repo is build on Pytorch.Optim, which require
         that each parameter used and optimized is a nn.Parameter!"""
@@ -40,16 +40,11 @@ class LudwigWinkler(Sampler):
         self.chain = self.sampler.chain.samples
         self.log_probs = self.sampler.chain.log_probs
 
-        # check sampler did something meaningfull.
-        if len(self.chain) == 1:
-            print(self.chain)
-            raise ValueError('The chain did not progress beyond first step')
+        self.model.check_chain(self.chain)
 
-        if any([torch.any(torch.isnan(v)) if v.nelement() != 1 else torch.isnan(v)
-                for chain in (self.chain[-1].values(), self.chain[0].values())
-                for v in chain]):
-            print(self.chain)
-            raise ValueError('first and last entry contain nan')
+        # check sampler did something meaningfull.
+
+
 
 
 class MALA(LudwigWinkler):
@@ -88,7 +83,7 @@ class SGNHT(LudwigWinkler):
 
 
 class SGLD(LudwigWinkler):
-    def __init__(self, model, trainloader,  epsilon, num_steps,
+    def __init__(self, model, trainloader, epsilon, num_steps,
                  burn_in, pretrain, tune, num_chains=7):
         LudwigWinkler.__init__(self, model, trainloader)
         self.sampler = SGLD_Sampler(
@@ -102,6 +97,7 @@ class SGLD(LudwigWinkler):
 
     def __repr__(self):
         return 'SGLD'
+
 
 # # FAILING CONSISTENTLY
 # class HMC(LudwigWinkler):
