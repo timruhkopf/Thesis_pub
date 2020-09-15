@@ -73,6 +73,7 @@ class SAMPLER_GRID:
             self.sampler = Sampler(model, trainloader, **sampler_param)
             self.sampler.sample()
 
+
         elif sampler_name in ['RHMC', 'SGRLD', 'SGRHMC']:
             n_samples = sampler_param.pop('n_samples')
             burn_in = sampler_param.pop('burn_in')

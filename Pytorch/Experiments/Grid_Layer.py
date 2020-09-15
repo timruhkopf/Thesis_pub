@@ -84,8 +84,8 @@ if __name__ == '__main__':
     # from Pytorch.Layer.Hidden import Hidden
     #
     # run = 'Hidden_test_grid_exec_SGRLD1'
-    # root = os.getcwd() + '/Results1/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-    #     os.getcwd() + '/Results1/{}/'.format(run)
+    # root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+    #     os.getcwd() + '/Results/{}/'.format(run)
     #
     # hidden_unittest = Layer_Grid(root)
     # prelim_configs = hidden_unittest.grid_exec_SGRLD(steps=1000, batch_size=100)

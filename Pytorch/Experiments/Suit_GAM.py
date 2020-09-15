@@ -1,12 +1,13 @@
 import os
+import numpy as np
 import torch.nn as nn
 from Pytorch.Models.GAM import GAM
 from Pytorch.Experiments.Grid_GAM import GAM_Grid
 from Pytorch.Experiments.Suit_Samplers import samplers
 
 # (CONFIG) ---------------------------------------------------------------------
-steps = 10000
-n = 10000
+steps = 100
+n = 1000
 n_val = 100
 batch = 100
 rooting = lambda run: os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \

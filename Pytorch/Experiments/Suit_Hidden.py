@@ -1,12 +1,13 @@
 import os
+import numpy as np
 import torch.nn as nn
 from Pytorch.Layer.Hidden import Hidden, Hidden_flat
 from Pytorch.Experiments.Grid_Layer import Layer_Grid
 from Pytorch.Experiments.Suit_Samplers import samplers
 
 # (CONFIG) ---------------------------------------------------------------------
-steps = 10000
-n = 10000
+steps = 1000
+n = 1000
 n_val = 100
 batch = 100
 

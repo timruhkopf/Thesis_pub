@@ -181,8 +181,6 @@ if __name__ == '__main__':
     #                       model_param=dict(no_basis=20, bijected=True),
     #                       sampler_param=prelim_config)
 
-
-
     prelim_configs = gam_unittest.grid_exec_SGRLD(steps=1000, batch_size=100)  # TODO: EXTEND THE GRID
     next(prelim_configs)
 
