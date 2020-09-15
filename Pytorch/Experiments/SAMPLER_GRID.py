@@ -1,8 +1,5 @@
 import numpy as np
 
-from inspect import getfullargspec
-
-
 class SAMPLER_GRID:
     """A class intended to simplify the Experiments, as this functionallity is shared
     across all Experiments"""
@@ -40,10 +37,7 @@ class SAMPLER_GRID:
 
         # (SAMPLER) Select sampler, set up  and sample -------------------------
         # random init state
-        if 'mode' in getfullargspec(self.model.reset_parameters).args:
-            model.reset_parameters(mode='U-MVN')  # GAM model has multiple ways for init
-        else:
-            self.model.reset_parameters()
+        self.model.reset_parameters()
 
         # import matplotlib
         # import matplotlib.pyplot as plt

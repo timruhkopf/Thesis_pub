@@ -166,7 +166,7 @@ if __name__ == '__main__':
     gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=True)
     # gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=False)
 
-    gam.reset_parameters(mode='cum')
+    gam.reset_parameters(mode='U-MVN')
     # gam.reset_parameters(tau=torch.tensor([0.01]))
     gam.true_model = deepcopy(gam.state_dict())
     y = gam.likelihood(Z).sample()
