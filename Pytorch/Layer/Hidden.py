@@ -138,23 +138,23 @@ class Hidden_flat(Hidden):
 if __name__ == '__main__':
     from copy import deepcopy
 
-    no_in = 2
+    no_in = 1
     no_out = 1
     n = 1000
 
-    flat = Hidden_flat(no_in, no_out, bias=True, activation=nn.ReLU())
-    flat.true_model = deepcopy(flat.state_dict())
-    flat.forward(X=torch.ones(100, no_in))
-
-    X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
-    X = X_dist.sample(torch.Size([n]))
-    y = flat.likelihood(X).sample()
-
-    flat.prior_log_prob()
-    flat.reset_parameters()
-    flat.init_model = deepcopy(flat.state_dict())
-    flat.plot(X, y)
-
+    # flat = Hidden_flat(no_in, no_out, bias=True, activation=nn.ReLU())
+    # flat.true_model = deepcopy(flat.state_dict())
+    # flat.forward(X=torch.ones(100, no_in))
+    #
+    # X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
+    # X = X_dist.sample(torch.Size([n]))
+    # y = flat.likelihood(X).sample()
+    #
+    # flat.prior_log_prob()
+    # # flat.reset_parameters()
+    # flat.plot(X, y)
+    #
+    # reg = flat
 
     # single Hidden Unit Example
     reg = Hidden(no_in, no_out, bias=True, activation=nn.ReLU())
@@ -170,112 +170,129 @@ if __name__ == '__main__':
     X = X_dist.sample(torch.Size([n]))
     y = reg.likelihood(X).sample()
 
-    reg.plot(X, y)
     print(reg.log_prob(X, y))
 
-    # Estimation example
-    from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
-    from torch.utils.data import TensorDataset, DataLoader
-
-    burn_in, n_samples = 100, 1000
-
-    trainset = TensorDataset(X, y)
-    trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
-
-    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
-               'SGRLD': myRSGLD,  # epsilon
-               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
-               }['RHMC']
-    sampler = Sampler(flat, epsilon=0.001, L=2)
-    sampler.sample(trainloader, burn_in, n_samples)
-    import random
-
-    sampler.model.plot(X, y, random.sample(sampler.chain, 20))
+    # reg.reset_parameters()
+    reg.plot(X[:100], y[:100])
 
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
-
-    num_samples = 1000
-    step_size = 0.01
-    num_steps = 5000  # <-------------- important
-    pretrain = False
-    tune = False
-    burn_in = 2000
-    # num_chains 		type=int, 	default=1
-    num_chains = 1  # os.cpu_count() - 1
-    batch_size = 50
-    L = 24
-    val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
-    val_prediction_steps = 50
-    val_converge_criterion = 20
-    val_per_epoch = 200
-
-    reg.reset_parameters()
+    from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
     from torch.utils.data import TensorDataset, DataLoader
-
-    burn_in, n_samples = 100, 1000
-
-    trainset = TensorDataset(X, y)
-    trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
-    sgnht = SGNHT(reg, trainloader,
-                  step_size, num_steps, burn_in, pretrain=pretrain, tune=tune,
-                  L=L,
-                  num_chains=num_chains)
-    sgnht.sample()
-    print(sgnht.chain)
-    import random
     import numpy as np
-    import matplotlib.pyplot as plt
+    import matplotlib
+    import random
 
-    sgnht.model.plot(X, y, random.sample(sgnht.chain, 100), **{'title': 'Hidden'})
+    matplotlib.use('Agg')  # 'TkAgg' for explicit plotting
 
-    # traceplots
-    import pandas as pd
+    sampler_name = ['SGNHT', 'SGLD', 'MALA', 'RHMC', 'SGRLD', 'SGRHMC'][3]
+    model = reg
 
-    df = pd.DataFrame(sgnht.chain_mat)
-    df.plot(subplots=True, title='Traces')
+    # Setting up the parameters  -----------------------------------------------
+    sg_batch = 100
+    for rep in range(2):
+        for L in [1, 2, 3]:
+            for eps in np.arange(0.001, 0.05, 0.003):
+                model.reset_parameters()
+                name = '{}_{}_{}_{}'.format(sampler_name, str(eps), str(L), str(rep))
+                path = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results_Hidden/'
+                sampler_param = dict(
+                    epsilon=eps, num_steps=100, burn_in=100,
+                    pretrain=False, tune=False, num_chains=1)
 
-    # autocorrelation plot & ESS calculus
-    from statsmodels.graphics import tsaplots
-    from statsmodels.tsa.stattools import acf, pacf
+                if sampler_name in ['SGNHT', 'RHMC', 'SGRHMC']:
+                    sampler_param.update(dict(L=L))
 
-    x = sgnht.chain_mat
-    df_acf = pd.DataFrame(columns=df.columns)
-    for i, column in enumerate(list(df)):  # iterate over chain_mat columns
-        df_acf[i] = acf(df[column], nlags=1000, fft=True)
+                if sampler_name == 'SGRHMC':
+                    sampler_param.update(dict(alpha=0.2))
 
-    df_acf.plot(subplots=True, title='Autocorrelation')
+                if 'SG' in sampler_name:
+                    batch_size = sg_batch
+                else:
+                    batch_size = X.shape[0]
 
-    sgnht.acf = df_acf
-    sgnht.ess = len(sgnht.chain) / (1 + 2 * np.sum(sgnht.acf, axis=0))
-    sgnht.min = int(min(sgnht.ess))
+                trainset = TensorDataset(X, y)
 
-    # (Experimental) -----------------------------------------------------------
-    # x = x[:, 1]
-    # a = acf(x, nlags=100, fft=True)
-    # sgnht.acf = a
-    # len(sgnht.chain) / (1 + 2 * sum(sgnht.acf))
-    # print(sgnht.ess())
-    # lag = np.arange(len(a))
-    # # lag = np.arange(len(sgnht.acf))
-    # plt.plot(lag, a)
-    # plt.show()
-    #
-    # tsaplots.plot_acf(x, lags=100)
-    #
-    # # my own trials on autocorrelation plots
-    # x = sgnht.chain_mat
-    # x = x - np.mean(x, axis=0)
-    # x = x[:, 0]
-    #
-    # # Display the autocorrelation plot of your time series
-    # fig = tsaplots.plot_acf(x, lags=1000, fft=True)
-    # plt.show()
-    #
-    # import tidynamics
-    #
-    # sgnht.acf = tidynamics.acf(x)[1: len(sgnht.chain) // 3]
-    # lag = np.arange(len(sgnht.acf))
-    # plt.plot(lag, sgnht.acf)
-    # plt.show()
-    #
-    # sgnht.fast_autocorr(0)
+                # Setting up the sampler & sampling
+                if sampler_name in ['SGNHT', 'SGLD', 'MALA']:  # geoopt based models
+                    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
+                    Sampler = {'SGNHT': SGNHT,  # step_size, hmc_traj_length
+                               'MALA': MALA,  # step_size
+                               'SGLD': SGLD  # step_size
+                               }[sampler_name]
+                    sampler = Sampler(model, trainloader, **sampler_param)
+                    try:
+                        sampler.sample()
+                        sampler.check_chain()
+                        print(sampler.chain[:3])
+                        print(sampler.chain[-3:])
+
+                        # Visualize the resulting estimation -------------------------
+                        sampler.model.plot(X[:100], y[:100], sampler.chain[:30], path=path + name)
+                        sampler.model.plot(X[:100], y[:100], random.sample(sampler.chain, 30), path=path + name)
+                        matplotlib.pyplot.close('all')
+                    except Exception as error:
+                        print(name, 'failed')
+                        sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
+                        print(error)
+
+                elif sampler_name in ['RHMC', 'SGRLD', 'SGRHMC']:
+                    n_samples = sampler_param.pop('num_steps')
+                    burn_in = sampler_param.pop('burn_in')
+                    sampler_param.pop('pretrain')
+                    sampler_param.pop('tune')
+                    sampler_param.pop('num_chains')
+
+                    trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
+
+                    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+                               'SGRLD': myRSGLD,  # epsilon
+                               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+                               }['RHMC']
+                    sampler = Sampler(model, **sampler_param)
+                    try:
+                        sampler.sample(trainloader, burn_in, n_samples)
+
+                        sampler.check_chain()
+                        print(sampler.chain[:3])
+                        print(sampler.chain[-3:])
+
+                        # Visualize the resulting estimation -------------------------
+
+                        sampler.model.plot(X[:100], y[:100], sampler.chain[:30], path=path + name)
+                        sampler.model.plot(X[:100], y[:100], random.sample(sampler.chain, 30), path=path + name)
+                        matplotlib.pyplot.close('all')
+                    except Exception as error:
+                        print(name, 'failed')
+                        sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
+                        print(error)
+
+                # EXPERIMENTAL ---------------------------
+                # x = x[:, 1]
+                # a = acf(x, nlags=100, fft=True)
+                # sgnht.acf = a
+                # len(sgnht.chain) / (1 + 2 * sum(sgnht.acf))
+                # print(sgnht.ess())
+                # lag = np.arange(len(a))
+                # # lag = np.arange(len(sgnht.acf))
+                # plt.plot(lag, a)
+                # plt.show()
+                #
+                # tsaplots.plot_acf(x, lags=100)
+                #
+                # # my own trials on autocorrelation plots
+                # x = sgnht.chain_mat
+                # x = x - np.mean(x, axis=0)
+                # x = x[:, 0]
+                #
+                # # Display the autocorrelation plot of your time series
+                # fig = tsaplots.plot_acf(x, lags=1000, fft=True)
+                # plt.show()
+                #
+                # import tidynamics
+                #
+                # sgnht.acf = tidynamics.acf(x)[1: len(sgnht.chain) // 3]
+                # lag = np.arange(len(sgnht.acf))
+                # plt.plot(lag, sgnht.acf)
+                # plt.show()
+                #
+                # sgnht.fast_autocorr(0)

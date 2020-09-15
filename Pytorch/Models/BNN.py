@@ -96,17 +96,18 @@ class BNN(nn.Module, Model_util):
 
 
 if __name__ == '__main__':
-    no_in = 2
+    no_in = 1
     no_out = 1
     n = 1000
-    bnn = BNN(hunits=[no_in, 10, 5, no_out], activation=nn.ReLU(), prior='flat')
+    bnn = BNN(hunits=[no_in, 10, 5, no_out], activation=nn.ReLU(), prior='normal')
 
     # generate data
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
     X = X_dist.sample(torch.Size([n])).view(n, no_in)
 
     from copy import deepcopy
-    bnn.reset_parameters() # true_model
+
+    bnn.reset_parameters()  # true_model
     bnn.true_model = deepcopy(bnn.state_dict())
     y = bnn.likelihood(X).sample()
 
@@ -122,20 +123,132 @@ if __name__ == '__main__':
     # check accumulation of parameters & parsing
     bnn.log_prob(X, y)
 
+    # ------------------------------------------------------
+    from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
     from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
     from torch.utils.data import TensorDataset, DataLoader
+    import numpy as np
+    import matplotlib
+    import random
+    import os
 
-    burn_in, n_samples = 100, 1000
+    matplotlib.use('Agg')  # 'TkAgg' for explicit plotting
 
-    trainset = TensorDataset(X, y)
-    trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
+    sampler_name = ['SGNHT', 'SGLD', 'MALA', 'RHMC', 'SGRLD', 'SGRHMC'][3]
+    model = bnn
+    # Setting up the parameters  -----------------------------------------------
+    sg_batch = 100
+    from pathlib import Path
 
-    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
-               'SGRLD': myRSGLD,  # epsilon
-               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
-               }['RHMC']
-    sampler = Sampler(bnn, epsilon=0.001, L=2)
-    sampler.sample(trainloader, burn_in, n_samples)
+    home = str(Path.home())
+
+    path = home + '/Thesis/Pytorch/Experiments/Results_BNN/'
+    if not os.path.isdir(path):
+        os.mkdir(path)
+
+    for rep in range(3):
+        for L in [1, 2, 3]:
+            for eps in np.arange(0.0001, 0.01, 0.0005):
+                model.reset_parameters()
+                name = '{}_{}_{}_{}'.format(sampler_name, str(eps), str(L), str(rep))
+
+                sampler_param = dict(
+                    epsilon=eps, num_steps=1000, burn_in=1000,
+                    pretrain=False, tune=False, num_chains=1)
+
+                if sampler_name in ['SGNHT', 'RHMC', 'SGRHMC']:
+                    sampler_param.update(dict(L=L))
+
+                if sampler_name == 'SGRHMC':
+                    sampler_param.update(dict(alpha=0.2))
+
+                if 'SG' in sampler_name:
+                    batch_size = sg_batch
+                else:
+                    batch_size = X.shape[0]
+
+                trainset = TensorDataset(X, y)
+
+                # Setting up the sampler & sampling
+                if sampler_name in ['SGNHT', 'SGLD', 'MALA']:  # geoopt based models
+                    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
+                    Sampler = {'SGNHT': SGNHT,  # step_size, hmc_traj_length
+                               'MALA': MALA,  # step_size
+                               'SGLD': SGLD  # step_size
+                               }[sampler_name]
+                    sampler = Sampler(model, trainloader, **sampler_param)
+                    try:
+                        sampler.sample()
+                        sampler.check_chain()
+                        print(sampler.chain[:3])
+                        print(sampler.chain[-3:])
+
+                        # Visualize the resulting estimation -------------------------
+                        sampler.model.plot(X[:100], y[:100], sampler.chain[:30], path=path + name)
+                        sampler.model.plot(X[:100], y[:100], random.sample(sampler.chain, 30), path=path + name)
+                        matplotlib.pyplot.close('all')
+                    except Exception as error:
+                        print(name, 'failed')
+                        sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
+                        print(error)
+
+                elif sampler_name in ['RHMC', 'SGRLD', 'SGRHMC']:
+                    n_samples = sampler_param.pop('num_steps')
+                    burn_in = sampler_param.pop('burn_in')
+                    sampler_param.pop('pretrain')
+                    sampler_param.pop('tune')
+                    sampler_param.pop('num_chains')
+
+                    trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
+
+                    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+                               'SGRLD': myRSGLD,  # epsilon
+                               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+                               }['RHMC']
+                    sampler = Sampler(model, **sampler_param)
+                    try:
+                        sampler.sample(trainloader, burn_in, n_samples)
+
+                        sampler.check_chain()
+                        print(sampler.chain[:3])
+                        print(sampler.chain[-3:])
+
+                        # Visualize the resulting estimation -------------------------
+
+                        sampler.model.plot(X[:100], y[:100], sampler.chain[:30], path=path + name)
+                        sampler.model.plot(X[:100], y[:100], random.sample(sampler.chain, 30), path=path + name)
+                        matplotlib.pyplot.close('all')
+                    except Exception as error:
+                        print(name, 'failed')
+                        sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
+                        print(error)
+
+    print()
+    # -------------------------------------------------------
+    #
+    # from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
+    # from torch.utils.data import TensorDataset, DataLoader
+    #
+    # burn_in, n_samples = 100, 100
+    #
+    # trainset = TensorDataset(X, y)
+    # trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
+    #
+    # Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+    #            'SGRLD': myRSGLD,  # epsilon
+    #            'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+    #            }['RHMC']
+    # sampler = Sampler(bnn, epsilon=0.01, L=2)
+    # sampler.sample(trainloader, burn_in, n_samples)
+    # sampler.check_chain()
+    # import random
+    #
+    # sampler.model.plot(X[0:100], y[0:100], sampler.chain[:30])
+    # sampler.model.plot(X[0:100], y[0:100], random.sample(sampler.chain, 30))
+    # print(sampler.chain[0])
+    # print(sampler.chain[-1])
+    # print(sampler.model.true_model)
+    # print(sampler.model.init_model)
 
     # from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
     #

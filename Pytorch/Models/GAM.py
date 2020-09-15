@@ -42,7 +42,6 @@ class GAM(Hidden):
             self.K = torch.from_numpy(penQ).clone().detach().type(torch.FloatTensor)
 
         self.cov = torch.inverse(self.K[1:, 1:])  # FIXME: Multivariate Normal cholesky decomp fails!
-        print(self.cov)
 
         Hidden.__init__(self, no_basis, no_out, bias=False, activation=activation)
 
@@ -149,7 +148,7 @@ class GAM(Hidden):
         if path is None:
             plt.show()
         else:
-            plt.savefig('{}'.format(path), bbox_inches='tight')
+            plt.savefig('{}.png'.format(path), bbox_inches='tight')
 
 
 if __name__ == '__main__':
@@ -172,10 +171,136 @@ if __name__ == '__main__':
     y = gam.likelihood(Z).sample()
 
     gam.reset_parameters(tau=torch.tensor([2.]))
+
     gam.plot(X, y)
 
     gam.forward(Z)
     gam.prior_log_prob()
+
+    from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
+    from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
+    from torch.utils.data import TensorDataset, DataLoader
+    import numpy as np
+    import matplotlib
+    import random
+    import os
+
+    matplotlib.use('Agg')  # 'TkAgg' for explicit plotting
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if torch.cuda.is_available():
+        torch.cuda.get_device_name(0)
+    Z.to(device)
+    y.to(device)
+
+    from pathlib import Path
+
+    home = str(Path.home())
+    # ON local: home + 'PycharmProjects' +
+    path = home + '/Thesis/Pytorch/Experiments/Results_GAM/'
+    if not os.path.isdir(path):
+        os.mkdir(path)
+
+    sampler_name = ['SGNHT', 'SGLD', 'MALA', 'RHMC', 'SGRLD', 'SGRHMC'][3]
+    model = gam
+
+    # Setting up the parameters  -----------------------------------------------
+    sg_batch = 100
+    for rep in range(3):
+        for L in [1, 2, 3]:
+            for eps in np.arange(0.007, 0.04, 0.003):
+                model.reset_parameters()
+                name = '{}_{}_{}_{}'.format(sampler_name, str(eps), str(L), str(rep))
+
+                sampler_param = dict(
+                    epsilon=eps, num_steps=1000, burn_in=1000,
+                    pretrain=False, tune=False, num_chains=1)
+
+                if sampler_name in ['SGNHT', 'RHMC', 'SGRHMC']:
+                    sampler_param.update(dict(L=L))
+
+                if sampler_name == 'SGRHMC':
+                    sampler_param.update(dict(alpha=0.2))
+
+                if 'SG' in sampler_name:
+                    batch_size = sg_batch
+                else:
+                    batch_size = X.shape[0]
+
+                trainset = TensorDataset(Z, y)
+
+                # Setting up the sampler & sampling
+                if sampler_name in ['SGNHT', 'SGLD', 'MALA']:  # geoopt based models
+                    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
+                    Sampler = {'SGNHT': SGNHT,  # step_size, hmc_traj_length
+                               'MALA': MALA,  # step_size
+                               'SGLD': SGLD  # step_size
+                               }[sampler_name]
+                    sampler = Sampler(model, trainloader, **sampler_param)
+                    try:
+                        sampler.sample()
+                        print(sampler.chain[:3])
+                        print(sampler.chain[-3:])
+
+                        # Visualize the resulting estimation -------------------------
+                        sampler.model.plot(X[:100], y[:100], sampler.chain[:30], path=path + name)
+                        sampler.model.plot(X[:100], y[:100], random.sample(sampler.chain, 30), path=path + name)
+                        matplotlib.pyplot.close('all')
+                    except Exception as error:
+                        print(name, 'failed')
+                        sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
+                        print(error)
+
+                elif sampler_name in ['RHMC', 'SGRLD', 'SGRHMC']:
+                    n_samples = sampler_param.pop('num_steps')
+                    burn_in = sampler_param.pop('burn_in')
+                    sampler_param.pop('pretrain')
+                    sampler_param.pop('tune')
+                    sampler_param.pop('num_chains')
+
+                    trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
+
+                    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+                               'SGRLD': myRSGLD,  # epsilon
+                               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+                               }['RHMC']
+                    sampler = Sampler(model, **sampler_param)
+                    try:
+                        sampler.sample(trainloader, burn_in, n_samples)
+
+                        print(sampler.chain[:3])
+                        print(sampler.chain[-3:])
+
+                        # Visualize the resulting estimation -------------------------
+
+                        sampler.model.plot(X[:100], y[:100], sampler.chain[:30], path=path + name)
+                        sampler.model.plot(X[:100], y[:100], random.sample(sampler.chain, 30), path=path + name)
+                        matplotlib.pyplot.close('all')
+                    except Exception as error:
+                        print(name, 'failed')
+                        sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
+                        print(error)
+
+    from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
+    from torch.utils.data import TensorDataset, DataLoader
+
+    burn_in, n_samples = 100, 100
+
+    trainset = TensorDataset(Z, y)
+    trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
+
+    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+               'SGRLD': myRSGLD,  # epsilon
+               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+               }['RHMC']
+    sampler = Sampler(gam, epsilon=0.01, L=2)
+    sampler.sample(trainloader, burn_in, n_samples)
+    sampler.check_chain()
+    import random
+
+    sampler.model.plot(X[0:100], y[0:100], sampler.chain[:30])
+    sampler.model.plot(X[0:100], y[0:100], random.sample(sampler.chain, 100))
+    print(sampler.chain[0])
+    print(sampler.chain[-1])
 
     step_size = 0.005
     num_steps = 5000  # <-------------- important
@@ -211,7 +336,7 @@ if __name__ == '__main__':
     sgnht.sample()
 
     print(sgnht.chain)
-
+    print(sgnht.chain)
     if len(sgnht.chain) == 1:
         raise ValueError('The chain did not progress beyond first step')
 

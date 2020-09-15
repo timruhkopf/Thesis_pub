@@ -7,6 +7,7 @@ from Pytorch.Layer.Hidden import Hidden, Hidden_flat
 from Pytorch.Layer.Group_lasso import Group_lasso
 from Pytorch.Layer.Group_HorseShoe import Group_HorseShoe
 
+from Pytorch.Util.ModelUtil import Model_util
 
 class ShrinkageBNN(BNN):
     # available shrinkage layers
@@ -70,26 +71,28 @@ if __name__ == '__main__':
     import random
     from copy import deepcopy
 
-    sbnn = ShrinkageBNN()
     no_in = 2
     no_out = 1
     n = 1000
-    # sampling with effect
-    # sbnn.reset_parameters(seperated=True)
-    sbnn.reset_parameters(seperated=True)
 
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
     X = X_dist.sample(torch.Size([n]))
-    # sbnn.reset_parameters(seperated=True)
+
+    sbnn = ShrinkageBNN(hunits=[no_in, 10, 3, no_out], bijected=True, seperated=True)
     sbnn.true_model = deepcopy(sbnn.state_dict())
     y = sbnn.likelihood(X).sample()
 
     sbnn.log_prob(X, y)
 
+    sbnn.reset_parameters(seperated=False)
+    sbnn.init_model = deepcopy(sbnn.state_dict())
+
+    sbnn.plot(X, y, **{'title': 'Shrinkage BNN @ init'})
+
     from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
     from torch.utils.data import TensorDataset, DataLoader
 
-    burn_in, n_samples = 100, 1000
+    burn_in, n_samples = 1000, 1000
 
     trainset = TensorDataset(X, y)
     trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
@@ -99,24 +102,20 @@ if __name__ == '__main__':
                'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
                }['RHMC']
 
-    sbnn.reset_parameters(seperated=False)
-    sbnn.plot(X, y, **{'title': 'Shrinkage BNN @ init'},
-              path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/init')
-
     sampler = Sampler(sbnn, epsilon=0.001, L=2)
     sampler.sample(trainloader, burn_in, n_samples)
 
     import random
 
-    sampler.model.plot(X, y, chain=random.sample(sampler.chain, 30),
-                       path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results'
-                            '/datamodel',
-                       **{'title': 'Shrinkage BNN with subsampled chain'})
-    sampler.traceplots(path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results'
-                            '/traceplot')
-    sampler.acf_plots(nlags=500,
-                      path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results'
-                           '/acf')
+    sampler.model.plot(X[0:100], y[0:100], sampler.chain[:30])
+    sampler.model.plot(X[0:100], y[0:100], random.sample(sampler.chain, 30))
+    sampler.model.plot(X[0:100], y[0:100], chain=[sampler.model.init_model])
+
+    print(sampler.chain[0])
+    print(sampler.chain[-1])
+
+    sampler.traceplots()
+    sampler.acf_plots(nlags=200)
 
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
 
