@@ -1,6 +1,7 @@
 import torch
 import torch.distributions as td
 import torch.nn as nn
+from copy import deepcopy
 
 from Pytorch.Layer.Hidden import Hidden
 from Pytorch.Util.DistributionUtil import LogTransform
@@ -26,9 +27,7 @@ class GAM(Hidden):
 
         Hidden.__init__(self, no_basis, no_out, bias=False, activation=activation)
 
-    def define_model(self):
-
-        # setting up a proper covariance for W's random walk prior
+    def define_proper_cov(self):
         # replace the numerical zero eigenvalue by fraction*(smallest non-zero eigenval)
         # to ensure a propper distribution (see Marra Wood or Wood JAGS)
         threshold = 1e-3
@@ -38,10 +37,14 @@ class GAM(Hidden):
         eig_val_2nd = torch.sort(val, axis=0).values[1, :]
         val[val[:, 0] < threshold, :] = eig_val_2nd * fraction
         self.penK = vec @ torch.diag(val[:, 0]) @ vec.t()
-        self.cov = torch.inverse(self.penK)
+        self.cov = torch.inverse(self.penK).detach()
+
+    def define_model(self):
+        # setting up a proper covariance for W's random walk prior
+        self.define_proper_cov()
 
         self.tau = nn.Parameter(torch.Tensor(1))
-        self.dist['tau'] = td.Gamma(2., 2.)
+        self.dist['tau'] = td.Gamma(torch.tensor([2.]), torch.tensor([2.]))
         self.W = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
 
         if self.bijected:
@@ -91,7 +94,8 @@ class GAM(Hidden):
             self.tau.data = tau
         self.update_distributions()
 
-        self.W.data = self.dist['W'].sample().reshape(self.no_basis, 1)
+        self.W.data = self.dist['W'].sample().view(self.no_basis, 1)
+
         # gamma = torch.cat(
         #     [td.Uniform(torch.tensor([-1.]), torch.tensor([1.])).sample(),
         #      td.MultivariateNormal(torch.zeros(self.no_basis - 1), (self.tau) * self.cov).sample()],
@@ -147,7 +151,7 @@ if __name__ == '__main__':
     gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=True)
     # gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=False)
 
-    gam.reset_parameters(tau=torch.tensor([0.0001]))
+    gam.reset_parameters(tau=torch.tensor([0.001]))
     # gam.reset_parameters(tau=torch.tensor([0.01]))
     gam.true_model = deepcopy(gam.state_dict())
     y = gam.likelihood(Z).sample()
@@ -193,7 +197,7 @@ if __name__ == '__main__':
     for rep in range(3):
         for L in [1, 2, 3]:
             for eps in np.arange(0.007, 0.04, 0.003):
-                model.reset_parameters()  # initialization
+                model.reset_parameters(tau=torch.tensor([0.0001]))  # initialization
                 name = '{}_{}_{}_{}'.format(sampler_name, str(eps), str(L), str(rep))
 
                 sampler_param = dict(
