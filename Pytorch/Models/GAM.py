@@ -6,13 +6,11 @@ from Pytorch.Layer.Hidden import Hidden
 from Pytorch.Util.DistributionUtil import LogTransform
 
 from Tensorflow.Effects.bspline import get_design, diff_mat1D
-from Tensorflow.Effects.Cases1D.Bspline_K import Bspline_K
-from Tensorflow.Effects.Cases1D.Bspline_cum import Bspline_cum
 
 
 class GAM(Hidden):
-    def __init__(self, xgrid=(0, 10, 0.5), order=1, no_basis=10, no_out=1,
-                 activation=nn.Identity(), bijected=False, penK=True):
+    def __init__(self, xgrid=(0, 10, 0.5), order=1, no_basis=20, no_out=1,
+                 activation=nn.Identity(), bijected=False):
         """
         RandomWalk Prior Model on Gamma (W) vector.
         Be carefull to transform the Data beforehand with some DeBoor Style algorithm.
@@ -25,37 +23,38 @@ class GAM(Hidden):
         self.xgrid = xgrid
         self.order = order
         self.no_basis = no_basis
-        self.K = torch.tensor(diff_mat1D(no_basis, order)[1], dtype=torch.float32, requires_grad=False)
-        self.penK = penK
-        if self.penK:
-            # bspline_k = Bspline_K(self.xgrid, no_coef=self.no_basis, order=1,
-            #                       sig_Q=0.9, sig_Q0=0.1, threshold=10 ** -3)
-            # self.K = torch.tensor(torch.from_numpy(bspline_k.penQ), dtype=torch.float32)
-
-            # replaced Bspline_K with the actual penalize call for K
-            from Tensorflow.Effects.SamplerPrecision import penalize_nullspace
-            sig_Q = 0.95
-            sig_Q0 = 0.05
-            threshold = 10 ** -3
-
-            Sigma, penQ = penalize_nullspace(self.K.numpy(), sig_Q, sig_Q0, threshold, plot=False)
-            self.K = torch.from_numpy(penQ).clone().detach().type(torch.FloatTensor)
-
-        self.cov = torch.inverse(self.K[1:, 1:])  # FIXME: Multivariate Normal cholesky decomp fails!
 
         Hidden.__init__(self, no_basis, no_out, bias=False, activation=activation)
 
     def define_model(self):
+
+        # setting up a proper covariance for W's random walk prior
+        # replace the numerical zero eigenvalue by fraction*(smallest non-zero eigenval)
+        # to ensure a propper distribution (see Marra Wood or Wood JAGS)
+        threshold = 1e-3
+        fraction = 1e-1
+        self.K = torch.tensor(diff_mat1D(self.no_basis, self.order)[1], dtype=torch.float32, requires_grad=False)
+        val, vec = torch.eig(self.K, eigenvectors=True)
+        eig_val_2nd = torch.sort(val, axis=0).values[1, :]
+        val[val[:, 0] < threshold, :] = eig_val_2nd * fraction
+        self.penK = vec @ torch.diag(val[:, 0]) @ vec.t()
+        self.cov = torch.inverse(self.penK)
+
         self.tau = nn.Parameter(torch.Tensor(1))
-        self.dist['tau'] = td.Gamma(0.3, 0.3)
+        self.dist['tau'] = td.Gamma(2., 2.)
+        self.W = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
 
         if self.bijected:
             self.dist['tau'] = td.TransformedDistribution(self.dist['tau'], LogTransform())
+            self.tau.data = self.dist['tau'].sample()
             self.tau_bij = self.dist['tau'].transforms[0]._inverse(self.tau)
+            self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis),
+                                                   self.tau_bij ** -1 * self.cov)
 
-        self.W = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
-
-        # self.dist['W'] (RANDOMWALK PRIOR) formulated explicitly in prior model!
+        else:
+            self.tau.data = self.dist['tau'].sample()  # to ensure dist W is set up properly
+            self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis),
+                                                   self.tau ** -1 * self.cov)
 
     def update_distributions(self):
         # tau_bij is the actual variance parameter of W (on R+)- whilest if self.bijected==True,
@@ -63,13 +62,14 @@ class GAM(Hidden):
         if self.bijected:
             # here tau (is on R) ---> tau_bij (on R+)
             self.tau_bij = self.dist['tau'].transforms[0]._inverse(self.tau)
+
+            self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis),
+                                                   self.tau_bij ** -1 * self.cov)
         else:
-            self.tau_bij = self.tau
+            self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis),
+                                                   self.tau ** -1 * self.cov)
 
-        # Notice, the explicit prior formulation of W does not allow an update of W's tau here:
-        # instead it must be updated in prior_log_prob explicitly
-
-    def reset_parameters(self, tau=torch.tensor([1.]), mode='cum'):
+    def reset_parameters(self, tau=None):
         """
         Sample the prior model, instantiating the data model
         :param xgrid: defining space for the Bspline expansion. Notice, that
@@ -77,12 +77,6 @@ class GAM(Hidden):
         :param tau: if not None, it is the inverse variance (smoothness) of
         randomwalkprior. If None, the self.dist_tau is used for sampling tau
         # FIXME: carefull with sigma/tau=lambda relation
-        :param mode: 'K' or 'cum' or 'U-MVN'. 'K' specifies, that the model is sampled based
-        on the 1/tau * null-space-penalized precision matrix, which is plugged into MVN.
-        'cum' is an actual cumulative randomwalk. 'U-MVN': gamma0 (W0) is initialized
-        by a Uniform distribution. gamma without the first value is sampled by
-        MVN(0, K[1:, 1:]). Thereby ensuring that MVN is propper (and the W vector
-        is similar to a randomwalk prior)
         :return: None. Inplace self.W, self.tau
         """
 
@@ -91,32 +85,18 @@ class GAM(Hidden):
                              'no_basis (len(range) must be equal to no_basis)')
         if tau is None:
             # FIXME: carefull with transformed distributions! (need to transform tau back)
-            self.tau.data = self.dist_tau.sample()  #
+            self.tau.data = self.dist['tau'].sample()
 
         else:
             self.tau.data = tau
         self.update_distributions()
 
-        # FIXME: need to specify tau / variance)
-        # Sampling W from RandomWalkPrior (two ways)
-        if mode == 'K':  # with nullspace-penalized K as precision for MVN
-            bspline_k = Bspline_K(self.xgrid, no_coef=self.no_basis, order=1,
-                                  sig_Q=0.1, sig_Q0=0.01, threshold=10 ** -3)
-            self.W.data = torch.tensor(bspline_k.z, dtype=torch.float32).view(self.no_basis, self.no_out)
-
-        elif mode == 'cum':  # sample based on actual cumulative randomwalk
-            bspline_cum = Bspline_cum(self.xgrid, n_basis=self.no_basis, coef_scale=self.tau.detach().numpy())
-            self.W.data = torch.tensor(bspline_cum.z, dtype=torch.float32).view(self.no_basis, self.no_out)
-
-        elif mode == 'U-MVN' and self.penK:  # Uniform for gamma0 & MVN (0, K[1:, 1:]**-1) as cov
-            gamma = torch.cat(
-                [td.Uniform(torch.tensor([-1.]), torch.tensor([1.])).sample(),
-                 td.MultivariateNormal(torch.zeros(self.no_basis - 1), (self.tau) * self.cov).sample()],
-                dim=0).view(self.no_out, self.no_basis)
-            self.W.data = gamma.view(self.no_basis, self.no_out)
-
-        else:
-            raise ValueError('Mode is incorreclty specified')
+        self.W.data = self.dist['W'].sample().reshape(self.no_basis, 1)
+        # gamma = torch.cat(
+        #     [td.Uniform(torch.tensor([-1.]), torch.tensor([1.])).sample(),
+        #      td.MultivariateNormal(torch.zeros(self.no_basis - 1), (self.tau) * self.cov).sample()],
+        #     dim=0).view(self.no_out, self.no_basis)
+        # self.W.data = gamma.view(self.no_basis, self.no_out)
 
         self.init_model = deepcopy(self.state_dict())
 
@@ -130,10 +110,12 @@ class GAM(Hidden):
         # fixme: check if tau is correct here! (and not 1/tau)
         #  BE VERY CAREFULL IF TAU IS BIJECTED!
         # p321 fahrmeir kneib lang:
-        const = - 0.5 * (self.K.shape[0] - 1) * torch.log(self.tau_bij)
-        kernel = -(2 * self.tau_bij) ** -1 * self.W.t() @ self.K @ self.W
-        return sum(const + kernel + self.dist['tau'].log_prob(self.tau))  # notice that tau can be on R if
-        # self.bijected is true!
+        # const = - 0.5 * (self.K.shape[0] - 1) * torch.log(self.tau_bij)
+        # kernel = -(2 * self.tau_bij) ** -1 * self.W.t() @ self.K @ self.W
+        # return sum(const + kernel + self.dist['tau'].log_prob(self.tau))  # notice that tau can be on R if
+        # # self.bijected is true!
+
+        return sum(self.dist['W'].log_prob(self.W)) + self.dist['tau'].log_prob(self.tau)
 
     def plot(self, X, y, chain=None, path=None, title='', **kwargs):
         Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=self.no_basis), dtype=torch.float32,
@@ -165,17 +147,18 @@ if __name__ == '__main__':
     gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=True)
     # gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=False)
 
-    gam.reset_parameters(mode='U-MVN')
+    gam.reset_parameters(tau=torch.tensor([0.0001]))
     # gam.reset_parameters(tau=torch.tensor([0.01]))
     gam.true_model = deepcopy(gam.state_dict())
     y = gam.likelihood(Z).sample()
 
-    gam.reset_parameters(tau=torch.tensor([2.]))
+    gam.reset_parameters(tau=torch.tensor([1.]))
 
     gam.plot(X, y)
 
     gam.forward(Z)
     gam.prior_log_prob()
+
 
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
     from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
@@ -195,7 +178,9 @@ if __name__ == '__main__':
     from pathlib import Path
 
     home = str(Path.home())
-    # ON local: home + 'PycharmProjects' +
+    if '/PycharmProjects' in __file__:
+        # file is on local machine
+        home += '/PycharmProjects'
     path = home + '/Thesis/Pytorch/Experiments/Results_GAM/'
     if not os.path.isdir(path):
         os.mkdir(path)
@@ -208,7 +193,7 @@ if __name__ == '__main__':
     for rep in range(3):
         for L in [1, 2, 3]:
             for eps in np.arange(0.007, 0.04, 0.003):
-                model.reset_parameters()
+                model.reset_parameters()  # initialization
                 name = '{}_{}_{}_{}'.format(sampler_name, str(eps), str(L), str(rep))
 
                 sampler_param = dict(

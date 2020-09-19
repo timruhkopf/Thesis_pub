@@ -147,5 +147,5 @@ class Grid:
 
 
 if __name__ == '__main__':
-    path = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/BNN_RHMC/BNN_RHMC_run_log.csv'
+    path = '/Pytorch/Experiments/Results/BNN_RHMC/BNN_RHMC_run_log.csv'
     df = pd.read_csv(path)
