@@ -24,7 +24,7 @@ class StructuredBNN(nn.Module, Model_util):
         'double_penalty': GAM_Wood
     }
 
-    def __init__(self, hunits=[2, 3, 1], shrinkage='glasso', gam_penalty='double_penalty',
+    def __init__(self, hunits=[2, 3, 1], shrinkage='glasso',
                  activation=nn.ReLU(), final_activation=nn.ReLU(),
                  seperated=True, bijected=True, alpha_type='cdf',
                  no_basis=20):
@@ -39,7 +39,7 @@ class StructuredBNN(nn.Module, Model_util):
         # define the model components
         self.bnn = ShrinkageBNN(hunits, activation, final_activation, shrinkage,
                                 seperated=seperated, bijected=bijected, prior='flat')
-        self.gam = self.gam_layer[gam_penalty](no_basis=no_basis)
+        self.gam = self.gam_layer['fix_nullspace'](no_basis=no_basis)
 
         self.alpha = {  # all of the below are properties!
             'cdf': lambda: self.bnn.layers[0].alpha,

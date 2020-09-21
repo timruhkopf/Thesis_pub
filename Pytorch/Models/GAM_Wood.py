@@ -30,11 +30,10 @@ class GAM_Wood(GAM):
         self.rangespace = eig_vec[:, eig_val[:, 0] > threshold]
         self.nullspace = eig_vec[:, eig_val[:, 0] < threshold]
 
-        # double penalty - refactored
-        # W^T (tau * K) W + W^T (l0 * U0 U0^T) W
-        # = W^T (tau * K + l0 * U0 U0^T) W
-        # = W^T (tau * K + l0 * U0 U0^T) W
-        # = W^T (tau * K + l0 * null*J) W  since K is rank deficient by 1 and self.nullspace is null * torch.ones()
+        # FIXME: Notice how .detach() is necessary to make sampling possible
+        # effectively, this stops gradients from passing through null_cov to
+        # improve on tau & l0: dL / dtau = (dL / d cov) (d cov / d tau) + dGa.log_prob(tau)
+        raise NotImplementedError('null_cov.detach() is necessary, preventing opt of l0 & tau')
         self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis), self.null_cov.detach())
 
     @property
@@ -45,6 +44,12 @@ class GAM_Wood(GAM):
         else:
             tau = self.tau.data
             l0 = self.l0.data
+
+        # double penalty - refactored
+        # W^T (tau * K) W + W^T (l0 * U0 U0^T) W
+        # = W^T (tau * K + l0 * U0 U0^T) W
+        # = W^T (tau * K + l0 * U0 U0^T) W
+        # = W^T (tau * K + l0 * null*J) W  since K is rank deficient by 1 and self.nullspace is null * torch.ones()
         return torch.inverse(tau * self.K + l0 * self.nullspace[0] ** 2)
 
     def reset_parameters(self, tau=torch.tensor([1.])):
