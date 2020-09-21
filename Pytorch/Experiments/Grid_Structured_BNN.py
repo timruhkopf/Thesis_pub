@@ -161,7 +161,7 @@ if __name__ == '__main__':
     n = 1000
     n_val = 100
     model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
-                       final_activation=nn.Identity(), shrinkage='glasso', no_basis=20,
+                       final_activation=nn.Identity(), shrinkage='glasso', gam_penalty='double_penalty', no_basis=20,
                        seperated=True, bijected=True)
 
     for config in prelim_configs:

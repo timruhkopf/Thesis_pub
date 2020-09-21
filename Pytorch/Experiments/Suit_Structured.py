@@ -19,15 +19,15 @@ batch = 100
 
 # ALPHA CDF ------------------------------------------
 model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
-                   final_activation=nn.Identity(), shrinkage='glasso', no_basis=20,
-                   seperated=True, bijected=True)
+                   final_activation=nn.Identity(), shrinkage='glasso', gam_penalty='double_penalty',
+                   no_basis=20, seperated=True, bijected=True)
 
 samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch)
 
 # ALPHA CONSTANT -------------------------------------
 model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
-                   final_activation=nn.Identity(), shrinkage='glasso', no_basis=20,
-                   seperated=True, bijected=True, alpha_type='constant')
+                   final_activation=nn.Identity(), shrinkage='glasso', gam_penalty='double_penalty',
+                   no_basis=20, seperated=True, bijected=True, alpha_type='constant')
 
 samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons=np.arange(0.0001, 0.05, 0.002),
          Ls=[1, 2, 3, 5])

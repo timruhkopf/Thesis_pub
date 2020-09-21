@@ -5,6 +5,7 @@ import pandas as pd
 
 from Tensorflow.Effects.bspline import get_design
 from Pytorch.Models.GAM import GAM
+from Pytorch.Models.GAM_Wood import GAM_Wood
 from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
 from Pytorch.Util.ModelUtil import Model_util
 
@@ -18,7 +19,12 @@ matplotlib.use('agg')
 class StructuredBNN(nn.Module, Model_util):
     check_chain = Model_util.check_chain_seq
 
-    def __init__(self, hunits=[2, 3, 1], shrinkage='glasso',
+    gam_layer = {
+        'fix_nullspace': GAM,
+        'double_penalty': GAM_Wood
+    }
+
+    def __init__(self, hunits=[2, 3, 1], shrinkage='glasso', gam_penalty='double_penalty',
                  activation=nn.ReLU(), final_activation=nn.ReLU(),
                  seperated=True, bijected=True, alpha_type='cdf',
                  no_basis=20):
@@ -33,17 +39,15 @@ class StructuredBNN(nn.Module, Model_util):
         # define the model components
         self.bnn = ShrinkageBNN(hunits, activation, final_activation, shrinkage,
                                 seperated=seperated, bijected=bijected, prior='flat')
-        self.gam = GAM(no_basis=no_basis)
+        self.gam = self.gam_layer[gam_penalty](no_basis=no_basis)
 
-        self.alpha = { # all of the below are properties!
-            'cdf':  lambda: self.bnn.layers[0].alpha,
+        self.alpha = {  # all of the below are properties!
+            'cdf': lambda: self.bnn.layers[0].alpha,
             'Be': lambda: self.bnn.layers[0].alpha_probab,
             'constant': lambda: self.bnn.layers[0].alpha_const
         }[alpha_type]
 
         self.reset_parameters()
-
-
 
     def forward(self, X, Z):
         return self.bnn.forward(X) + self.alpha() * self.gam.forward(Z)
@@ -194,8 +198,9 @@ if __name__ == '__main__':
     print(sampler.chain_mat)
     print(sampler.model.a)
     import random
-    h.plot(X[:100], Z[:100], y[:100],  chain=random.sample(sampler.chain, 100),
-                **{'title': 'structuredBNN'})
+
+    h.plot(X[:100], Z[:100], y[:100], chain=random.sample(sampler.chain, 100),
+           **{'title': 'structuredBNN'})
 
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
 
