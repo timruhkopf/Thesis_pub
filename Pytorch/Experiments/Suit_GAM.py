@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 from Pytorch.Models.GAM import GAM
 from Pytorch.Experiments.Grid_GAM import GAM_Grid
-from Pytorch.Experiments.Suit_Samplers import samplers
+from Pytorch.Experiments.SUIT_Samplers import samplers
 
 # (CONFIG) ---------------------------------------------------------------------
 steps = 100

@@ -3,7 +3,7 @@ import torch.nn as nn
 from Pytorch.Experiments.Grid_Structured_BNN import Structured_BNN_Grid
 from Pytorch.Models.StructuredBNN import StructuredBNN
 
-from Pytorch.Experiments.Suit_Samplers import samplers
+from Pytorch.Experiments.SUIT_Samplers import samplers
 import numpy as np
 
 # (CONFIG) ---------------------------------------------------------------------

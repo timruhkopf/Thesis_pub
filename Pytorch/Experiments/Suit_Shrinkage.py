@@ -3,7 +3,7 @@ import torch.nn as nn
 from Pytorch.Experiments.Grid_BNN import BNN_Grid
 from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
 
-from Pytorch.Experiments.Suit_Samplers import samplers
+from Pytorch.Experiments.SUIT_Samplers import samplers
 import numpy as np
 
 # (CONFIG) ---------------------------------------------------------------------
