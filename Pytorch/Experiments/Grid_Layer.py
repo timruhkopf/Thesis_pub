@@ -35,6 +35,7 @@ class Layer_Grid(Grid, SAMPLER_GRID):
         X = X_dist.sample(torch.Size([n])).view(n, no_in)
         X_val = X_dist.sample(torch.Size([n_val]))
 
+        self.Z_val = X_val
         self.model = model_class(**model_param)
 
         if 'seperated' in getfullargspec(self.model.reset_parameters).args:
@@ -57,7 +58,7 @@ class Layer_Grid(Grid, SAMPLER_GRID):
             self.model.val_MSE = torch.nn.MSELoss()(self.model.forward(X_val), y_val)
 
     def evaluate_model(self, X_val, y_val):
-        metrics = GAM_Grid.evaluate_model(self, X_val=X_val, Z_val=X_val, y_val=y_val)
+        metrics = GAM_Grid.evaluate_model(self, X_val=X_val, y_val=y_val)
 
         if hasattr(self.model, 'tau'):
             # analyse the distribution of tau

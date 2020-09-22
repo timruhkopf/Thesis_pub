@@ -1,39 +1,23 @@
 import os
 
 
-def samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls):
-    # (0) SGNHT --------------------------------------------------------------------
-
+def samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, seperated=True):
     rooting = lambda run: os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
         os.getcwd() + '/Results/{}/'.format(run)
-
-    run = name + '_SGNHT'
-    root = rooting(run)
-
-    bnn_unittest = cls_Grid(root)
-    prelim_configs = bnn_unittest.grid_exec_SGNHT(epsilons=epsilons, Ls=Ls, steps=steps, batch_size=batch)
-
-    for config in prelim_configs:
-        bnn_unittest.main(
-            seperated=False,
-            n=n, n_val=n_val,
-            model_class=cls, model_param=model_param,
-            sampler_name='SGNHT', sampler_param=config)
-
     # (1) MALA -------------------------------------------------
-
-    run = name + '_MALA'
-    root = rooting(run)
-
-    bnn_unittest = cls_Grid(root)
-    prelim_configs = bnn_unittest.grid_exec_MALA(steps=steps, epsilons=epsilons)
-
-    for config in prelim_configs:
-        bnn_unittest.main(
-            seperated=False,
-            n=n, n_val=n_val,
-            model_class=cls, model_param=model_param,
-            sampler_name='MALA', sampler_param=config)
+    #
+    # run = name + '_MALA'
+    # root = rooting(run)
+    #
+    # bnn_unittest = cls_Grid(root)
+    # prelim_configs = bnn_unittest.grid_exec_MALA(steps=steps, epsilons=epsilons)
+    #
+    # for config in prelim_configs:
+    #     bnn_unittest.main(
+    #         seperated=seperated,
+    #         n=n, n_val=n_val,
+    #         model_class=cls, model_param=model_param,
+    #         sampler_name='MALA', sampler_param=config)
 
     # (2) SGLD -------------------------------------------------
 
@@ -45,7 +29,7 @@ def samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons,
 
     for config in prelim_configs:
         bnn_unittest.main(
-            seperated=False,
+            seperated=seperated,
             n=n, n_val=n_val,
             model_class=cls, model_param=model_param,
             sampler_name='SGLD', sampler_param=config)
@@ -59,7 +43,7 @@ def samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons,
 
     for config in prelim_configs:
         bnn_unittest.main(
-            seperated=False,
+            seperated=seperated,
             n=n, n_val=n_val,
             model_class=cls, model_param=model_param,
             sampler_name='RHMC', sampler_param=config)
@@ -73,7 +57,7 @@ def samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons,
 
     for config in prelim_configs:
         bnn_unittest.main(
-            seperated=False,
+            seperated=seperated,
             n=n, n_val=n_val,
             model_class=cls, model_param=model_param,
             sampler_name='SGRLD', sampler_param=config)
@@ -88,7 +72,22 @@ def samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons,
 
     for config in prelim_configs:
         bnn_unittest.main(
-            seperated=False,
+            seperated=seperated,
             n=n, n_val=n_val,
             model_class=cls, model_param=model_param,
             sampler_name='SGRHMC', sampler_param=config)
+
+    # (0) SGNHT --------------------------------------------------------------------
+
+    run = name + '_SGNHT'
+    root = rooting(run)
+
+    bnn_unittest = cls_Grid(root)
+    prelim_configs = bnn_unittest.grid_exec_SGNHT(epsilons=epsilons, Ls=Ls, steps=steps, batch_size=batch)
+
+    for config in prelim_configs:
+        bnn_unittest.main(
+            seperated=seperated,
+            n=n, n_val=n_val,
+            model_class=cls, model_param=model_param,
+            sampler_name='SGNHT', sampler_param=config)

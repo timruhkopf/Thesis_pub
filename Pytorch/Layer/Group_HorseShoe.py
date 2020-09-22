@@ -4,105 +4,100 @@ import torch.distributions as td
 
 from Pytorch.Layer.Hidden import Hidden
 from Pytorch.Layer.Group_lasso import Group_lasso
+from Pytorch.Util.DistributionUtil import LogTransform
 
 
-class Group_HorseShoe(Hidden):
+class Group_HorseShoe(Group_lasso):
     prior_log_prob = Group_lasso.prior_log_prob
 
-    def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU()):
-        nn.Module.__init__(self)
-        self.bias = False  # to meet the Hidden default standard!
-        self.no_in = no_in
-        self.no_out = no_out
-        self.bias = bias
-        self.activation = activation
+    def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU(), bijected=True):
+        """
+        Group Lasso Layer, which is essentially a Hidden Layer, but with a different
+        prior structure: W is partitioned columwise - such that all weights outgoing
+        the first variable are shrunken by bayesian lasso.
+        for params see Hidden
+        :param bijected: bool. indicates whether or not the shrinkage variances
+        'tau' and 'lamb' are to be bijected i.e. unconstrained on space R.
+        as consequence, the self.update_method must change. the self.prior_log_prob
+        is automatically adjusted by the jacobian via td.TransformedDistribution.
+        """
+        self.bijected = bijected
+        Hidden.__init__(self, no_in, no_out, bias, activation)
+        self.dist['alpha'] = td.HalfCauchy(0.3)
 
-        self.dist = dict()
-
-        self.tau_ = nn.Parameter(torch.Tensor(1))
-        self.dist['tau'] = td.HalfCauchy(1.)
-        self.tau = self.dist['tau'].sample()
-
-        # Group lasso structure of W
-        self.W_ = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
-        self.W = None
-        # self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_in), self.tau)
-        # FIXME: check sigma dependence in W_shrinked: \beta_g | tau²_g, sigma² ~ MVN
-        self.dist['W'] = td.Normal(torch.zeros(self.no_in * (self.no_out - 1)), 1.)
-        self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_in), self.tau)
-
-        # add optional bias
-        if bias:
-            self.b_ = nn.Parameter(torch.Tensor(self.no_out))
-            self.b = None
-            self.tau_b = 1.
-            self.b = None
-            self.dist['b'] = td.Normal(0., self.tau_b)
+        self.dist['tau'] = td.HalfCauchy(torch.tensor([1.]))
+        if self.bijected:
+            self.dist['tau'] = td.TransformedDistribution(self.dist['tau'], LogTransform())
 
         self.reset_parameters()
-        self.true_model = None
 
     def update_distributions(self):
-        self.dist['W_shrinked'].scale = self.tau
-
-    def reset_parameters(self, seperated=False):
-
-        if seperated:
-            self.tau = torch.tensor(0.001)
+        if self.bijected:
+            self.dist['W_shrinked'].scale = \
+                self.dist['tau'].transforms[0]._inverse(self.tau.clone().detach())  # CAREFULL, THIS is ESSENTIAL for
+            # the model to run -and not invoke a second backward (in which already gradients have been lost)
         else:
-            self.tau = self.dist['tau'].sample()
-
-        self.dist['W_shrinked'].scale = self.tau
-
-        # TODO notice, that depending on the application, W can be get / set as
-        #  either vec or matrix - which could be handled graciously via getters / setters
-        self.W = torch.cat([self.dist['W_shrinked'].sample().view(self.no_in, 1),
-                            self.dist['W'].sample().view(self.no_in, self.no_out - 1)],
-                           dim=1)
-
-        if self.bias:
-            self.b = self.dist['b'].sample()
-            self.b_.data = self.b
-
-        self.tau_.data = self.tau
-        self.W_.data = self.W
-
-    @property
-    def alpha(self):
-        """attribute in interval [0,1], which decides upon the degree of how much
-        weight gam gets in likelihoods'mu= bnn() + alpha *gam()"""
-        raise NotImplementedError('horse\'s alpha is not yet implemented')
+            self.dist['W_shrinked'].scale = self.tau
 
 
 if __name__ == '__main__':
     no_in = 2
-    no_out = 10
+    no_out = 1
+    n = 1000
+    X_dist = td.Uniform(torch.ones(no_in) * -10., torch.ones(no_in) * 10.)
+    X = X_dist.sample(torch.Size([n])).view(n, no_in)
 
-    # single Hidden Unit Example
-    ghorse = Group_HorseShoe(no_in, no_out, bias=True, activation=nn.Identity())
-    true_model = ghorse.vec
+    horse = Group_HorseShoe(no_in, no_out, bias=True, activation=nn.ReLU(), bijected=True)
+    horse.reset_parameters(seperated=False)
+    horse.true_model = horse.state_dict()
+    y = horse.likelihood(X).sample()
 
-    X_dist = td.Uniform(torch.tensor([-10., -10.]), torch.tensor([10., 10.]))
-    X = X_dist.sample(torch.Size([100])).view(100, 2)
-    X.detach()
-    X.requires_grad_()
+    # check reset_parameters &  check prior_log_prob
+    horse.reset_parameters(seperated=True)
+    horse.plot(X, y, **{'title': 'G-lasso'})
+    print(horse.prior_log_prob())
 
-    y = ghorse.likelihood(X).sample()
+    # check update_distributions
+    # horse.reset_parameters()
+    print(horse.W[:, 0])
+    print(horse.dist['W_shrinked'].scale)
+    # value of log prob changed due to change in variance
+    print(horse.dist['W_shrinked'].log_prob(0.))
+    print(horse.dist['W_shrinked'].cdf(0.))  # location still 0
 
-    ghorse.parameters_dict
+    # check alpha value
+    # horse.alpha
 
-    ghorse.reset_parameters(seperated=True)
-    print(ghorse.parameters_dict)
+    # from torch.utils.tensorboard import SummaryWriter
+    # writer = SummaryWriter()
+    # writer.add_graph(horse, input_to_model=X, verbose=True) # FAILS unexpectedly
+    # writer.close()
 
-    ghorse.vec_to_attrs(torch.cat([i * torch.ones(ghorse.__getattribute__(p).nelement())
-                                   for i, p in enumerate(ghorse.p_names)]))
+    # check sampling ability.
+    from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
+    from torch.utils.data import TensorDataset, DataLoader
 
-    ghorse.parameters_dict
-    ghorse(X)
+    burn_in, n_samples = 100, 1000
 
-    ghorse.reset_parameters()
-    ghorse.parameters_dict
-    ghorse(X)
+    trainset = TensorDataset(X, y)
+    trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
 
-    ghorse
+    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+               'SGRLD': myRSGLD,  # epsilon
+               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+               }['RHMC']
 
+    # horse.reset_parameters(False)
+    # horse.plot(X_joint, y)
+
+    torch.autograd.set_detect_anomaly(True)
+    sampler = Sampler(horse, epsilon=0.003, L=2)
+    sampler.sample(trainloader, burn_in, n_samples)
+
+    import random
+
+    horse.plot(X, y, chain=random.sample(sampler.chain, 30),
+               **{'title': 'G-lasso'})
+
+    horse.plot(X, y, chain=sampler.chain[-30:],
+               **{'title': 'G-lasso'})

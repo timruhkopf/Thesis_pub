@@ -64,28 +64,27 @@ class GAM_Grid(Grid, SAMPLER_GRID):
 
         # validation data
         X_val = X_dist.sample(torch.Size([n_val]))
-        Z_val = torch.tensor(get_design(X_val.numpy(), degree=2, no_basis=model_param['no_basis']),
-                             dtype=torch.float32, requires_grad=False)
+        self.Z_val = torch.tensor(get_design(X_val.numpy(), degree=2, no_basis=model_param['no_basis']),
+                                  dtype=torch.float32, requires_grad=False)
 
         self.model = self.model_class(**model_param)
         self.model.to(self.device)
-        self.model.reset_parameters(mode='cum')
+        self.model.reset_parameters()
         print('state: ', self.model.state_dict())
 
         y = self.model.likelihood(Z).sample()
-        y_val = self.model.likelihood(Z_val).sample()
+        y_val = self.model.likelihood(self.Z_val).sample()
 
         self.data = (Z, y)
         self.data_val = (X_val, y_val)
 
         # save the true state & true model's performance on validation
         self.model.true_model = deepcopy(self.model.state_dict())
-        self.model.val_logprob = self.model.log_prob(Z_val, y_val)
+        self.model.val_logprob = self.model.log_prob(self.Z_val, y_val)
         with torch.no_grad():
-            self.model.val_MSE = torch.nn.MSELoss()(self.model.forward(Z_val), y_val)
+            self.model.val_MSE = torch.nn.MSELoss()(self.model.forward(self.Z_val), y_val)
 
-
-    def evaluate_model(self, X_val, Z_val, y_val):
+    def evaluate_model(self, X_val, y_val):
         import random
         subsample = 100
 
@@ -103,7 +102,7 @@ class GAM_Grid(Grid, SAMPLER_GRID):
 
         # average performance of a sampler (MSE & log_prob) on validation
         with torch.no_grad():
-            Z_val.to(self.device)
+            self.Z_val.to(self.device)
             y_val.to(self.device)
 
             # Ludwig's extrawurst
@@ -120,9 +119,9 @@ class GAM_Grid(Grid, SAMPLER_GRID):
 
             for i, c in enumerate(subset_chain):
                 sampler.model.load_state_dict(c)
-                sampler.val_logprobs[i] = sampler.model.log_prob1(Z_val, y_val)
+                sampler.val_logprobs[i] = sampler.model.log_prob1(self.Z_val, y_val)
 
-                pred = sampler.model.forward(Z_val)
+                pred = sampler.model.forward(self.Z_val)
 
                 sampler.val_MSE_chain[i] = torch.mean((pred - y_val) ** 2)
 
@@ -181,23 +180,25 @@ if __name__ == '__main__':
     #                       model_param=dict(no_basis=20, bijected=True),
     #                       sampler_param=prelim_config)
 
-    prelim_configs = gam_unittest.grid_exec_SGRLD(steps=1000, batch_size=100)  # TODO: EXTEND THE GRID
+    from Pytorch.Models.GAM import GAM
+
+    prelim_configs = gam_unittest.grid_exec_SGRLD(steps=100, batch_size=100)  # TODO: EXTEND THE GRID
     next(prelim_configs)
 
     sampler_name = 'SGRLD'
     for prelim_config in prelim_configs:
-        gam_unittest.main(n=1000, n_val=100, sampler_name=sampler_name,
+        gam_unittest.main(n=1000, n_val=100, sampler_name=sampler_name, model_class=GAM,
                           model_param=dict(no_basis=20, bijected=True),
                           sampler_param=prelim_config)
 
-    prelim_configs = gam_unittest.grid_exec_SGRHMC(steps=1000, batch_size=100)
+    prelim_configs = gam_unittest.grid_exec_SGRHMC(steps=100, batch_size=100)
     sampler_name = 'SGRHMC'
     for prelim_config in prelim_configs:
-        gam_unittest.main(n=1000, n_val=100, sampler_name=sampler_name,
+        gam_unittest.main(n=1000, n_val=100, sampler_name=sampler_name, model_class=GAM,
                           model_param=dict(no_basis=20, bijected=True),
                           sampler_param=prelim_config)
 
-    prelim_configs = gam_unittest.grid_exec_RHMC(steps=1000)
+    prelim_configs = gam_unittest.grid_exec_RHMC(steps=100)
     sampler_name = 'RHMC'
     for prelim_config in prelim_configs:
         gam_unittest.main(n=1000, n_val=100, sampler_name=sampler_name,

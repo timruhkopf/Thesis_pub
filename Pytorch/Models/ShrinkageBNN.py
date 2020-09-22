@@ -22,7 +22,7 @@ class ShrinkageBNN(BNN):
     }
 
     def __init__(self, hunits=[2, 10, 1], activation=nn.ReLU(), final_activation=nn.Identity(),
-                 shrinkage='glasso', prior='normal', seperated=False, bijected=True, heteroscedast=False):
+                 shrinkage='ghorse', prior='normal', seperated=False, bijected=True, heteroscedast=False):
         """
         Shrinkage BNN is a regular BNN, but uses a shrinkage layer, which in the
         current implementation shrinks the first variable in the X vector,

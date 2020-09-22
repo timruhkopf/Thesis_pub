@@ -181,11 +181,13 @@ def plot_distribution(dist, support=torch.linspace(0., 10., 100)):
 if __name__ == '__main__':
 
     plot_distribution(td.LogNormal(-1., scale=1. / 2.))
-    plot_distribution(td.HalfCauchy(0.3))
+    plot_distribution(td.HalfCauchy(1.))
+    plot_distribution(td.Gamma(1., 0.5))
 
     from Pytorch.Layer.Hidden import Hidden
     import torch.distributions as td
     import torch.nn as nn
+
     no_in = 1
     no_out = 1
 

@@ -96,10 +96,10 @@ class BNN(nn.Module, Model_util):
 
 
 if __name__ == '__main__':
-    no_in = 1
+    no_in = 2
     no_out = 1
     n = 1000
-    bnn = BNN(hunits=[no_in, 10, 5, no_out], activation=nn.ReLU(), prior='normal')
+    bnn = BNN(hunits=[no_in, 3, 2, no_out], activation=nn.ReLU(), prior='normal')
 
     # generate data
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
@@ -138,22 +138,23 @@ if __name__ == '__main__':
     model = bnn
     # Setting up the parameters  -----------------------------------------------
     sg_batch = 100
-    from pathlib import Path
+    # from pathlib import Path
 
-    home = str(Path.home())
-
-    path = home + '/Thesis/Pytorch/Experiments/Results_BNN/'
-    if not os.path.isdir(path):
-        os.mkdir(path)
+    # home = str(Path.home())
+    #
+    # path = home + '/results_bnn/'
+    path = 'results_bnn/'
+    if not os.path.isdir('results_bnn/'):
+        os.mkdir('results_bnn/')
 
     for rep in range(3):
         for L in [1, 2, 3]:
-            for eps in np.arange(0.0001, 0.01, 0.0005):
+            for eps in np.arange(0.001, 0.03, 0.005):
                 model.reset_parameters()
                 name = '{}_{}_{}_{}'.format(sampler_name, str(eps), str(L), str(rep))
 
                 sampler_param = dict(
-                    epsilon=eps, num_steps=1000, burn_in=1000,
+                    epsilon=eps, num_steps=1000, burn_in=100,
                     pretrain=False, tune=False, num_chains=1)
 
                 if sampler_name in ['SGNHT', 'RHMC', 'SGRHMC']:
@@ -179,7 +180,7 @@ if __name__ == '__main__':
                     sampler = Sampler(model, trainloader, **sampler_param)
                     try:
                         sampler.sample()
-                        sampler.check_chain()
+                        sampler.model.check_chain()
                         print(sampler.chain[:3])
                         print(sampler.chain[-3:])
 
@@ -209,7 +210,7 @@ if __name__ == '__main__':
                     try:
                         sampler.sample(trainloader, burn_in, n_samples)
 
-                        sampler.check_chain()
+                        sampler.model.check_chain()
                         print(sampler.chain[:3])
                         print(sampler.chain[-3:])
 
