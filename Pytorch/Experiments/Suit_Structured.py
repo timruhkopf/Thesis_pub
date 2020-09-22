@@ -12,7 +12,7 @@ cls = StructuredBNN
 name = cls.__name__
 cls_Grid = Structured_BNN_Grid
 
-steps = 100
+steps = 10000
 n = 1000
 n_val = 100
 batch = 100
