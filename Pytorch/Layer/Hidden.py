@@ -191,12 +191,12 @@ if __name__ == '__main__':
     sg_batch = 100
     for rep in range(2):
         for L in [1, 2, 3]:
-            for eps in np.arange(0.001, 0.05, 0.003):
+            for eps in np.arange(0.001, 0.03, 0.002):
                 model.reset_parameters()
                 name = '{}_{}_{}_{}'.format(sampler_name, str(eps), str(L), str(rep))
-                path = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results_Hidden/'
+                path = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results_Hidden1/'
                 sampler_param = dict(
-                    epsilon=eps, num_steps=100, burn_in=100,
+                    epsilon=eps, num_steps=1000, burn_in=400,
                     pretrain=False, tune=False, num_chains=1)
 
                 if sampler_name in ['SGNHT', 'RHMC', 'SGRHMC']:
@@ -222,7 +222,7 @@ if __name__ == '__main__':
                     sampler = Sampler(model, trainloader, **sampler_param)
                     try:
                         sampler.sample()
-                        sampler.check_chain()
+                        sampler.model.check_chain(sampler.chain)
                         print(sampler.chain[:3])
                         print(sampler.chain[-3:])
 
@@ -252,7 +252,7 @@ if __name__ == '__main__':
                     try:
                         sampler.sample(trainloader, burn_in, n_samples)
 
-                        sampler.check_chain()
+                        sampler.model.check_chain(sampler.chain)
                         print(sampler.chain[:3])
                         print(sampler.chain[-3:])
 
@@ -260,22 +260,24 @@ if __name__ == '__main__':
 
                         sampler.model.plot(X[:100], y[:100], sampler.chain[:30], path=path + name)
                         sampler.model.plot(X[:100], y[:100], random.sample(sampler.chain, 30), path=path + name)
-                        matplotlib.pyplot.close('all')
+
                     except Exception as error:
                         print(name, 'failed')
                         sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
                         print(error)
 
-                # EXPERIMENTAL ---------------------------
-                # x = x[:, 1]
-                # a = acf(x, nlags=100, fft=True)
-                # sgnht.acf = a
-                # len(sgnht.chain) / (1 + 2 * sum(sgnht.acf))
-                # print(sgnht.ess())
-                # lag = np.arange(len(a))
-                # # lag = np.arange(len(sgnht.acf))
-                # plt.plot(lag, a)
-                # plt.show()
+                    matplotlib.pyplot.close('all')
+    print()
+    # EXPERIMENTAL ---------------------------
+    # x = x[:, 1]
+    # a = acf(x, nlags=100, fft=True)
+    # sgnht.acf = a
+    # len(sgnht.chain) / (1 + 2 * sum(sgnht.acf))
+    # print(sgnht.ess())
+    # lag = np.arange(len(a))
+    # # lag = np.arange(len(sgnht.acf))
+    # plt.plot(lag, a)
+    # plt.show()
                 #
                 # tsaplots.plot_acf(x, lags=100)
                 #

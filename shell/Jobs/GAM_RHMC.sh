@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p gpu
-#SBATCH -t 6:00:00
+#SBATCH -t 48:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --job-name=GAM_RHMC
 #SBATCH --output=GAM_RHMC.%j.out

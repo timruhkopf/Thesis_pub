@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.distributions as td
 
+from copy import deepcopy
+
 from Pytorch.Layer.Hidden import Hidden
 from Pytorch.Util.DistributionUtil import LogTransform
 
@@ -47,7 +49,9 @@ class Group_lasso(Hidden):
         self.W = nn.Parameter(torch.Tensor(self.no_in - 1, self.no_out))
 
         # FIXME: check sigma dependence in W_shrinked: \beta_g | tau²_g, sigma² ~ MVN
-        self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_out), self.tau ) #.clone().detach())
+        # FIXME: make W_shrinked ready for multiple groups
+        #  make W_shrinked a MVN (0, diag(tau_1, tau_2, ...) - also when updating & joining W
+        self.dist['W_shrinked'] = td.Normal(torch.zeros(self.no_out), self.tau)  # .clone().detach())
         self.dist['W'] = td.Normal(torch.zeros((self.no_in - 1) * self.no_out), torch.tensor([1.]))
 
         # add optional bias
@@ -106,11 +110,14 @@ class Group_lasso(Hidden):
         if self.has_bias:
             self.b.data = self.dist['b'].sample()
 
+        self.init_model = deepcopy(self.state_dict())
+
     def prior_log_prob(self):
         """evaluate each parameter in respective distrib."""
 
         value = torch.tensor(0.)
-        for name in self.p_names:
+        p_names = ['tau', 'W', 'W_shrinked']
+        for name in p_names:  # self.p_names
             value += self.dist[name].log_prob(self.get_param(name)).sum()
 
         return value
@@ -177,8 +184,8 @@ if __name__ == '__main__':
     X_dist = td.Uniform(torch.ones(no_in) * -10., torch.ones(no_in) * 10.)
     X = X_dist.sample(torch.Size([n])).view(n, no_in)
 
-    glasso = Group_lasso(no_in, no_out, bias=True, activation=nn.Identity(), bijected=True)
-    glasso.reset_parameters(seperated=True)
+    glasso = Group_lasso(no_in, no_out, bias=True, activation=nn.ReLU(), bijected=True)
+    glasso.reset_parameters(seperated=False)
     glasso.true_model = glasso.state_dict()
     y = glasso.likelihood(X).sample()
 
@@ -188,7 +195,7 @@ if __name__ == '__main__':
     print(glasso.prior_log_prob())
 
     # check update_distributions
-    glasso.reset_parameters()
+    # glasso.reset_parameters()
     print(glasso.W[:, 0])
     print(glasso.dist['W_shrinked'].scale)
     # value of log prob changed due to change in variance
@@ -217,12 +224,20 @@ if __name__ == '__main__':
                'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
                }['RHMC']
 
-    glasso.reset_parameters(False)
+    # glasso.reset_parameters(False)
     # glasso.plot(X_joint, y)
 
     torch.autograd.set_detect_anomaly(True)
     sampler = Sampler(glasso, epsilon=0.001, L=2)
     sampler.sample(trainloader, burn_in, n_samples)
+
+    import random
+
+    glasso.plot(X, y, chain=random.sample(sampler.chain, 30),
+                **{'title': 'G-lasso'})
+
+    glasso.plot(X, y, chain=sampler.chain[-30:],
+                **{'title': 'G-lasso'})
 
     # check "shrinkage_regression" example on being samplable
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
@@ -245,7 +260,7 @@ if __name__ == '__main__':
 
     glasso.reset_parameters()
     sgnht = SGNHT(glasso, X, y, X.shape[0],
-                  step_size, num_steps, burn_in, pretrain=pretrain, tune=tune,
+                  step_size, num_steps, burn_in,
                   L=L,
                   num_chains=num_chains)
     sgnht.sample()
@@ -253,5 +268,5 @@ if __name__ == '__main__':
 
     import random
 
-    glasso.plot(X, y, chain=random.sample(sgnht.chain, len(sgnht.chain) // 10),
+    glasso.plot(X, y, chain=random.sample(sgnht.chain, 100),
                 **{'title': 'G-lasso'})
