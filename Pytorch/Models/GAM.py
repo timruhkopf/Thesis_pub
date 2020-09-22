@@ -101,7 +101,7 @@ class GAM(Hidden):
         #      td.MultivariateNormal(torch.zeros(self.no_basis - 1), (self.tau) * self.cov).sample()],
         #     dim=0).view(self.no_out, self.no_basis)
         # self.W.data = gamma.view(self.no_basis, self.no_out)
-
+        from copy import deepcopy
         self.init_model = deepcopy(self.state_dict())
 
     def prior_log_prob(self):
