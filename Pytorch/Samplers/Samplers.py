@@ -62,7 +62,7 @@ class Sampler:
     def traceplots(self, path=None):
         df = pd.DataFrame(self.chain_mat)
         s = int(math.ceil(math.sqrt(df.shape[1])))
-        df.plot(subplots=True, layout=(s, s), sharex=True, title='Traces')
+        df.plot(subplots=True, layout=(s, s), sharex=True, title='Traces', legend=False)
 
         if path is None:
             plt.show()
@@ -89,7 +89,7 @@ class Sampler:
 
 
         s = int(math.ceil(math.sqrt(self.acf.shape[1])))
-        self.acf.plot(subplots=True, layout=(s, s), sharey=True, sharex=True, title='Autocorrelation')
+        self.acf.plot(subplots=True, layout=(s, s), sharey=True, sharex=True, title='Autocorrelation', legend=False)
 
         if path is None:
             plt.show()
