@@ -66,8 +66,15 @@ class GAM(Hidden):
             # here tau (is on R) ---> tau_bij (on R+)
             self.tau_bij = self.dist['tau'].transforms[0]._inverse(self.tau)
 
-            self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis),
-                                                   self.tau_bij ** -1 * self.cov)
+            try:
+                self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis),
+                                                       self.tau_bij ** -1 * self.cov)
+            except Exception as e:
+                print(self.tau_bij)
+                print(self.tau_bij ** -1 * self.cov)
+                raise RuntimeError('GAM_update: cannot update distribution, as covariance is invalid:\n'
+                                   'tau:{}\ntau_bij:{}\ncov:{}'.format(self.tau, self.tau_bij,
+                                                                       self.tau_bij ** -1 * self.cov))
         else:
             self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis),
                                                    self.tau ** -1 * self.cov)

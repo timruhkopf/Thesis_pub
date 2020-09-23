@@ -130,16 +130,15 @@ class Group_lasso(Hidden):
 
         # as update_params already changed the tau value here explicitly
         if self.bijected:
-            print(self.tau)
-            print(self.dist['W_shrinked'].scale)
+            print('tau (unbijected) ', self.tau)
+            print('tau (bijected)', self.dist['W_shrinked'].scale)
             # self.dist['W_shrinked'].scale += torch.tensor(1.)
-            tau = self.dist['tau'].transforms[0]._inverse(self.dist['W_shrinked'].scale)
-            print(tau)
-            print(self.dist['alpha'].cdf(tau))
+            # tau = self.dist['tau'].transforms[0]._inverse(self.dist['W_shrinked'].scale)
+            # print(tau)
+            tau = self.dist['W_shrinked'].scale
+            print('alpha ', self.dist['alpha'].cdf(self.dist['W_shrinked'].scale))
         else:
             tau = self.dist['W_shrinked'].scale
-
-        tau.requires_grad_(False)
 
         # 1- : since small tau indicate high shrinkage & the possibility to
         # estimate using GAM, this means that alpha should be (close to) 1
