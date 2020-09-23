@@ -17,8 +17,6 @@ matplotlib.use('agg')
 
 
 class StructuredBNN(nn.Module, Model_util):
-    check_chain = Model_util.check_chain_seq
-
     gam_layer = {
         'fix_nullspace': GAM,
         'double_penalty': GAM_Wood
@@ -39,8 +37,9 @@ class StructuredBNN(nn.Module, Model_util):
         # define the model components
         self.bnn = ShrinkageBNN(hunits, activation, final_activation, shrinkage,
                                 seperated=seperated, bijected=bijected, prior='flat')
-        self.gam = self.gam_layer['fix_nullspace'](no_basis=no_basis)
+        self.gam = self.gam_layer['fix_nullspace'](no_basis=no_basis, bijected=bijected)
 
+        # notice, that alpha automatically adapts to bijection of tau!
         self.alpha = {  # all of the below are properties!
             'cdf': lambda: self.bnn.layers[0].alpha,
             'Be': lambda: self.bnn.layers[0].alpha_probab,
@@ -129,6 +128,12 @@ class StructuredBNN(nn.Module, Model_util):
 
         plt1 = self.plot2d(X, y, df0, **kwargs)
 
+        if path is None:
+            plt1.show()
+
+        else:
+            plt1.savefig('{}.png'.format(path), bbox_inches='tight')
+
         # predict merely the GAM part to ensure it does not deteriorate
         df1['X'] = X[:, 0].view(X.shape[0], ).numpy()  # explicitly the first var is modeled by gam
         df1 = df1.melt('X', value_name='y')
@@ -136,12 +141,15 @@ class StructuredBNN(nn.Module, Model_util):
         plt2 = self._plot1d(X, y=None, df=df1, **kwargs)
 
         if path is None:
-            plt1.show()
+
             plt2.show()
         else:
-            plt1.savefig('{}.png'.format(path), bbox_inches='tight')
+
             plt2.savefig('{}_GAM.png'.format(path), bbox_inches='tight')
 
+    @staticmethod
+    def check_chain(chain):
+        return Model_util.check_chain_seq(chain)
 
 if __name__ == '__main__':
     from copy import deepcopy
