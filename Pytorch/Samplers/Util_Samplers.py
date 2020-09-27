@@ -8,9 +8,6 @@ import math
 from itertools import chain
 
 
-# from Pytorch.Samplers.Sampler_Experimental import Sampler_Experimental
-
-
 class Util_Sampler:
     def __init__(self, model):
         """

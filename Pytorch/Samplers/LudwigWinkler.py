@@ -1,8 +1,8 @@
 from Pytorch.Samplers.Util_Samplers import Util_Sampler
-from thirdparty_repo.ludwigwinkler.src.MCMC_Sampler import HMC_Sampler, SGLD_Sampler, MALA_Sampler, SGNHT_Sampler
-from torch.utils.data import TensorDataset, DataLoader
+from Pytorch.Samplers.thirdparty_repo.ludwigwinkler.src.MCMC_Sampler import \
+    HMC_Sampler, SGLD_Sampler, MALA_Sampler, SGNHT_Sampler
+
 from copy import copy, deepcopy
-import torch
 
 
 class LudwigWinkler(Util_Sampler):
@@ -43,8 +43,6 @@ class LudwigWinkler(Util_Sampler):
         self.model.check_chain(self.chain)
 
         # check sampler did something meaningfull.
-
-
 
 
 class MALA(LudwigWinkler):
