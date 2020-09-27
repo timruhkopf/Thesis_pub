@@ -8,9 +8,14 @@
 /Pytorch/Layer/Group_SpikeNSlab_Ishwaran.py
 /Pytorch/Experiments/results/
 /.Literature/
-/Pytorch/Samplers/TRASH/
-/Pytorch/Experiments/OldResults/Results/
+/Pytorch/Samplers/.TRASH/
+
 
 /shell/.toyCode/
-/Pytorch/Experiments/OldResults/Results/
 
+
+/Pytorch/Experiments/.TRASH/
+/Pytorch/Models/.TRASH/
+/Tensorflow/
+/Pytorch/Grid/.TRASH/
+/Pytorch/Experiments/

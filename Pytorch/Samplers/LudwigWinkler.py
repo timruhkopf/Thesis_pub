@@ -1,11 +1,11 @@
-from Pytorch.Samplers.Samplers import Sampler
+from Pytorch.Samplers.Util_Samplers import Util_Sampler
 from thirdparty_repo.ludwigwinkler.src.MCMC_Sampler import HMC_Sampler, SGLD_Sampler, MALA_Sampler, SGNHT_Sampler
 from torch.utils.data import TensorDataset, DataLoader
 from copy import copy, deepcopy
 import torch
 
 
-class LudwigWinkler(Sampler):
+class LudwigWinkler(Util_Sampler):
     def __init__(self, model, trainloader):
         """interface to https://github.com/ludwigwinkler/
         BE AWARE, that the entire repo is build on Pytorch.Optim, which require

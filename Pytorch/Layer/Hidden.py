@@ -143,6 +143,7 @@ if __name__ == '__main__':
     import numpy as np
     import matplotlib
     import random
+    import traceback
 
     matplotlib.use('Agg')  # 'TkAgg' for explicit plotting
 
@@ -151,14 +152,14 @@ if __name__ == '__main__':
 
     # Setting up the parameters  -----------------------------------------------
     sg_batch = 100
-    for rep in range(2):
+    for rep in range(15):
         for L in [1, 2, 3]:
-            for eps in np.arange(0.001, 0.03, 0.002):
+            for eps in np.arange(0.001, 0.008, 0.002):
                 model.reset_parameters()
                 name = '{}_{}_{}_{}'.format(sampler_name, str(eps), str(L), str(rep))
                 path = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Results_Hidden1/'
                 sampler_param = dict(
-                    epsilon=eps, num_steps=100, burn_in=40,
+                    epsilon=eps, num_steps=200, burn_in=200,
                     pretrain=False, tune=False, num_chains=1)
 
                 if sampler_name in ['SGNHT', 'RHMC', 'SGRHMC']:
@@ -197,6 +198,8 @@ if __name__ == '__main__':
                         sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
                         print(error)
 
+                        print(traceback.format_exc())
+
                 elif sampler_name in ['RHMC', 'SGRLD', 'SGRHMC']:
                     n_samples = sampler_param.pop('num_steps')
                     burn_in = sampler_param.pop('burn_in')
@@ -227,6 +230,7 @@ if __name__ == '__main__':
                         print(name, 'failed')
                         sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
                         print(error)
+                        print(traceback.format_exc())
 
                     matplotlib.pyplot.close('all')
     print()

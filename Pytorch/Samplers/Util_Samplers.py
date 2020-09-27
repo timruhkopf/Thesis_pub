@@ -5,11 +5,13 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.stattools import acf
 import math
+from itertools import chain
+
 
 # from Pytorch.Samplers.Sampler_Experimental import Sampler_Experimental
 
 
-class Sampler:
+class Util_Sampler:
     def __init__(self, model):
         """
         Samplers class, implementing all the functionality shared by the samplers:
@@ -62,12 +64,16 @@ class Sampler:
     def traceplots(self, path=None):
         df = pd.DataFrame(self.chain_mat)
         s = int(math.ceil(math.sqrt(df.shape[1])))
-        df.plot(subplots=True, layout=(s, s), sharex=True, title='Traces', legend=False)
+        axes = df.plot(subplots=True, layout=(s, s), sharex=True, title='Traces', legend=False)
 
+        for ax, v in zip(chain(*axes), self.model.true_vec.detach().numpy()):
+            ax.axhline(y=v, color='r')
+
+        plt.show()
         if path is None:
             plt.show()
         else:
-            plt.savefig(path)
+            plt.savefig(path, bbox_inches='tight')
 
     def _calc_acf(self, nlags):
         df = pd.DataFrame(self.chain_mat)
@@ -87,14 +93,13 @@ class Sampler:
         if not hasattr(self, 'acf'):
             self._calc_acf(nlags)
 
-
         s = int(math.ceil(math.sqrt(self.acf.shape[1])))
         self.acf.plot(subplots=True, layout=(s, s), sharey=True, sharex=True, title='Autocorrelation', legend=False)
 
         if path is None:
             plt.show()
         else:
-            plt.savefig(path)
+            plt.savefig(path, bbox_inches='tight')
 
     def clean_chain(self):
         """:returns the list of 1d Tensors, that are not consecutively same (i.e.
@@ -124,7 +129,7 @@ class Sampler:
 
 
 if __name__ == '__main__':
-    s = Sampler(model=None)
+    s = Util_Sampler(model=None)
     chain = torch.distributions.Normal(0., scale=torch.tensor(1.)).sample([1000, 2])
     new = torch.Tensor(1000, )
 

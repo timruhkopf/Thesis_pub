@@ -60,7 +60,7 @@ class Group_lasso(Hidden):
             self.dist['b'] = td.Normal(torch.zeros(self.no_out), 1.)
 
     def forward(self, X):
-        XW = X[:, :1] @ self.W_shrinked + X[:, 1:] @ self.W   # self.W_shrinked is top row of complete W mat
+        XW = X[:, :1] @ self.W_shrinked + X[:, 1:] @ self.W  # self.W_shrinked is top row of complete W mat
         if self.has_bias:
             XW += self.b
         return self.activation(XW)
@@ -80,11 +80,11 @@ class Group_lasso(Hidden):
             self.dist['tau'].base_dist.rate = \
                 self.dist['lamb'].transforms[0]._inverse(self.lamb) ** 2 / 2
             self.dist['W_shrinked'].scale = \
-                self.dist['tau'].transforms[0]._inverse(self.tau.clone().detach()) # CAREFULL, THIS is ESSENTIAL for
+                self.dist['tau'].transforms[0]._inverse(self.tau.clone().detach())  # CAREFULL, THIS is ESSENTIAL for
             # the model to run -and not invoke a second backward (in which already gradients have been lost)
         else:
             self.dist['tau'].rate = self.lamb ** 2 / 2
-            self.dist['W_shrinked'].scale = self.tau #.clone().detach()
+            self.dist['W_shrinked'].scale = self.tau  # .clone().detach()
 
     def reset_parameters(self, seperated=False):
         """sampling method to instantiate the parameters"""
@@ -143,7 +143,6 @@ class Group_lasso(Hidden):
         # 1- : since small tau indicate high shrinkage & the possibility to
         # estimate using GAM, this means that alpha should be (close to) 1
         return 1 - self.dist['alpha'].cdf(tau)
-
 
     @property
     def alpha_probab(self):

@@ -92,7 +92,7 @@ class BNN(nn.Module, Util_Model):
 
     @staticmethod
     def check_chain(chain):
-        return Model_util.check_chain_seq(chain)
+        return Util_Model.check_chain_seq(chain)
 
 
 if __name__ == '__main__':

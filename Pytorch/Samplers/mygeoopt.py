@@ -1,5 +1,5 @@
 from geoopt.samplers import RHMC, RSGLD, SGRHMC
-from Pytorch.Samplers.Samplers import Sampler
+from Pytorch.Samplers.Util_Samplers import Util_Sampler
 from functools import partial
 from tqdm import tqdm
 
@@ -11,7 +11,7 @@ import torch
 # original code can be found @ https://github.com/geoopt/geoopt
 # https://geoopt.readthedocs.io/en/latest/index.html
 
-class Geoopt_interface(Sampler):
+class Geoopt_interface(Util_Sampler):
     """geoopt samplers implementations is based on
     Hamiltonian Monte-Carlo for Orthogonal Matrices"""
 
@@ -87,7 +87,7 @@ class Geoopt_interface(Sampler):
         return
 
 
-class myRHMC(RHMC, Geoopt_interface, Sampler):
+class myRHMC(RHMC, Geoopt_interface, Util_Sampler):
     def __init__(self, model, epsilon, L):
         RHMC.__init__(self, params=model.parameters(), epsilon=epsilon, n_steps=L)
         self.model = model
@@ -96,7 +96,7 @@ class myRHMC(RHMC, Geoopt_interface, Sampler):
         return 'myRHMC'
 
 
-class myRSGLD(RSGLD, Geoopt_interface, Sampler):
+class myRSGLD(RSGLD, Geoopt_interface, Util_Sampler):
     def __init__(self, model, epsilon):
         RSGLD.__init__(self, params=model.parameters(), epsilon=epsilon)
         self.model = model
@@ -105,7 +105,7 @@ class myRSGLD(RSGLD, Geoopt_interface, Sampler):
         return 'myRSGLD'
 
 
-class mySGRHMC(SGRHMC, Geoopt_interface, Sampler):
+class mySGRHMC(SGRHMC, Geoopt_interface, Util_Sampler):
     def __init__(self, model, epsilon, L, alpha):
         SGRHMC.__init__(self, params=model.parameters(), epsilon=epsilon,
                         n_steps=L, alpha=alpha)
