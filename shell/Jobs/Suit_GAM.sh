@@ -30,6 +30,6 @@ echo 'be aware to change to /Thesis/ and start script using "bash shell/Jobs/Uni
 #cd /home/tim/PycharmProjects/Thesis/
 
 # make sure not to add .py ending when calling a module file
-python3 -m Pytorch.Experiments.Suit_GAM &>/usr/users/truhkop/Thesis/Suit_GAM.out
+python3 -m Pytorch.Grid.Suits.Suit_GAM &>/usr/users/truhkop/Thesis/Suit_GAM.out
 
 wait

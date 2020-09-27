@@ -2,8 +2,8 @@ import os
 import numpy as np
 import torch.nn as nn
 from Pytorch.Models.GAM import GAM
-from Pytorch.Experiments.Grid_GAM import GAM_Grid
-from Pytorch.Experiments.SUIT_Samplers import samplers
+from Pytorch.Grid.Grid_GAM_Cases import GRID_Layout_GAM
+from Pytorch.Suits.SUIT_Samplers import samplers
 
 # (CONFIG) ---------------------------------------------------------------------
 steps = 1000
@@ -21,7 +21,7 @@ root = rooting(run)
 
 cls = GAM
 name = cls.__name__
-cls_Grid = GAM_Grid
+cls_Grid = GRID_Layout_GAM
 
 model_param = dict(xgrid=(0, 10, 0.5), order=1, no_basis=20, no_out=1,
                    activation=nn.Identity(), bijected=False)

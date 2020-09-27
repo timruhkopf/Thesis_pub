@@ -1,16 +1,15 @@
-import os
 import torch.nn as nn
-from Pytorch.Experiments.Grid_Structured_BNN import Structured_BNN_Grid
+from Pytorch.Grid.Grid_GAM_Cases import GRID_Layout_STRUCTURED
 from Pytorch.Models.StructuredBNN import StructuredBNN
 
-from Pytorch.Experiments.SUIT_Samplers import samplers
+from Pytorch.Suits.SUIT_Samplers import samplers
 import numpy as np
 
 # (CONFIG) ---------------------------------------------------------------------
 
 cls = StructuredBNN
 name = cls.__name__
-cls_Grid = Structured_BNN_Grid
+cls_Grid = GRID_Layout_STRUCTURED
 
 steps = 10000
 n = 1000

@@ -1,39 +1,10 @@
 import numpy as np
 
-class SAMPLER_GRID:
-    """A class intended to simplify the Experiments, as this functionallity is shared
-    across all Experiments"""
 
-    def sampler_init_run(self, trainloader):
-        from Pytorch.Samplers.LudwigWinkler import SGLD
-        from copy import deepcopy
-        import matplotlib.pyplot as plt
-        self.model.init_model = deepcopy(self.model.state_dict())
-
-        print('searching for a suitable initilisation')
-        sgld = SGLD(self.model, trainloader, epsilon=0.001, num_steps=1000,
-                    burn_in=1000, pretrain=False, tune=False, num_chains=1)
-        try:
-            sgld.sample()
-
-        except:
-            print('init run failed')
-
-        data = next(trainloader.__iter__())
-        if len(data) == 3:
-            X, Z, y = data
-            self.model.plot(X, Z, y, path=self.basename + '_init_run', title='')
-
-        else:
-            X, y = data
-            self.model.plot(X, y, path=self.basename + '_init_run', title='')
-
-        plt.close('all')
-
-    def set_up_sampler(self, model, sampler_name, sampler_param):
+class Sampler_set_up:
+    def set_up_sampler(self, sampler_name, sampler_param):
         from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
         from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
-        from torch.utils.data import TensorDataset, DataLoader
 
         # (SAMPLER) Select sampler, set up  and sample -------------------------
         # random init state
@@ -46,20 +17,8 @@ class SAMPLER_GRID:
         from copy import deepcopy
         init = deepcopy(self.model.state_dict())
         self.model.load_state_dict(self.model.true_model)
-        self.model.plot(*self.data_val, chain=[init], path=self.basename + '_initmodel')
+        self.model.plot(*self.data_plot, chain=[init], path=self.basename + '_initmodel')
         self.model.load_state_dict(init)
-
-        try:
-            batch_size = sampler_param.pop('batch_size')
-        except:
-            batch_size = self.data[0].shape[0]
-
-        # send data to device
-        for tensor in self.data:
-            tensor.to(self.device)
-
-        trainset = TensorDataset(*self.data)
-        trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
 
         # searching for a stable init for sgnht and all RM sampler
         # if sampler_name in ['SGNHT', 'RHMC', 'SGRLD', 'SGRHMC']:
@@ -70,7 +29,7 @@ class SAMPLER_GRID:
                        'MALA': MALA,  # step_size
                        'SGLD': SGLD  # step_size
                        }[sampler_name]
-            self.sampler = Sampler(model, trainloader, **sampler_param)
+            self.sampler = Sampler(self.model, self.trainloader, **sampler_param)
             self.sampler.sample()
 
 
@@ -82,8 +41,8 @@ class SAMPLER_GRID:
                        'SGRLD': myRSGLD,  # epsilon
                        'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
                        }[sampler_name]
-            self.sampler = Sampler(model, **sampler_param)
-            self.sampler.sample(trainloader, burn_in, n_samples)
+            self.sampler = Sampler(self.model, **sampler_param)
+            self.sampler.sample(self.trainloader, burn_in, n_samples)
 
         else:
             raise ValueError('sampler_name was not correctly specified')
@@ -93,10 +52,13 @@ class SAMPLER_GRID:
         # sampler class must be imported, to make them accessible
         self.sampler.save(self.basename)
 
-        # STATIC METHDODS: ---------------------------------------
-        # TODO: Check each Grid to be runnable configs & the defaults of param included in grid defaults
-        # ludwig based
+        self.sampler.traceplots(path=self.basename + '_traces.png')
+        self.sampler.acf_plots(nlags=500, path=self.basename + '_acf.png')
 
+        self.sampler.ess(nlags=200)
+        print(self.sampler.ess_min)
+
+    # generator functions ------------------------------------------------------
     def grid_exec_MALA(self, steps, epsilons=np.arange(0.0001, 0.03, 0.003)):
         for epsilon in epsilons:
             yield dict(epsilon=epsilon, num_steps=steps, pretrain=False,

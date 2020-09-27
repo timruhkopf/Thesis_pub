@@ -1,9 +1,8 @@
-import os
 import numpy as np
 import torch.nn as nn
 from Pytorch.Layer.Group_HorseShoe import Group_HorseShoe
-from Pytorch.Experiments.Grid_Layer import Layer_Grid
-from Pytorch.Experiments.SUIT_Samplers import samplers
+from Pytorch.Grid.Grid_Layout import GRID_Layout
+from Pytorch.Suits.SUIT_Samplers import samplers
 
 # (CONFIG) ---------------------------------------------------------------------
 steps = 1000
@@ -18,7 +17,7 @@ run = 'Unittest_samplers'
 
 cls = Group_HorseShoe
 name = cls.__name__
-cls_Grid = Layer_Grid
+cls_Grid = GRID_Layout
 
 model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU(), bijected=True)
 

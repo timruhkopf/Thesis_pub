@@ -1,9 +1,8 @@
-import os
 import numpy as np
 import torch.nn as nn
-from Pytorch.Layer.Hidden import Hidden, Hidden_flat
+from Pytorch.Layer.Hidden import Hidden
 from Pytorch.Experiments.Grid_Layer import Layer_Grid
-from Pytorch.Experiments.SUIT_Samplers import samplers
+from Pytorch.Suits.SUIT_Samplers import samplers
 
 # (CONFIG) ---------------------------------------------------------------------
 steps = 1000
