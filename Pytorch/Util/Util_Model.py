@@ -9,7 +9,7 @@ class Util_Model(Util_plots):
 
     @property
     def p_names(self):
-        return list(self.__dict__['_parameters'].keys())
+        return list(dict(self.named_parameters()).keys())
 
     def get_param(self, name):
         return self.__dict__['_parameters'][name]

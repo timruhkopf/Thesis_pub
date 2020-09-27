@@ -18,3 +18,6 @@
 /Pytorch/Grid/.TRASH/
 /Pytorch/Experiments/*Results
 /Tensorflow/
+/__pycache__/
+/__init__.pyc
+
