@@ -96,7 +96,8 @@ class Util_plots:
                 x=torch.reshape(X, (X.shape[0],)).numpy(),
                 y=torch.reshape(y, (y.shape[0],)).numpy(), ax=ax)
 
-        sns.lineplot('X', y='y', hue='functions', alpha=0.5, data=df, ax=ax)
+        sns.lineplot('X', y='y', hue='functions', alpha=0.5, data=df[df['functions'] != 'current'], ax=ax)
+        sns.lineplot('X', y='y', color='red', alpha=0.5, data=df[df['functions'] == 'current'], ax=ax, label='current')
         plt.title('{}'.format(title))
         return fig
 
