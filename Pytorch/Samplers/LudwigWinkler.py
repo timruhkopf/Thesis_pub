@@ -1,7 +1,8 @@
 from Pytorch.Samplers.Util_Samplers import Util_Sampler
-from Pytorch.Samplers.thirdparty_repo.ludwigwinkler.src.MCMC_Sampler import \
+from thirdparty_repo.ludwigwinkler.src.MCMC_Sampler import \
     HMC_Sampler, SGLD_Sampler, MALA_Sampler, SGNHT_Sampler
 
+import torch
 from copy import copy, deepcopy
 
 

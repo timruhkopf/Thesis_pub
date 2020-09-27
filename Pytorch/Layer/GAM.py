@@ -108,7 +108,6 @@ class GAM(Hidden):
         #      td.MultivariateNormal(torch.zeros(self.no_basis - 1), (self.tau) * self.cov).sample()],
         #     dim=0).view(self.no_out, self.no_basis)
         # self.W.data = gamma.view(self.no_basis, self.no_out)
-        from copy import deepcopy
         self.init_model = deepcopy(self.state_dict())
 
     def prior_log_prob(self):
@@ -145,7 +144,7 @@ class GAM(Hidden):
 
 
 if __name__ == '__main__':
-    from copy import deepcopy
+
 
     # dense example
     no_basis = 20
@@ -196,7 +195,7 @@ if __name__ == '__main__':
     if not os.path.isdir(path):
         os.mkdir(path)
 
-    sampler_name = ['SGNHT', 'SGLD', 'MALA', 'RHMC', 'SGRLD', 'SGRHMC'][3]
+    sampler_name = ['SGNHT', 'SGLD', 'MALA', 'RHMC', 'SGRLD', 'SGRHMC'][1]
     model = gam
 
     # Setting up the parameters  -----------------------------------------------

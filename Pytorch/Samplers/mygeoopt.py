@@ -3,8 +3,6 @@ from Pytorch.Samplers.Util_Samplers import Util_Sampler
 from functools import partial
 from tqdm import tqdm
 
-import torch
-
 
 # geoopt is the inofficial implementation of
 # https://openreview.net/pdf?id=r1eiqi09K7 in colloberation with the authors.

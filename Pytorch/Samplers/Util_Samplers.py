@@ -148,7 +148,7 @@ if __name__ == '__main__':
     s.acf = result[result.size // 2:][1:]
 
     # version 2
-    s.acf = tidynamics.acf(x)[1: len(s.chain) // 10]
+    # s.acf = tidynamics.acf(x)[1: len(s.chain) // 10]
 
     # version 3
     import scipy.signal as sc
