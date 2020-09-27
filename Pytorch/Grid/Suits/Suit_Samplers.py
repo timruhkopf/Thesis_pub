@@ -1,9 +1,28 @@
 import os
+from subprocess import check_output
 
 
-def samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, seperated=True):
-    rooting = lambda run: os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-        os.getcwd() + '/Results/{}/'.format(run)
+def samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, seperated=True, repeated=1):
+    git = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
+    name = cls.__name__
+
+    base = '/'.join(os.path.abspath(__file__).split('/')[:-3])
+    rooting = lambda run: base + '/Experiment/Result_{}/{}/'.format(git, run)
+
+    path = base + '/Experiment/'
+    if not os.path.isdir(path):
+        try:
+            os.mkdir(path)
+        except FileExistsError:
+            print('file result existed, still continuing')
+
+    path = base + '/Experiment/Result_{}/'.format(git)
+    if not os.path.isdir(path):
+        try:
+            os.mkdir(path)
+        except FileExistsError:
+            print('file result existed, still continuing')
+
     # (1) MALA -------------------------------------------------
     #
     # run = name + '_MALA'
@@ -28,11 +47,12 @@ def samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons,
     prelim_configs = bnn_unittest.grid_exec_SGLD(steps=steps, epsilons=epsilons)
 
     for config in prelim_configs:
-        bnn_unittest.main(
-            seperated=seperated,
-            n=n, n_val=n_val,
-            model_class=cls, model_param=model_param,
-            sampler_name='SGLD', sampler_param=config)
+        for i in range(repeated):
+            bnn_unittest.main(
+                seperated=seperated,
+                n=n, n_val=n_val,
+                model_class=cls, model_param=model_param,
+                sampler_name='SGLD', sampler_param=config)
 
     # (3) RHMC -------------------------------------------------
 
@@ -42,11 +62,12 @@ def samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons,
     prelim_configs = bnn_unittest.grid_exec_RHMC(steps=steps, epsilons=epsilons, Ls=Ls)
 
     for config in prelim_configs:
-        bnn_unittest.main(
-            seperated=seperated,
-            n=n, n_val=n_val,
-            model_class=cls, model_param=model_param,
-            sampler_name='RHMC', sampler_param=config)
+        for i in range(repeated):
+            bnn_unittest.main(
+                seperated=seperated,
+                n=n, n_val=n_val,
+                model_class=cls, model_param=model_param,
+                sampler_name='RHMC', sampler_param=config)
 
     # (4) SGRLD -------------------------------------------------
     run = name + '_SGRLD'
@@ -56,11 +77,12 @@ def samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons,
     prelim_configs = bnn_unittest.grid_exec_SGRLD(steps=steps, batch_size=batch, epsilons=epsilons)
 
     for config in prelim_configs:
-        bnn_unittest.main(
-            seperated=seperated,
-            n=n, n_val=n_val,
-            model_class=cls, model_param=model_param,
-            sampler_name='SGRLD', sampler_param=config)
+        for i in range(repeated):
+            bnn_unittest.main(
+                seperated=seperated,
+                n=n, n_val=n_val,
+                model_class=cls, model_param=model_param,
+                sampler_name='SGRLD', sampler_param=config)
 
     # (5) SGRHMC -------------------------------------------------
 
@@ -71,11 +93,12 @@ def samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons,
     prelim_configs = bnn_unittest.grid_exec_SGRHMC(steps=steps, batch_size=batch, epsilons=epsilons, Ls=Ls)
 
     for config in prelim_configs:
-        bnn_unittest.main(
-            seperated=seperated,
-            n=n, n_val=n_val,
-            model_class=cls, model_param=model_param,
-            sampler_name='SGRHMC', sampler_param=config)
+        for i in range(repeated):
+            bnn_unittest.main(
+                seperated=seperated,
+                n=n, n_val=n_val,
+                model_class=cls, model_param=model_param,
+                sampler_name='SGRHMC', sampler_param=config)
 
     # (0) SGNHT --------------------------------------------------------------------
 
@@ -86,8 +109,9 @@ def samplers(name, cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons,
     prelim_configs = bnn_unittest.grid_exec_SGNHT(epsilons=epsilons, Ls=Ls, steps=steps, batch_size=batch)
 
     for config in prelim_configs:
-        bnn_unittest.main(
-            seperated=seperated,
-            n=n, n_val=n_val,
-            model_class=cls, model_param=model_param,
-            sampler_name='SGNHT', sampler_param=config)
+        for i in range(repeated):
+            bnn_unittest.main(
+                seperated=seperated,
+                n=n, n_val=n_val,
+                model_class=cls, model_param=model_param,
+                sampler_name='SGNHT', sampler_param=config)
