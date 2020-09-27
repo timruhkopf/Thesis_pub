@@ -7,7 +7,7 @@ from Tensorflow.Effects.bspline import get_design
 from Pytorch.Models.GAM import GAM
 from Pytorch.Models.GAM_Wood import GAM_Wood
 from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
-from Pytorch.Util.ModelUtil import Model_util
+from Pytorch.Util.Util_Model import Util_Model
 
 from copy import deepcopy
 
@@ -16,7 +16,7 @@ import matplotlib
 matplotlib.use('agg')
 
 
-class StructuredBNN(nn.Module, Model_util):
+class StructuredBNN(nn.Module, Util_Model):
     gam_layer = {
         'fix_nullspace': GAM,
         'double_penalty': GAM_Wood

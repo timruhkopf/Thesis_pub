@@ -4,12 +4,12 @@ import torch.distributions as td
 import inspect
 
 from Pytorch.Layer.Hidden import Hidden, Hidden_flat
-from Pytorch.Util.ModelUtil import Model_util
+from Pytorch.Util.Util_Model import Util_Model
 
 from copy import deepcopy
 
 
-class BNN(nn.Module, Model_util):
+class BNN(nn.Module, Util_Model):
     L = {'flat': Hidden_flat, 'normal': Hidden}
 
     def __init__(self, hunits=[1, 10, 5, 1], activation=nn.ReLU(), final_activation=nn.Identity(),

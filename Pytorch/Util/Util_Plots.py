@@ -7,7 +7,7 @@ import matplotlib.tri as mtri  # for trisurface with irregular grid
 from copy import deepcopy
 
 
-class Plots:
+class Util_plots:
     @torch.no_grad()
     def predict_states(self, chain=None, *args):
         """
@@ -182,7 +182,7 @@ if __name__ == '__main__':
 
     plot_distribution(td.LogNormal(-1., scale=1. / 2.))
     plot_distribution(td.HalfCauchy(1.))
-    plot_distribution(td.Gamma(1., 0.5))
+    plot_distribution(td.Gamma(4., 4.))
 
     from Pytorch.Layer.Hidden import Hidden
     import torch.distributions as td

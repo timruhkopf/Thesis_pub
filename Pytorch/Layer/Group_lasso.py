@@ -5,7 +5,7 @@ import torch.distributions as td
 from copy import deepcopy
 
 from Pytorch.Layer.Hidden import Hidden
-from Pytorch.Util.DistributionUtil import LogTransform
+from Pytorch.Util.Util_Distribution import LogTransform
 
 
 class Group_lasso(Hidden):

@@ -4,9 +4,9 @@ import torch.nn as nn
 from copy import deepcopy
 
 from Pytorch.Layer.Hidden import Hidden
-from Pytorch.Util.DistributionUtil import LogTransform
+from Pytorch.Util.Util_Distribution import LogTransform
 
-from Tensorflow.Effects.bspline import get_design, diff_mat1D
+from Pytorch.Util.Util_bspline import get_design, diff_mat1D
 
 
 class GAM(Hidden):

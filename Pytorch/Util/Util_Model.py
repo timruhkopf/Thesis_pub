@@ -1,11 +1,11 @@
 import torch
 import torch.distributions as td
-from Pytorch.Util.plotUtil import Plots
+from Pytorch.Util.Util_Plots import Util_plots
 
 from math import prod
 
 
-class Model_util(Plots):
+class Util_Model(Util_plots):
 
     @property
     def p_names(self):
@@ -44,7 +44,7 @@ class Model_util(Plots):
          class hast prior_log_prob() and likelihood(mu=f(X)) function.
          my_log_prob function is subjected to self.log_prob function, which in
          turn is subjected to a sampler"""
-        return self.prior_log_prob().sum() + \
+        return self.prior_log_prob() + \
                self.likelihood(X).log_prob(y).sum()
 
     def log_prob(self, X, y, vec=None):
@@ -95,6 +95,8 @@ class Model_util(Plots):
         if all(all(a == b) for a, b in zip(chain[0].values(), chain[-1].values())):
             print(chain[0], chain[-1])
             raise RuntimeError('first and last entry are the same')
+
+        print('succeeded')
 
     @staticmethod
     def check_chain_seq(chain):

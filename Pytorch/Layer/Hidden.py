@@ -3,10 +3,10 @@ import torch.nn as nn
 import torch.distributions as td
 
 from copy import deepcopy
-from Pytorch.Util.ModelUtil import Model_util
+from Pytorch.Util.Util_Model import Util_Model
 
 
-class Hidden(nn.Module, Model_util):
+class Hidden(nn.Module, Util_Model):
 
     def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU()):
         """
