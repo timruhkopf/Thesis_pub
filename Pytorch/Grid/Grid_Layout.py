@@ -7,13 +7,13 @@ from copy import deepcopy
 
 import os
 import matplotlib.pyplot as plt
-from Pytorch.Grid.GridUtil import Grid
-from Pytorch.Grid.Continuation import Continuation
-from Pytorch.Grid.Sampler_set_up import Sampler_set_up
+from Pytorch.Grid.Util.Grid_Tracker import Grid_Tracker
+from Pytorch.Grid.Util.Continuation import Continuation
+from Pytorch.Grid.Util.Sampler_set_up import Sampler_set_up
 import pickle
 
 
-class GRID_Layout(Grid, Continuation, Sampler_set_up):
+class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
 
     def main(self, n, n_val, model_class, model_param, sampler_name, sampler_param, seperated):
         self.basename = self.pathresults + '{}_{}_'.format(model_class.__name__, sampler_name) + self.hash
@@ -44,7 +44,7 @@ class GRID_Layout(Grid, Continuation, Sampler_set_up):
         # and loaded the state dict upon
         self.config['true_model'] = self.model.true_model
         self.config['init_model'] = self.model.init_model
-        with open(self.basename + '.pkl', 'wb') as handle:
+        with open(self.basename + '_config.pkl', 'wb') as handle:
             pickle.dump(self.config, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         with open(self.basename + '_chain.pkl', 'wb') as handle:
@@ -159,8 +159,9 @@ if __name__ == '__main__':
     from Pytorch.Layer.Hidden import Hidden
 
     # run = 'HIDDEN_SGNHT'
-    # root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-    #     os.getcwd() + '/Results/{}/'.format(run)
+    # root = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/{}/'.format(run)
+    # #root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+    # #    os.getcwd() + '/Results/{}/'.format(run)
     #
     # grid = GRID_Layout(root)
     # prelim_configs = grid.grid_exec_SGNHT(steps=1000, batch_size=100)
@@ -176,8 +177,9 @@ if __name__ == '__main__':
 
     # (HiddenRHMC) -----------------------------------------------------------------
     run = 'HIDDEN_RHMC2'
-    root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-        os.getcwd() + '/Results/{}/'.format(run)
+    root = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/{}/'.format(run)
+    # root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+    #     os.getcwd() + '/Results/{}/'.format(run)
 
     grid = GRID_Layout(root)
     prelim_configs = grid.grid_exec_RHMC(steps=1000)
@@ -185,7 +187,12 @@ if __name__ == '__main__':
     n = 1000
     n_val = 100
     model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU())
+    import matplotlib
 
+    # matplotlib.use('TkAgg')
+
+    # VERY IMPORTANT FEATURE: continue sampling from successfull models!
+    grid = GRID_Layout(root)
     grid.continue_sampling_successfull(n=1000, n_val=100, n_samples=1000, burn_in=100, path=root)
 
     for config in prelim_configs:
@@ -197,8 +204,9 @@ if __name__ == '__main__':
     from Pytorch.Layer.Group_lasso import Group_lasso
 
     run = 'Glasso_SGNHT'
-    root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-        os.getcwd() + '/Results/{}/'.format(run)
+    root = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/{}/'.format(run)
+    # #root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+    # #    os.getcwd() + '/Results/{}/'.format(run)
 
     glasso_unittest = GRID_Layout(root)
     prelim_configs = glasso_unittest.grid_exec_SGNHT(steps=1000, batch_size=100)
@@ -236,8 +244,9 @@ if __name__ == '__main__':
     from Pytorch.Models.BNN import BNN
 
     run = 'BNN_SGNHT'
-    root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-        os.getcwd() + '/Results/{}/'.format(run)
+    root = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/{}/'.format(run)
+    # #root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+    # #    os.getcwd() + '/Results/{}/'.format(run)
 
     grid = GRID_Layout(root)
     prelim_configs = grid.grid_exec_SGNHT(steps=1000, batch_size=100)
@@ -258,9 +267,9 @@ if __name__ == '__main__':
     from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
 
     run = 'Shrinkage_BNN_SGNHT'
-    root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-        os.getcwd() + '/Results/{}/'.format(run)
-
+    root = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/{}/'.format(run)
+    # #root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+    # #    os.getcwd() + '/Results/{}/'.format(run)
     grid = GRID_Layout(root)
     prelim_configs = grid.grid_exec_SGNHT(steps=1000, batch_size=100)
 

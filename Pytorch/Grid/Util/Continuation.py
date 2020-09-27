@@ -33,13 +33,14 @@ class Continuation:
         # wrap again every execution with try except & tracking
         # FIXME: make a new basepath for continued
         self.pathresults = path[:-1] + '_continued/'
-        result = '/'.join(self.pathresults.split('/')[:-2])
+        self.result = '/'.join(self.pathresults.split('/')[:-2])
         self.runfolder = self.pathresults.split('/')[-2]
-        if not os.path.isdir(result):
+        if not os.path.isdir(self.result):
             try:
-                os.mkdir(result)
+                os.mkdir(self.result)
             except FileExistsError:
                 print('file result existed, still continuing')
+
         if not os.path.isdir(self.pathresults):
             os.mkdir(self.pathresults)
 
@@ -50,10 +51,14 @@ class Continuation:
 
     def _continue(self, m, path, n_samples, burn_in):
 
+        # naming conventions & parsing
         model_name_base, _ = m.split('.')
+        hashi = m.split('_')[-2:]
+        self.hash = '_'.join([hashi[0], hashi[-1].split('.')[0]])
         model_name = model_name_base + '_continued'
-        self.basename = path + model_name_base
-        with open(path + model_name_base + '.pkl', 'rb') as handle:
+        self.basename = path[:-1] + '_continued/' + model_name
+
+        with open(path + model_name_base + '_config.pkl', 'rb') as handle:
             config = pickle.load(handle)
         model_class, model_param, seperated = config['model_class'], \
                                               config['model_param'], \
@@ -65,7 +70,7 @@ class Continuation:
         if 'batch_size' in sampler_param.keys():
             batch_size = sampler_param.pop('batch_size')
         else:
-            batch_size = n
+            batch_size = self.n
 
         sampler_param['n_samples'] = n_samples
         sampler_param['burn_in'] = burn_in
@@ -73,8 +78,13 @@ class Continuation:
         self.set_up_model(model_class, model_param, seperated)
 
         # generate some new data with the true model
+        self.model.init_model = config['init_model']
+        self.model.true_model = config['true_model']
         self.model.load_state_dict(true_model)
-        self.set_up_data(n, n_val, model_param, batch_size)
+        self.set_up_data(self.n, self.n_val, model_param, batch_size)
         self.model.load_state_dict(torch.load(path + m))
+        self.model.plot(*self.data_val)
 
         self.set_up_sampler(sampler_name, sampler_param)
+        self.evaluate_model()
+        self.model.plot(*self.data_val)

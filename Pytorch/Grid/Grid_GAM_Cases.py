@@ -89,7 +89,7 @@ if __name__ == '__main__':
         os.getcwd() + '/Results/{}/'.format(run)
     gam_unittest = GRID_Layout_GAM(root)
 
-    from Pytorch.Models.GAM import GAM
+    from Pytorch.Layer.GAM import GAM
 
     prelim_configs = gam_unittest.grid_exec_SGRLD(steps=100, batch_size=100)  # TODO: EXTEND THE GRID
     next(prelim_configs)

@@ -11,7 +11,7 @@ matplotlib.use('Agg')
 import pandas as pd
 
 
-class Grid:
+class Grid_Tracker:
     def __init__(self, root):
         """
         Grid is a delegation class, that ensures that multiple calls (of potentially

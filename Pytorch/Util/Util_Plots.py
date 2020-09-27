@@ -123,14 +123,18 @@ class Util_plots:
                     marker='.', s=10, c="black", alpha=0.5, label='Observed data')
         ax1.view_init(elev=40, azim=-45)
 
+        ax1.scatter(X[:, 0], X[:, 1], df['current'],
+                    marker='.', s=7, color='red', alpha=0.3, label='current')
+
         import matplotlib.cm as cm
         colors = cm.rainbow(torch.linspace(0, 1, len(df)).numpy())
         for (k, v), c in zip(df.items(), colors):
 
-            if k != 'true':
+            if k != 'true' and k != 'current':
                 ax1.scatter(X[:, 0], X[:, 1], v,
-                            marker='.', s=7, color=c, alpha=0.3, label = k)
-        ax1.legend(loc='upper left', )
+                            marker='.', s=7, color=c, alpha=0.3, label=k)
+
+        ax1.legend(loc='upper left')
         return plt
 
 
