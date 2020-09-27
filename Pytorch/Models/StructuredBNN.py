@@ -4,8 +4,8 @@ import torch.distributions as td
 import pandas as pd
 
 from Tensorflow.Effects.bspline import get_design
-from Pytorch.Models.GAM import GAM
-from Pytorch.Models.GAM_Wood import GAM_Wood
+from Pytorch.Layer.GAM import GAM
+
 from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
 from Pytorch.Util.Util_Model import Util_Model
 
@@ -18,8 +18,7 @@ matplotlib.use('agg')
 
 class StructuredBNN(nn.Module, Util_Model):
     gam_layer = {
-        'fix_nullspace': GAM,
-        'double_penalty': GAM_Wood
+        'fix_nullspace': GAM
     }
 
     def __init__(self, hunits=[2, 3, 1], shrinkage='glasso',
@@ -204,7 +203,7 @@ if __name__ == '__main__':
     sampler.sample(trainloader, burn_in, n_samples)
 
     print(sampler.chain_mat)
-    print(sampler.model.a)
+    # print(sampler.model.a)
     import random
 
     h.plot(X[:100], Z[:100], y[:100], chain=random.sample(sampler.chain, 100),

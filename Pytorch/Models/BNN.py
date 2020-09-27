@@ -131,6 +131,7 @@ if __name__ == '__main__':
     import matplotlib
     import random
     import os
+    import traceback
 
     matplotlib.use('Agg')  # 'TkAgg' for explicit plotting
 
@@ -143,9 +144,9 @@ if __name__ == '__main__':
     # home = str(Path.home())
     #
     # path = home + '/results_bnn/'
-    path = 'results_bnn/'
-    if not os.path.isdir('results_bnn/'):
-        os.mkdir('results_bnn/')
+    path = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Results_BNN/'
+    if not os.path.isdir(path):
+        os.mkdir(path)
 
     for rep in range(3):
         for L in [1, 2, 3]:
@@ -192,6 +193,7 @@ if __name__ == '__main__':
                         print(name, 'failed')
                         sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
                         print(error)
+                        print(traceback.format_exc())
 
                 elif sampler_name in ['RHMC', 'SGRLD', 'SGRHMC']:
                     n_samples = sampler_param.pop('num_steps')
@@ -223,6 +225,7 @@ if __name__ == '__main__':
                         print(name, 'failed')
                         sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
                         print(error)
+                        print(traceback.format_exc())
 
     print()
     # -------------------------------------------------------

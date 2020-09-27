@@ -2,6 +2,7 @@ from geoopt.samplers import RHMC, RSGLD, SGRHMC
 from Pytorch.Samplers.Util_Samplers import Util_Sampler
 from functools import partial
 from tqdm import tqdm
+import torch
 
 
 # geoopt is the inofficial implementation of
@@ -116,7 +117,6 @@ class mySGRHMC(SGRHMC, Geoopt_interface, Util_Sampler):
 if __name__ == '__main__':
     # code taken from https://github.com/geoopt/geoopt/blob/bd6c687862e6692a018ea5201191cc982e74efcf/tests/test_rhmc.py
 
-    import torch
     import torch.nn as nn
     import torch.distributions as td
     from torch.utils.data import TensorDataset, DataLoader
