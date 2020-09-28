@@ -19,4 +19,4 @@ model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
                    prior='normal',
                    heteroscedast=False)
 samplers(cls, cls_Grid, n, n_val, model_param, steps, batch,
-         epsilons=np.arange(0.0001, 0.02, 0.002), Ls=[1, 2, 3], repeated=10)
+         epsilons=np.arange(0.0001, 0.02, 0.002), Ls=[1, 2, 3], repeated=15)

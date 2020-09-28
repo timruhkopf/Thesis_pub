@@ -69,6 +69,8 @@ class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
             no_in = self.model_param['no_in']
         elif 'no_basis' in self.model_param.keys():
             no_in = self.model_param['no_basis']
+        elif 'hunits' in self.model_param.keys():
+            no_in = self.model_param['hunits'][0]
 
         X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
         X = X_dist.sample(torch.Size([n])).view(n, no_in)
@@ -95,7 +97,6 @@ class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
     def evaluate_model(self):
         import random
         subsample = min(100, len(self.sampler.chain))  # for chain prediction MSE & log prob
-        subsample = 100
 
         plot_subsample = min(30, len(self.sampler.chain))
 

@@ -20,7 +20,7 @@ model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
                    no_basis=20, seperated=True, bijected=True, alpha_type='cdf')
 
 samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons=np.arange(0.0001, 0.02, 0.002),
-         Ls=[1, 2, 3], repeated=10)
+         Ls=[1, 2, 3], repeated=15)
 
 # ALPHA CONSTANT -------------------------------------
 model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
@@ -29,4 +29,4 @@ model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
 
 samplers(cls, cls_Grid, n, n_val, model_param, steps, batch,
          epsilons=np.arange(0.0001, 0.02, 0.002),
-         Ls=[1, 2, 3], repeated=10)
+         Ls=[1, 2, 3], repeated=15)

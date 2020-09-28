@@ -12,7 +12,7 @@ class Util_Model(Util_plots):
         return list(dict(self.named_parameters()).keys())
 
     def get_param(self, name):
-        return self.__dict__['_parameters'][name]
+        return dict(self.named_parameters())[name]
 
     @property
     def parameters_dict(self):
