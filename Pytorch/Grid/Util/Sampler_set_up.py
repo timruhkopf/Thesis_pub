@@ -1,4 +1,5 @@
 import numpy as np
+from copy import deepcopy
 
 
 class Sampler_set_up:
@@ -14,7 +15,7 @@ class Sampler_set_up:
         # import matplotlib.pyplot as plt
         # matplotlib.use('Tkagg')
         # plt.ion()
-        from copy import deepcopy
+
         init = deepcopy(self.model.state_dict())
         self.model.load_state_dict(self.model.true_model)
         self.model.plot(*self.data_plot, chain=[init], path=self.basename + '_initmodel')
@@ -34,8 +35,11 @@ class Sampler_set_up:
 
 
         elif sampler_name in ['RHMC', 'SGRLD', 'SGRHMC']:
-            n_samples = sampler_param.pop('n_samples')
-            burn_in = sampler_param.pop('burn_in')
+            try:
+                n_samples = sampler_param.pop('n_samples')
+                burn_in = sampler_param.pop('burn_in')
+            except Exception as error:
+                print(error)
 
             Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
                        'SGRLD': myRSGLD,  # epsilon
@@ -99,8 +103,7 @@ class Sampler_set_up:
         for epsilon in epsilons:
             for L in Ls:
                 yield dict(epsilon=epsilon, L=L, n_samples=steps,
-                           burn_in=int(steps * 0.10)
-                           )
+                           burn_in=int(steps * 0.10))
 
     def grid_exec_SGRHMC(self, steps, batch_size, epsilons=np.arange(0.0001, 0.03, 0.003),
                          Ls=[1, 2, 3, 5, 7, 10], alphas=np.arange(0., 0.99, 0.20)):

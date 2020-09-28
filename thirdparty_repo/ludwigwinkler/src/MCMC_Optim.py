@@ -200,8 +200,10 @@ class SGLD_Optim(Optimizer, MCMC_Optim):
                     p.data.add_(grad, alpha=-0.5 * group['step_size'])
                     p.data.add_(noise)
 
-                    if torch.isnan(p.data).any(): exit('Nan param')
-                    if torch.isinf(p.data).any(): exit('inf param')
+                    if torch.isnan(p.data).any():
+                        raise RuntimeError('Nan param')
+                    if torch.isinf(p.data).any():
+                        raise RuntimeError('inf parameter occured during SGLD_Optim step in Ludwig')
 
                 else:
                     p.data.add_(other=0.5 * grad, alpha=-group['step_size'], )
