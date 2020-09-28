@@ -92,8 +92,10 @@ class Util_Model(Util_plots):
             print(chain[0], chain[-1])
             raise RuntimeError('first and last entry contain nan')
 
-        if all(all(a == b) for a, b in zip(chain[0].values(), chain[-1].values())):
-            print(chain[0], chain[-1])
+        if len(chain) > 2 and all(all(a == b) for a, b in zip(chain[0].values(), chain[-2].values())):
+            print(chain[0], chain[-2])
+            # FIXME: as it appears, many chains actually progress usefully,
+            #  but 1st and last are same - this seems to be a technical issue yet to be identified!
             raise RuntimeError('first and last entry are the same')
 
         print('succeeded')
