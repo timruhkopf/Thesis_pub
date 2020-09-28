@@ -123,4 +123,4 @@ def samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, s
                 seperated=seperated,
                 n=n, n_val=n_val,
                 model_class=cls, model_param=model_param,
-                sampler_name='MALA', sampler_param=config)
+                sampler_name='MALA', sampler_param=config_copy)
