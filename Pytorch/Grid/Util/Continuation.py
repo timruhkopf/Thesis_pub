@@ -182,7 +182,7 @@ class Continuation:
         self.set_up_data(self.n, self.n_val, model_param, batch_size)
         self.model.load_state_dict(
             torch.load(self.oldpathresults + '/' + model_name + '/' + model_name_base + '.model'))
-        self.model.plot(*self.data_val)
+        self.model.plot(*self.data_plot)
 
         self.set_up_sampler(sampler_name, sampler_param)
         self.model.plot(*self.data_val)

@@ -44,7 +44,7 @@ class GRID_Layout_GAM(GRID_Layout):
 class GRID_Layout_STRUCTURED(GRID_Layout):
     def set_up_data(self, n, n_val, model_param, batch_size):
         from torch.utils.data import TensorDataset, DataLoader
-        from Tensorflow.Effects.bspline import get_design
+        from Pytorch.Util.Util_bspline import get_design
 
         no_in = self.model_param['hunits'][0]
 
