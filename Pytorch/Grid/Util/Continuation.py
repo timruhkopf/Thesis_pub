@@ -29,7 +29,7 @@ class Continuation:
                 df = pd.read_csv(path + '/' + model_sampler + '/{}_run_log.csv'.format(model_sampler))
             except:
                 # for manually added succeeded models (those that i had on my local machine during testing)
-                manual = [m for m in os.listdir(path + '/' + model_sampler) if m.endswith('.model')]
+                manual = [m.split('.')[0] for m in os.listdir(path + '/' + model_sampler) if m.endswith('.model')]
                 L[model_sampler] = manual if len(manual) >= 1 else None
                 continue
 
