@@ -56,7 +56,8 @@ class Sampler_set_up:
         # sampler class must be imported, to make them accessible
         self.sampler.save(self.basename)
 
-        self.sampler.traceplots(path=self.basename + '_traces.png')
+        self.sampler.traceplots(path=self.basename + '_traces_baseline.png')
+        self.sampler.traceplots(path=self.basename + '_traces.png', baseline=False)
         self.sampler.acf_plots(nlags=500, path=self.basename + '_acf.png')
 
         self.sampler.ess(nlags=200)

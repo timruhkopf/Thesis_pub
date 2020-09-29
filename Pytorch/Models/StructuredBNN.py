@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.distributions as td
 import pandas as pd
 
-from Tensorflow.Effects.bspline import get_design
+from Pytorch.Util.Util_bspline import get_design
 from Pytorch.Layer.GAM import GAM
 
 from Pytorch.Models.ShrinkageBNN import ShrinkageBNN

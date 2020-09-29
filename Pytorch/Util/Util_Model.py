@@ -112,7 +112,8 @@ class Util_Model(Util_plots):
             print(chain[0], chain[-1])
             raise RuntimeError('first and last entry contain nan')
 
-        if all(all(a.view(prod(a.shape)) == b.view(prod(a.shape))) for a, b in
-               zip(chain[0].values(), chain[-1].values())):
-            print(chain[0], '\n', chain[-1])
+        if len(chain) > 2 and all(all(a.view(prod(a.shape)) == b.view(prod(a.shape))) for a, b in
+                                  zip(chain[0].values(), chain[-2].values())):
+            for a, b, c in zip(chain[0].values(), chain[-2].values(), chain[-1].values()):
+                print(a.view(prod(a.shape)), '\n', b.view(prod(a.shape)), '\n', c.view(prod(a.shape)), '\n')
             raise RuntimeError('first and last entry are the same')

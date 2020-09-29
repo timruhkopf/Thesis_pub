@@ -58,15 +58,15 @@ class Util_Sampler:
 
         # return torch.cat(self.chain).reshape(len(self.chain), -1)
 
-    def traceplots(self, path=None):
+    def traceplots(self, path=None, baseline=True):
         df = pd.DataFrame(self.chain_mat)
         s = int(math.ceil(math.sqrt(df.shape[1])))
         axes = df.plot(subplots=True, layout=(s, s), sharex=True, title='Traces', legend=False)
 
-        for ax, v in zip(chain(*axes), self.model.true_vec.detach().numpy()):
-            ax.axhline(y=v, color='r')
+        if baseline:
+            for ax, v in zip(chain(*axes), self.model.true_vec.detach().numpy()):
+                ax.axhline(y=v, color='r')
 
-        plt.show()
         if path is None:
             plt.show()
         else:
