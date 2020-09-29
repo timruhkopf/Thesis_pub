@@ -3,8 +3,8 @@ import torch
 import pickle
 import pandas as pd
 
-from Pytorch.Layer import *
-from Pytorch.Models import *
+from Pytorch.Layer import GAM, Hidden, Group_HorseShoe
+from Pytorch.Models import BNN, ShrinkageBNN, StructuredBNN
 
 
 class Continuation:
