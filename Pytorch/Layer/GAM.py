@@ -140,7 +140,7 @@ class GAM(Hidden):
         if path is None:
             plt.show()
         else:
-            plt.savefig('{}.png'.format(path), bbox_inches='tight')
+            plt.savefig('{}.pdf'.format(path), bbox_inches='tight')
 
 
 if __name__ == '__main__':
@@ -195,7 +195,7 @@ if __name__ == '__main__':
     if not os.path.isdir(path):
         os.mkdir(path)
 
-    sampler_name = ['SGNHT', 'SGLD', 'MALA', 'RHMC', 'SGRLD', 'SGRHMC'][1]
+    sampler_name = ['SGNHT', 'SGLD', 'MALA', 'RHMC', 'SGRLD', 'SGRHMC'][3]
     model = gam
 
     # Setting up the parameters  -----------------------------------------------
@@ -207,7 +207,8 @@ if __name__ == '__main__':
                 name = '{}_{}_{}_{}'.format(sampler_name, str(eps), str(L), str(rep))
 
                 sampler_param = dict(
-                    epsilon=eps, num_steps=1000, burn_in=1000,
+                    epsilon=eps,
+                    num_steps=1000, burn_in=1000,
                     pretrain=False, tune=False, num_chains=1)
 
                 if sampler_name in ['SGNHT', 'RHMC', 'SGRHMC']:
@@ -233,6 +234,7 @@ if __name__ == '__main__':
                     sampler = Sampler(model, trainloader, **sampler_param)
                     try:
                         sampler.sample()
+                        sampler.save('/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Results_GAM/' + name)
                         print(sampler.chain[:3])
                         print(sampler.chain[-3:])
 
@@ -261,7 +263,7 @@ if __name__ == '__main__':
                     sampler = Sampler(model, **sampler_param)
                     try:
                         sampler.sample(trainloader, burn_in, n_samples)
-
+                        sampler.save('/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Results_GAM/' + name)
                         print(sampler.chain[:3])
                         print(sampler.chain[-3:])
 

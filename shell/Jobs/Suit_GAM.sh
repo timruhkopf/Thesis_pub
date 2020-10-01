@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -p gpu
-#SBATCH -t 24:00:00
+#SBATCH -t 48:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --job-name=Suit_GAM
 #SBATCH --output=Suit_GAM.%j.out

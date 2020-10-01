@@ -27,7 +27,7 @@ class Util_Sampler:
         # self.__delattr__(self.model)
 
         with open(path + '.sampler_pkl', "wb") as output_file:
-            d = {'chain': self.chain}
+            d = {'chain': self.chain, 'true_model': self.model.true_model, 'init_model': self.model.init_model}
             pickle.dump(d, output_file)
 
     def load(self, path):
@@ -63,7 +63,7 @@ class Util_Sampler:
         s = int(math.ceil(math.sqrt(df.shape[1])))
         axes = df.plot(subplots=True, layout=(s, s), sharex=True, title='Traces', legend=False)
 
-        if baseline:
+        if baseline and hasattr(self.model, 'true_vec'):
             for ax, v in zip(chain(*axes), self.model.true_vec.detach().numpy()):
                 ax.axhline(y=v, color='r')
 

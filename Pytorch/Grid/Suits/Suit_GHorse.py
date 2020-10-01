@@ -13,7 +13,7 @@ batch = 100
 # (SAMPLER CHECK UP) -----------------------------------------------------------
 cls = Group_HorseShoe
 cls_Grid = GRID_Layout
-#
+
 # model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU(), bijected=True)
 #
 # samplers(cls, cls_Grid, n, n_val, model_param, steps, batch,
@@ -32,5 +32,8 @@ rooting = '/usr/users/truhkop/Thesis/Pytorch/Experiment/Result_0365244'
 grid = cls_Grid(root=rooting)
 m = grid.find_successfull(path=rooting,
                           model=cls.__name__)
+m = {'Grouped_HorseShoe_MALA': m['Grouped_HorseShoe_MALA'],
+     'Grouped_HorseShoe_SGLD': m['Grouped_HorseShoe_SGLD'],
+     'Grouped_HorseShoe_SGNHT': m['Grouped_HorseShoe_SGNHT']}
 grid.continue_sampling_successfull(
     n=1000, n_val=100, n_samples=10000, burn_in=10000, models=m)

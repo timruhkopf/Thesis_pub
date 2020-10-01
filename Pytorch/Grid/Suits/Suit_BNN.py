@@ -32,5 +32,7 @@ rooting = '/usr/users/truhkop/Thesis/Pytorch/Experiment/Result_0365244'
 grid = cls_Grid(root=rooting)
 m = grid.find_successfull(path=rooting,
                           model=cls.__name__)
+m.pop('BNN_SGRHMC')
+
 grid.continue_sampling_successfull(
     n=10000, n_val=100, n_samples=10000, burn_in=10000, models=m)
