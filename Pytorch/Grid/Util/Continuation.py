@@ -179,13 +179,19 @@ class Continuation:
         self.model.init_model = config['init_model']
         self.model.true_model = config['true_model']
         self.model.load_state_dict(true_model)
+        if hasattr(self.model, 'vec'):
+            self.model.true_vec = self.model.vec
         self.set_up_data(self.n, self.n_val, model_param, batch_size)
         self.model.load_state_dict(
             torch.load(self.oldpathresults + '/' + model_name + '/' + model_name_base + '.model'))
-        self.model.plot(*self.data_plot)
+        self.model.plot(*self.data_plot, path=self.basename + '_initmodel', title='')
 
         self.set_up_sampler(sampler_name, sampler_param)
-        self.model.plot(*self.data_val)
+        # import random
+        # self.sampler.model.plot(*self.data_plot, random.sample(self.sampler.chain, plot_subsample),
+        #                         path=self.basename + '_datamodel_random', title='')
+        # self.sampler.model.plot(*self.data_plot, self.sampler.chain[-plot_subsample:],
+        #                         path=self.basename + '_datamodel_last', title='')
 
         metrics = self.evaluate_model()  # *self.data_val FIXME
 

@@ -80,7 +80,7 @@ class Util_plots:
         if path is None:
             plt.show()
         else:
-            plt.savefig('{}.png'.format(path), bbox_inches='tight')
+            plt.savefig('{}.pdf'.format(path), bbox_inches='tight')
 
     def _plot1d(self, X, y=None, df=None, title=''):
         """

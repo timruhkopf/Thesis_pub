@@ -30,6 +30,9 @@ class Sampler_set_up:
                        'MALA': MALA,  # step_size
                        'SGLD': SGLD  # step_size
                        }[sampler_name]
+            if 'n_samples' in sampler_param.keys():
+                sampler_param['num_steps'] = sampler_param['n_samples']
+                sampler_param.pop('n_samples')
             self.sampler = Sampler(self.model, self.trainloader, **sampler_param)
             self.sampler.sample()
 
@@ -56,9 +59,9 @@ class Sampler_set_up:
         # sampler class must be imported, to make them accessible
         self.sampler.save(self.basename)
 
-        self.sampler.traceplots(path=self.basename + '_traces_baseline.png')
-        self.sampler.traceplots(path=self.basename + '_traces.png', baseline=False)
-        self.sampler.acf_plots(nlags=500, path=self.basename + '_acf.png')
+        self.sampler.traceplots(path=self.basename + '_traces_baseline.pdf')
+        self.sampler.traceplots(path=self.basename + '_traces.pdf', baseline=False)
+        self.sampler.acf_plots(nlags=500, path=self.basename + '_acf.pdf')
 
         self.sampler.ess(nlags=200)
         print(self.sampler.ess_min)

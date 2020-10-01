@@ -136,7 +136,7 @@ class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
         ax1.set_title('MSE distribution on validation')
         ax1.set_xlabel("value")
         ax1.set_ylabel("Frequency")
-        fig1.savefig(self.basename + '_MSE.png', bbox_inches='tight')
+        fig1.savefig(self.basename + '_MSE.pdf', bbox_inches='tight')
 
         fig1, ax1 = plt.subplots()
         ax1.hist(val_logprobs.detach().numpy())
@@ -144,7 +144,7 @@ class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
         ax1.set_title('Log_prob distribution on validation')
         ax1.set_xlabel("value")
         ax1.set_ylabel("Frequency")
-        fig1.savefig(self.basename + '_Log_probs.png', bbox_inches='tight')
+        fig1.savefig(self.basename + '_Log_probs.pdf', bbox_inches='tight')
 
         plt.close('all')
         return {'ess_min': self.sampler.ess_min,
