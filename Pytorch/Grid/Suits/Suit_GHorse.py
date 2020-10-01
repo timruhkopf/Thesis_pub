@@ -35,5 +35,6 @@ m = grid.find_successfull(path=rooting,
 m = {'Grouped_HorseShoe_MALA': m['Grouped_HorseShoe_MALA'],
      'Grouped_HorseShoe_SGLD': m['Grouped_HorseShoe_SGLD'],
      'Grouped_HorseShoe_SGNHT': m['Grouped_HorseShoe_SGNHT']}
+print(m)
 grid.continue_sampling_successfull(
     n=1000, n_val=100, n_samples=10000, burn_in=10000, models=m)

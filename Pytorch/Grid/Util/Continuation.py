@@ -2,6 +2,7 @@ import os
 import torch
 import pickle
 import pandas as pd
+from tqdm import tqdm
 
 from Pytorch.Layer import GAM, Hidden, Group_HorseShoe
 from Pytorch.Models import BNN, ShrinkageBNN, StructuredBNN
@@ -119,7 +120,9 @@ class Continuation:
         if isinstance(models, dict):
             for sampler_models, modellist in models.items():
                 if modellist is not None:
-                    for m in modellist:
+                    print('\nstarting modellist: {}'.format(modellist))
+                    for m in tqdm(modellist, ):
+                        print('\ncontinuing with: {}'.format(m))
                         if not os.path.isdir(self.newpathresults + sampler_models + '/'):
                             os.mkdir(self.newpathresults + sampler_models + '/')
 
