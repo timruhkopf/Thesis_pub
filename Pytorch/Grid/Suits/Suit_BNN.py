@@ -24,9 +24,9 @@ batch = 100
 import os
 
 git = '390663d'  # hash for folder to continue
-# base = '/'.join(os.path.abspath(__file__).split('/')[:-3])
-# rooting = base + '/Experiment/Result_{}'.format(git)
-rooting = '/usr/users/truhkop/Thesis/Pytorch/Experiment/Result_{}'.format(git)  # server
+base = '/'.join(os.path.abspath(__file__).split('/')[:-3])
+rooting = base + '/Experiment/Result_{}'.format(git)
+# rooting = '/usr/users/truhkop/Thesis/Pytorch/Experiment/Result_{}'.format(git)  # server
 
 grid = cls_Grid(root=rooting)  # FIXME: SPLIT ROOTING AND CONTINUE
 m = grid.find_successfull(path=rooting,

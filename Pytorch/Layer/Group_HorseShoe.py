@@ -10,7 +10,7 @@ from Pytorch.Util.Util_Distribution import LogTransform
 class Group_HorseShoe(Group_lasso):
     prior_log_prob = Group_lasso.prior_log_prob
 
-    def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU(), bijected=True):
+    def __init__(self, no_in, no_out, bias=True, activation=nn.ReLU(), bijected=True, seperated=True):
         """
         Group Lasso Layer, which is essentially a Hidden Layer, but with a different
         prior structure: W is partitioned columwise - such that all weights outgoing
@@ -29,7 +29,7 @@ class Group_HorseShoe(Group_lasso):
         if self.bijected:
             self.dist['tau'] = td.TransformedDistribution(self.dist['tau'], LogTransform())
 
-        self.reset_parameters()
+        self.reset_parameters(seperated=seperated)
 
     def update_distributions(self):
         if self.bijected:
