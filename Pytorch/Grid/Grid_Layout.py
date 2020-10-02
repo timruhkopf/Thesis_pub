@@ -14,6 +14,8 @@ import pickle
 
 
 class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
+    # FIXME: evaluate: current MSE is the most interesting, if the model has not yet converged,
+    # otherwise the avgMSE is distorted!
     def main(self, n, n_val, model_class, model_param, sampler_name, sampler_param, seperated):
         self.basename = self.pathresults + '{}_{}_'.format(model_class.__name__, sampler_name) + self.hash
         self.config = {'n': n, 'n_val': n_val, 'model_class': model_class, 'model_param': model_param,
@@ -146,11 +148,12 @@ class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
         # fig1.savefig(self.basename + '_Log_probs.pdf', bbox_inches='tight')
 
         plt.close('all')
-        return {'ess_min': self.sampler.ess_min,
-                'avg_MSE_diff': mse_diff.detach().numpy(),
-                'true_MSE': self.val_MSE.detach().numpy(),
-                'avg_log_prob_diff': log_diff.detach().numpy(),
-                'true_log_prob': self.val_logprob.detach().numpy()}
+        return {  # 'ess_min': self.sampler.ess_min,
+            'avg_MSE_diff': mse_diff.detach().numpy(),
+            'true_MSE': self.val_MSE.detach().numpy(),
+            # 'avg_log_prob_diff': log_diff.detach().numpy(),
+            # 'true_log_prob': self.val_logprob.detach().numpy()
+        }
 
 
 if __name__ == '__main__':
