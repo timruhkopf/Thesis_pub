@@ -80,6 +80,8 @@ class Util_plots:
         if path is None:
             plt.show()
         else:
+            # FIXME: for 2d plots if saved to path, ensure they store the data required
+            # such that the plot can easily restored & is movable again
             plt.savefig('{}.pdf'.format(path), bbox_inches='tight')
 
     def _plot1d(self, X, y=None, df=None, title=''):

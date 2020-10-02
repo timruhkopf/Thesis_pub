@@ -12,6 +12,7 @@ import pandas as pd
 
 
 class Grid_Tracker:
+    # FIXME: make dir system a relative system & keep track of the folders!
     def __init__(self, root):
         """
         Grid is a delegation class, that ensures that multiple calls (of potentially

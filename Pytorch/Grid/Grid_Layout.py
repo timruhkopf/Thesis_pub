@@ -14,7 +14,6 @@ import pickle
 
 
 class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
-
     def main(self, n, n_val, model_class, model_param, sampler_name, sampler_param, seperated):
         self.basename = self.pathresults + '{}_{}_'.format(model_class.__name__, sampler_name) + self.hash
         self.config = {'n': n, 'n_val': n_val, 'model_class': model_class, 'model_param': model_param,
@@ -123,7 +122,7 @@ class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
             val_logprobs = torch.Tensor(subsample, )
             for i, c in enumerate(random.sample(self.sampler.chain, subsample)):
                 self.sampler.model.load_state_dict(c)
-                val_logprobs[i] = self.sampler.model.log_prob1(*self.data_val)
+                # val_logprobs[i] = self.sampler.model.log_prob1(*self.data_val)
                 pred = self.sampler.model.forward(*self.data_val[:-1])
                 val_MSE_chain[i] = torch.mean((pred - self.data_val[-1]) ** 2)
 
@@ -138,13 +137,13 @@ class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
         ax1.set_ylabel("Frequency")
         fig1.savefig(self.basename + '_MSE.pdf', bbox_inches='tight')
 
-        fig1, ax1 = plt.subplots()
-        ax1.hist(val_logprobs.detach().numpy())
-        ax1.axvline(x=self.val_logprob.detach().numpy(), color='red')
-        ax1.set_title('Log_prob distribution on validation')
-        ax1.set_xlabel("value")
-        ax1.set_ylabel("Frequency")
-        fig1.savefig(self.basename + '_Log_probs.pdf', bbox_inches='tight')
+        # fig1, ax1 = plt.subplots()
+        # ax1.hist(val_logprobs.detach().numpy())
+        # ax1.axvline(x=self.val_logprob.detach().numpy(), color='red')
+        # ax1.set_title('Log_prob distribution on validation')
+        # ax1.set_xlabel("value")
+        # ax1.set_ylabel("Frequency")
+        # fig1.savefig(self.basename + '_Log_probs.pdf', bbox_inches='tight')
 
         plt.close('all')
         return {'ess_min': self.sampler.ess_min,
