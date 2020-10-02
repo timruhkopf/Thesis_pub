@@ -64,7 +64,7 @@ class Sampler_set_up:
         # self.sampler.acf_plots(nlags=500, path=self.basename + '_acf.pdf')
 
         # self.sampler.ess(nlags=200)
-        print(self.sampler.ess_min)
+        # print(self.sampler.ess_min)
 
     # generator functions ------------------------------------------------------
     def grid_exec_MALA(self, steps, epsilons=np.arange(0.0001, 0.03, 0.003)):
