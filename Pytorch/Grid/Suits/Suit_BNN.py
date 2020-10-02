@@ -29,7 +29,7 @@ import os
 # base = '/'.join(os.path.abspath(__file__).split('/')[:-3])
 # rooting = base + '/Experiment/Result_{}'.format(git)
 rooting = '/usr/users/truhkop/Thesis/Pytorch/Experiment/Result_0365244'
-grid = cls_Grid(root=rooting)
+grid = cls_Grid(root=rooting)  # FIXME: SPLIT ROOTING AND CONTINUE
 m = grid.find_successfull(path=rooting,
                           model=cls.__name__)
 m.pop('BNN_SGRHMC')

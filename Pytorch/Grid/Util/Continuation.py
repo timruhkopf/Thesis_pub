@@ -10,6 +10,7 @@ from Pytorch.Models import BNN, ShrinkageBNN, StructuredBNN
 
 class Continuation:
     # FIXME THIS CLASS IS SHITCODE: rewrite it
+    # FIXME: SPLIT ROOTING AND CONTINUE path, to make repetitions explicit!
     def find_successfull(self, path, model, n=2):
         """
 

@@ -59,20 +59,20 @@ def samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, s
 
     # (5) SGRHMC -------------------------------------------------
 
-    run = name + '_SGRHMC'
-    root = rooting(run)
-
-    bnn_unittest = cls_Grid(root)
-    prelim_configs = bnn_unittest.grid_exec_SGRHMC(steps=steps, batch_size=batch, epsilons=epsilons, Ls=Ls)
-
-    for config in prelim_configs:
-        for i in range(repeated):
-            config_copy = {key: deepcopy(value) for key, value in config.items()}
-            bnn_unittest.main(
-                seperated=seperated,
-                n=n, n_val=n_val,
-                model_class=cls, model_param=model_param,
-                sampler_name='SGRHMC', sampler_param=config_copy)
+    # run = name + '_SGRHMC'
+    # root = rooting(run)
+    #
+    # bnn_unittest = cls_Grid(root)
+    # prelim_configs = bnn_unittest.grid_exec_SGRHMC(steps=steps, batch_size=batch, epsilons=epsilons, Ls=Ls)
+    #
+    # for config in prelim_configs:
+    #     for i in range(repeated):
+    #         config_copy = {key: deepcopy(value) for key, value in config.items()}
+    #         bnn_unittest.main(
+    #             seperated=seperated,
+    #             n=n, n_val=n_val,
+    #             model_class=cls, model_param=model_param,
+    #             sampler_name='SGRHMC', sampler_param=config_copy)
 
     # (0) SGNHT --------------------------------------------------------------------
 

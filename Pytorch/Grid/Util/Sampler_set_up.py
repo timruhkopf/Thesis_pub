@@ -18,7 +18,7 @@ class Sampler_set_up:
 
         init = deepcopy(self.model.state_dict())
         self.model.load_state_dict(self.model.true_model)
-        self.model.plot(*self.data_plot, chain=[init], path=self.basename + '_initmodel')
+        # self.model.plot(*self.data_plot, chain=[init], path=self.basename + '_initmodel')
         self.model.load_state_dict(init)
 
         # searching for a stable init for sgnht and all RM sampler
@@ -61,9 +61,9 @@ class Sampler_set_up:
 
         self.sampler.traceplots(path=self.basename + '_traces_baseline.pdf')
         self.sampler.traceplots(path=self.basename + '_traces.pdf', baseline=False)
-        self.sampler.acf_plots(nlags=500, path=self.basename + '_acf.pdf')
+        # self.sampler.acf_plots(nlags=500, path=self.basename + '_acf.pdf')
 
-        self.sampler.ess(nlags=200)
+        # self.sampler.ess(nlags=200)
         print(self.sampler.ess_min)
 
     # generator functions ------------------------------------------------------
