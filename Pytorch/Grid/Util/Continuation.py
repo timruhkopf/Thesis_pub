@@ -11,6 +11,7 @@ from Pytorch.Models import BNN, ShrinkageBNN, StructuredBNN
 class Continuation:
     # FIXME THIS CLASS IS SHITCODE: rewrite it
     # FIXME: SPLIT ROOTING AND CONTINUE path, to make repetitions explicit!
+    # FIXME: ensure, that each continuation run has a new git hash! (but same time identifyer! to the old model)
     def find_successfull(self, path, model, n=2):
         """
 
