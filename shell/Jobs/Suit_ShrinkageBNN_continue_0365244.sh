@@ -2,8 +2,8 @@
 #SBATCH -p gpu
 #SBATCH -t 48:00:00
 #SBATCH --gres=gpu:1
-#SBATCH --job-name=Suit_Structured
-#SBATCH --output=Suit_Structured.%j.out
+#SBATCH --job-name=Suit_Shrinkage
+#SBATCH --output=Suit_Shrinkage.%j.out
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=timruhkopf@googlemail.com
 
@@ -30,6 +30,6 @@ echo 'be aware to change to /Thesis/ and start script using "bash shell/Jobs/Uni
 #cd /home/tim/PycharmProjects/Thesis/
 
 # make sure not to add .py ending when calling a module file
-python3 -m Pytorch.Grid.Suits.Suit_Structured &>/usr/users/truhkop/Thesis/Pytorch/Experiment/Suit_Structured.out
+python3 -m Pytorch.Grid.Suits.Suit_Shrink_all_continue &>/usr/users/truhkop/Thesis/Pytorch/Experiment/Suit_Shrinkage_continue.out
 
 wait
