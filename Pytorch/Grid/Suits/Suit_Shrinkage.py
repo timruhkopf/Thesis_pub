@@ -5,7 +5,6 @@ from Pytorch.Models.ShrinkageBNN import ShrinkageBNN
 
 from Pytorch.Grid.Suits.Suit_Samplers import samplers
 import numpy as np
-from subprocess import check_output
 
 # (CONFIG) ---------------------------------------------------------------------
 
