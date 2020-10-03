@@ -121,7 +121,7 @@ class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
                 self.sampler.model.log_prob1 = self.sampler.model.log_prob
 
             val_MSE_chain = torch.Tensor(subsample, )
-            val_logprobs = torch.Tensor(subsample, )
+            # val_logprobs = torch.Tensor(subsample, )
             for i, c in enumerate(random.sample(self.sampler.chain, subsample)):
                 self.sampler.model.load_state_dict(c)
                 # val_logprobs[i] = self.sampler.model.log_prob1(*self.data_val)
@@ -129,7 +129,7 @@ class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
                 val_MSE_chain[i] = torch.mean((pred - self.data_val[-1]) ** 2)
 
             mse_diff = torch.mean(val_MSE_chain) - self.val_MSE
-            log_diff = torch.mean(val_logprobs) - self.val_logprob
+            # log_diff = torch.mean(val_logprobs) - self.val_logprob
 
         fig1, ax1 = plt.subplots()
         ax1.hist(x=val_MSE_chain.detach().numpy())
