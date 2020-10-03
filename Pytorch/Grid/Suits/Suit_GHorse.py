@@ -13,7 +13,7 @@ batch = 100
 # (SAMPLER CHECK UP) -----------------------------------------------------------
 cls = Group_HorseShoe
 cls_Grid = GRID_Layout
-#
+
 model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU(), bijected=True, seperated=True)
 
 samplers(cls, cls_Grid, n, n_val, model_param, steps, batch,

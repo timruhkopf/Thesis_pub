@@ -25,7 +25,7 @@ batch = 100
 # ALPHA CONSTANT -------------------------------------
 model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
                    final_activation=nn.Identity(), shrinkage='ghorse',
-                   no_basis=20, seperated=True, bijected=True, alpha_type='constant')
+                   no_basis=20, seperated=False, bijected=True, alpha_type='constant')
 
 samplers(cls, cls_Grid, n, n_val, model_param, steps, batch,
          epsilons=np.arange(0.0001, 0.02, 0.002),
