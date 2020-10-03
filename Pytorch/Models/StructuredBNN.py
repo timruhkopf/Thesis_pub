@@ -131,7 +131,7 @@ class StructuredBNN(nn.Module, Util_Model):
             plt1.show()
 
         else:
-            plt1.savefig('{}.png'.format(path), bbox_inches='tight')
+            plt1.savefig('{}.pdf'.format(path), bbox_inches='tight')
 
         # predict merely the GAM part to ensure it does not deteriorate
         df1['X'] = X[:, 0].view(X.shape[0], ).numpy()  # explicitly the first var is modeled by gam
@@ -144,7 +144,7 @@ class StructuredBNN(nn.Module, Util_Model):
             plt2.show()
         else:
 
-            plt2.savefig('{}_GAM.png'.format(path), bbox_inches='tight')
+            plt2.savefig('{}_GAM.pdf'.format(path), bbox_inches='tight')
 
     @staticmethod
     def check_chain(chain):
