@@ -14,7 +14,7 @@ class Continuation:
     # FIXME: ensure, that each continuation run has a new git hash! (but same time identifyer! to the old model)
     def find_successfull(self, path, model, n=2):
         """
-
+        stratified selection of successfull models (based on the results.csv) and on MSE
         :param path:
         :param model: str, specifies the model (e.g. 'Hidden'), of which
         you want to continue all 'successfull' samplers
@@ -65,6 +65,26 @@ class Continuation:
                 L[model_sampler] = None
 
         return L
+
+    def find_semi_successful(self, path, model):
+        """
+        successfull models that exhibit config.pkl, .model, .sampler_pkl chain.pkl files,
+        but are not necessarily listed in .csv as successfull, since
+        :param path:
+        :param model: model name e.g. 'Hidden', that are surched for in a folder
+        :return:
+        """
+        sampler = ['RHMC', 'SGLD', 'SGNHT', 'SGRHMC', 'SGRLD', 'MALA']
+        L = {(model + '_' + k): None for k in ['RHMC', 'SGLD', 'SGNHT', 'SGRHMC', 'SGRLD', 'MALA']}
+
+        for s in sampler:
+            subpath = path + '_' + s
+            # has config.pkl, .model, .sampler_pkl chain.pkl
+            dir = os.listdir(subpath)  # assumes path to be a single folder 'StructuredBNN_SGRHMC'
+            [file for file in dir if file.endswith('.model')]
+            [file for file in dir if file.endswith('.config')]
+            [file for file in dir if file.endswith('chain.pkl')]
+            [file for file in dir if file.endswith('.model')]
 
     def continue_sampling_successfull(self, n, n_val, n_samples, burn_in, models=None, path=None):
         """
