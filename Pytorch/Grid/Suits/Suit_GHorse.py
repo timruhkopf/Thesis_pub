@@ -14,7 +14,7 @@ batch = 100
 cls = Group_HorseShoe
 cls_Grid = GRID_Layout
 
-model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU(), bijected=True, seperated=True)
+model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU(), bijected=True, seperated=False)
 
 samplers(cls, cls_Grid, n, n_val, model_param, steps, batch,
          epsilons=np.arange(0.0001, 0.02, 0.002),

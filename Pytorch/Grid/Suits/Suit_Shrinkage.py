@@ -16,10 +16,10 @@ n = 1000
 n_val = 100
 batch = 100
 
-# (seperated = True) ----------------------------------------------------------
+# (seperated ) ----------------------------------------------------------
 model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
                    final_activation=nn.Identity(),
-                   shrinkage='ghorse', seperated=True, bijected=True,
+                   shrinkage='ghorse', seperated=False, bijected=True,
                    heteroscedast=False)
 
 samplers(cls, cls_Grid, n, n_val, model_param, steps, batch,
