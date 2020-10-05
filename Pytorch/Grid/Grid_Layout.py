@@ -16,8 +16,8 @@ import pickle
 class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
     # FIXME: evaluate: current MSE is the most interesting, if the model has not yet converged,
     # otherwise the avgMSE is distorted!
-    def main(self, n, n_val, model_class, model_param, sampler_name, sampler_param, seperated):
-        self.basename = self.pathresults + '{}_{}_'.format(model_class.__name__, sampler_name) + self.hash
+    def main(self, n, n_val, model_class, model_param, sampler_name, sampler_param, seperated, name=''):
+        self.basename = self.pathresults + '{}_{}_{}'.format(model_class.__name__, sampler_name, name) + self.hash
         self.config = {'n': n, 'n_val': n_val, 'model_class': model_class, 'model_param': model_param,
                        'sampler_name': sampler_name, 'sampler_param': sampler_param, 'seperated': seperated}
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

@@ -3,9 +3,9 @@ from subprocess import check_output
 from copy import deepcopy
 
 
-def samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, seperated=True, repeated=1):
+def samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, seperated=True, repeated=1, name=''):
     git = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
-    name = cls.__name__
+    samp_name = cls.__name__
 
     base = '/'.join(os.path.abspath(__file__).split('/')[:-3])
     rooting = lambda run: base + '/Experiment/Result_{}/{}/'.format(git, run)
@@ -26,7 +26,7 @@ def samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, s
 
     # (3) RHMC -------------------------------------------------
 
-    run = name + '_RHMC'
+    run = samp_name + '_RHMC' + '_' + name
     root = rooting(run)
     bnn_unittest = cls_Grid(root)
     prelim_configs = bnn_unittest.grid_exec_RHMC(steps=steps, epsilons=epsilons, Ls=Ls)
@@ -41,7 +41,7 @@ def samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, s
                 sampler_name='RHMC', sampler_param=config_copy)
 
     # (4) SGRLD -------------------------------------------------
-    run = name + '_SGRLD'
+    run = samp_name + '_SGRLD' + '_' + name
     root = rooting(run)
 
     bnn_unittest = cls_Grid(root)
@@ -58,7 +58,7 @@ def samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, s
 
     # (0) SGNHT --------------------------------------------------------------------
 
-    run = name + '_SGNHT'
+    run = samp_name + '_SGNHT' + '_' + name
     root = rooting(run)
 
     bnn_unittest = cls_Grid(root)
@@ -75,7 +75,7 @@ def samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, s
 
     # (2) SGLD -------------------------------------------------
     #
-    # run = name + '_SGLD'
+    # run = samp_name + '_SGLD' + '_' + name
     # root = rooting(run)
     #
     # bnn_unittest = cls_Grid(root)
@@ -92,7 +92,7 @@ def samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, s
 
     # (5) SGRHMC -------------------------------------------------
 
-    run = name + '_SGRHMC'
+    run = samp_name + '_SGRHMC' + '_' + name
     root = rooting(run)
 
     bnn_unittest = cls_Grid(root)
@@ -109,7 +109,7 @@ def samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons, Ls, s
 
     # (1) MALA -------------------------------------------------
     #
-    # run = name + '_MALA'
+    # run = samp_name + '_MALA' + '_' + name
     # root = rooting(run)
     #
     # bnn_unittest = cls_Grid(root)
