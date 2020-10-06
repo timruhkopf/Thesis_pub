@@ -49,6 +49,6 @@ rooting = base + '/Experiment/Result_{}'.format(git)
 grid = cls_Grid(root=rooting)
 m = grid.find_successfull(path=rooting,
                           model=cls.__name__)
-
+# m = {'ShrinkageBNN_SGRHMC':['ShrinkageBNN_SGRHMC_17f4f95_000038124464']}
 grid.continue_sampling_successfull(
     n=10000, n_val=100, n_samples=10000, burn_in=10000, models=m)

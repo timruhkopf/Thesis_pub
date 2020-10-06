@@ -25,9 +25,9 @@ class Continuation:
 
         L = {(model + '_' + k): None for k in ['RHMC', 'SGLD', 'SGNHT', 'SGRHMC', 'SGRLD', 'MALA']}
 
-        if model == 'Group_HorseShoe':
-            # FIXME: WHY is this a special case? should not be like this
-            model = 'Grouped_HorseShoe'
+        # if model == 'Group_HorseShoe':
+        #     # FIXME: WHY is this a special case? should not be like this
+        #     model = 'Grouped_HorseShoe'
 
         for model_sampler in [name for name in os.listdir(path) if name.startswith(model)]:
             print(model_sampler)
@@ -87,8 +87,8 @@ class Continuation:
         :param model: model name e.g. 'Hidden', that are surched for in a folder
         :return:
         """
-        sampler = ['RHMC', 'SGLD', 'SGNHT', 'SGRHMC', 'SGRLD', 'MALA']
-        L = {(model + '_' + k): None for k in ['RHMC', 'SGLD', 'SGNHT', 'SGRHMC', 'SGRLD', 'MALA']}
+        sampler = ['RHMC', 'SGLD', 'SGNHT', 'SGRLD', 'SGRHMC', 'MALA']
+        L = {(model + '_' + k): None for k in sampler}
 
         for s in sampler:
             subpath = path + '_' + s
@@ -165,7 +165,7 @@ class Continuation:
                         # FIXME: model_class is here just to prevent crash in wrapper
 
                         sampler_models1 = sampler_models.split('_')[0]
-                        if sampler_models1 == 'Grouped':
+                        if sampler_models1 == 'Group':
                             # FIXME: this will fail in Grouped_lasso case
                             sampler_models1 += '_HorseShoe'
 
