@@ -26,9 +26,9 @@ import os
 
 # git = '390663d'  # hash for folder to continue
 git = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip(),
-# base = '/'.join(os.path.abspath(__file__).split('/')[:-3])
-# rooting = base + '/Experiment/Result_{}'.format(git)
-rooting = '/usr/users/truhkop/Thesis/Pytorch/Experiment/Result_{}'.format(git)
+base = '/'.join(os.path.abspath(__file__).split('/')[:-3])
+rooting = base + '/Experiment/Result_{}'.format(*git)
+rooting = '/usr/users/truhkop/Thesis/Pytorch/Experiment/Result_{}'.format(*git)
 
 grid = cls_Grid(root=rooting)
 m = grid.find_successfull(path=rooting,
