@@ -3,6 +3,7 @@ import torch.nn as nn
 from Pytorch.Layer.Hidden import Hidden
 from Pytorch.Grid.Grid_Layout import GRID_Layout
 from Pytorch.Grid.Suits.Suit_Samplers import samplers
+from subprocess import check_output
 
 # (CONFIG) ---------------------------------------------------------------------
 steps = 1000
@@ -13,17 +14,18 @@ batch = 100
 # (SAMPLER CHECK UP) -----------------------------------------------------------
 cls = Hidden
 cls_Grid = GRID_Layout
-#
-# model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU())
-#
-# samplers(cls, cls_Grid, n, n_val, model_param, steps, batch,
-#          epsilons=np.arange(0.0001, 0.02, 0.002),
-#          Ls=[1, 2, 3], repeated=30)
+
+model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU())
+
+samplers(cls, cls_Grid, n, n_val, model_param, steps, batch,
+         epsilons=np.arange(0.0001, 0.02, 0.002),
+         Ls=[1, 2, 3], repeated=30)
 
 # (Continuation) ----------------------
 import os
 
-git = '390663d'  # hash for folder to continue
+# git = '390663d'  # hash for folder to continue
+git = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip(),
 # base = '/'.join(os.path.abspath(__file__).split('/')[:-3])
 # rooting = base + '/Experiment/Result_{}'.format(git)
 rooting = '/usr/users/truhkop/Thesis/Pytorch/Experiment/Result_{}'.format(git)
