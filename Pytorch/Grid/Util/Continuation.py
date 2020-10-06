@@ -195,9 +195,18 @@ class Continuation:
         hashi = m.split('_')[-2:]
         self.hash = '_'.join([hashi[0], hashi[-1].split('.')[0]])
         model_name = '_'.join(m.split('_')[:-2])
-
-        with open(self.oldpathresults + '/' + model_name + '/' + model_name_base + '_config.pkl', 'rb') as handle:
-            config = pickle.load(handle)
+        if self.oldpathresults + '/' + model_name + '/' + model_name_base + '.model' == \
+                '/home/tim/PycharmProjects/Thesis/Pytorch/Experiment/Result_a83b999/ShrinkageBNN_SGRHMC' \
+                '/ShrinkageBNN_SGRHMC_a83b999_150523488677.model':
+            print()
+        try:
+            with open(self.oldpathresults + '/' + model_name + '/' + model_name_base + '_config.pkl', 'rb') as handle:
+                config = pickle.load(handle)
+        except:
+            #  DEPREC: REMOVE EXCEPTION (ONLY TROUBLE SHOOTING FOR PREVIOUS ERROR)
+            # ony error comes from renaming with '_'
+            with open(self.oldpathresults + '/' + model_name + '_/' + model_name_base + '_config.pkl', 'rb') as handle:
+                config = pickle.load(handle)
         model_class, model_param, seperated = config['model_class'], \
                                               config['model_param'], \
                                               config['seperated']
@@ -225,8 +234,13 @@ class Continuation:
         if hasattr(self.model, 'vec'):
             self.model.true_vec = self.model.vec
         self.set_up_data(self.n, self.n_val, model_param, batch_size)
-        self.model.load_state_dict(
-            torch.load(self.oldpathresults + '/' + model_name + '/' + model_name_base + '.model'))
+        try:
+            self.model.load_state_dict(
+                torch.load(self.oldpathresults + '/' + model_name + '/' + model_name_base + '.model'))
+        except:
+            # DEPREC: REMOVE THE TRY EXCEPT
+            self.model.load_state_dict(
+                torch.load(self.oldpathresults + '/' + model_name + '_/' + model_name_base + '.model'))
         self.model.plot(*self.data_plot, path=self.basename + '_initmodel', title='')
 
         self.set_up_sampler(sampler_name, sampler_param)

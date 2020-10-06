@@ -48,7 +48,7 @@ rooting = base + '/Experiment/Result_{}'.format(git)
 
 grid = cls_Grid(root=rooting)
 m = grid.find_successfull(path=rooting,
-                          model=cls.__name__)
+                          model=cls.__name__, n=2)
 
 grid.continue_sampling_successfull(
     n=10000, n_val=100, n_samples=10000, burn_in=10000, models=m)

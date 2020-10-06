@@ -23,7 +23,7 @@ cls_Grid = GRID_Layout
 # (Continuation) ----------------------
 import os
 
-git = '17f4f95f'  # hash for folder to continue  a specific folder
+git = '17f4f95'  # hash for folder to continue  a specific folder
 # git = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip(),
 # base = '/'.join(os.path.abspath(__file__).split('/')[:-3])  # for local machine
 base = '/usr/users/truhkop/Thesis/Pytorch/'
