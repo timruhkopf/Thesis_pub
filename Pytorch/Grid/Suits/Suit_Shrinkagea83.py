@@ -40,10 +40,10 @@ batch = 100
 # (Continuation) ----------------------
 import os
 
-git = '17f4f95f'  # hash for folder to continue  a specific folder
+git = 'a83b999'  # hash for folder to continue  a specific folder
 # git = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip(),
-# base = '/'.join(os.path.abspath(__file__).split('/')[:-3])  # for local machine
-base = '/usr/users/truhkop/Thesis/Pytorch/'  # for server
+base = '/'.join(os.path.abspath(__file__).split('/')[:-3])  # for local machine
+# base = '/usr/users/truhkop/Thesis/Pytorch/' # for server
 rooting = base + '/Experiment/Result_{}'.format(git)
 
 grid = cls_Grid(root=rooting)

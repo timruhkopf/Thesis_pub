@@ -22,17 +22,28 @@ class Continuation:
         model-sampler config
         :return: generator of models
         """
+
         L = {(model + '_' + k): None for k in ['RHMC', 'SGLD', 'SGNHT', 'SGRHMC', 'SGRLD', 'MALA']}
+
+        if model == 'Group_HorseShoe':
+            # FIXME: WHY is this a special case? should not be like this
+            model = 'Grouped_HorseShoe'
 
         for model_sampler in [name for name in os.listdir(path) if name.startswith(model)]:
             print(model_sampler)
+
             try:
                 # locally, i dont have all folders!
 
-                df = pd.read_csv(path + '/' + model_sampler + '/{}_run_log.csv'.format(model_sampler))
+                df = pd.read_csv(path + '/' + model_sampler + '/{}'.format(
+                    *[name for name in os.listdir(path + '/' + model_sampler) if name.endswith('.csv')]))
             except:
                 # for manually added succeeded models (those that i had on my local machine during testing)
                 manual = [m.split('.')[0] for m in os.listdir(path + '/' + model_sampler) if m.endswith('.model')]
+
+                if model_sampler.endswith('_'):
+                    model_sampler = model_sampler[:-1]
+
                 L[model_sampler] = manual if len(manual) >= 1 else None
                 continue
 
@@ -52,8 +63,9 @@ class Continuation:
 
             # FIND THOSE INITS that are to be conitinued:
             df = df[df['success'] == True]
-
-            # find the n most successfull initialisations per configurations
+            if model_sampler.endswith('_'):
+                model_sampler = model_sampler[:-1]
+                # find the n most successfull initialisations per configurations
             try:
                 new_runs = pd.concat([group.nsmallest(columns='avg_MSE_diff', n=n) for name, group in
                                       df.groupby([name for name in df.columns if name not in uniques])])
@@ -62,6 +74,7 @@ class Continuation:
 
             except ValueError as error:
                 print(model_sampler, 'raised error: ', error)
+
                 L[model_sampler] = None
 
         return L
@@ -151,9 +164,14 @@ class Continuation:
                         self.pathresults = self.newpathresults + sampler_models + '/'
                         # FIXME: model_class is here just to prevent crash in wrapper
 
+                        sampler_models1 = sampler_models.split('_')[0]
+                        if sampler_models1 == 'Grouped':
+                            # FIXME: this will fail in Grouped_lasso case
+                            sampler_models1 += '_HorseShoe'
+
                         model_class = dict(Hidden=Hidden, Group_HorseShoe=Group_HorseShoe,
                                            GAM=GAM, BNN=BNN, ShrinkageBNN=ShrinkageBNN,
-                                           StructuredBNN=StructuredBNN)['_'.join(sampler_models.split('_')[:-1])]
+                                           StructuredBNN=StructuredBNN)[sampler_models1]
 
                         self._continue(m=m, model_class=model_class, path=self.pathresults, n_samples=n_samples,
                                        burn_in=burn_in)

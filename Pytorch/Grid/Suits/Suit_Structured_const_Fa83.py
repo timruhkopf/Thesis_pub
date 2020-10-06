@@ -5,8 +5,6 @@ from Pytorch.Models.StructuredBNN import StructuredBNN
 from Pytorch.Grid.Suits.Suit_Samplers import samplers
 import numpy as np
 
-from subprocess import check_output
-
 # (CONFIG) ---------------------------------------------------------------------
 cls = StructuredBNN
 cls_Grid = GRID_Layout_STRUCTURED
@@ -16,13 +14,13 @@ n = 1000
 n_val = 100
 batch = 100
 
-# ALPHA CDF ------------------------------------------
+# # ALPHA CDF ------------------------------------------
 # model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
 #                    final_activation=nn.Identity(), shrinkage='ghorse',
-#                    no_basis=20, seperated=False, bijected=True, alpha_type='cdf')
+#                    no_basis=20, seperated=False, bijected=True, alpha_type='constant')
 #
 # samplers(cls, cls_Grid, n, n_val, model_param, steps, batch, epsilons=np.arange(0.0001, 0.02, 0.002),
-#          Ls=[1, 2, 3], repeated=15, name='cdf_F')
+#          Ls=[1, 2, 3], repeated=15, name='constF')
 
 # ALPHA CONSTANT -------------------------------------
 # model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
@@ -35,7 +33,7 @@ batch = 100
 
 import os
 
-git = '17f4f95f'  # hash for folder to continue  a specific folder
+git = 'a83b999'  # hash for folder to continue  a specific folder
 # git = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip(),
 # base = '/'.join(os.path.abspath(__file__).split('/')[:-3])  # for local machine
 base = '/usr/users/truhkop/Thesis/Pytorch/'
