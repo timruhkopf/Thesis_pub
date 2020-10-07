@@ -6,6 +6,8 @@ from Pytorch.Models.BNN import BNN
 from Pytorch.Layer.Hidden import Hidden, Hidden_flat
 from Pytorch.Layer.Group_lasso import Group_lasso
 from Pytorch.Layer.Group_HorseShoe import Group_HorseShoe
+from Pytorch.Layer.Hierarchical_Group_HorseShoe import Hierarchical_Group_HorseShoe
+from Pytorch.Layer.Hierarchical_Group_lasso import Hierarchical_Group_lasso
 
 
 class ShrinkageBNN(BNN):
@@ -13,7 +15,9 @@ class ShrinkageBNN(BNN):
     shrinkage_type = {
         'glasso': Group_lasso,
         # 'gspike': layer.Group_SpikeNSlab,
-        'ghorse': Group_HorseShoe}
+        'ghorse': Group_HorseShoe,
+        'multihorse': Hierarchical_Group_HorseShoe,
+        'multilasso': Hierarchical_Group_lasso}
 
     layer_type = {
         'flat': Hidden_flat,
@@ -69,6 +73,9 @@ class ShrinkageBNN(BNN):
 if __name__ == '__main__':
     import random
     from copy import deepcopy
+    import matplotlib
+
+    matplotlib.use('TkAgg')
 
     no_in = 2
     no_out = 1
@@ -77,7 +84,8 @@ if __name__ == '__main__':
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
     X = X_dist.sample(torch.Size([n]))
 
-    sbnn = ShrinkageBNN(hunits=[no_in, 10, 3, no_out], bijected=True, seperated=True)
+    sbnn = ShrinkageBNN(hunits=[no_in, 10, 5, no_out], shrinkage='multilasso', bijected=True, seperated=True)
+    sbnn.reset_parameters(seperated=True)
     sbnn.true_model = deepcopy(sbnn.state_dict())
     y = sbnn.likelihood(X).sample()
 
@@ -86,12 +94,10 @@ if __name__ == '__main__':
     sbnn.reset_parameters(seperated=False)
     sbnn.init_model = deepcopy(sbnn.state_dict())
 
-    sbnn.plot(X, y, **{'title': 'Shrinkage BNN @ init'})
+    sbnn.plot(X[:400], y[:400])  # **{'title': 'Shrinkage BNN @ init'})
 
     from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
     from torch.utils.data import TensorDataset, DataLoader
-
-    burn_in, n_samples = 1000, 1000
 
     trainset = TensorDataset(X, y)
     trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
@@ -100,9 +106,25 @@ if __name__ == '__main__':
                'SGRLD': myRSGLD,  # epsilon
                'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
                }['RHMC']
+    while True:
+        try:
+            burn_in, n_samples = 1000, 1000
+            sampler = Sampler(sbnn, epsilon=0.001, L=2)
+            sampler.sample(trainloader, burn_in, n_samples)
+            sampler.model.check_chain(sampler.chain)
+        except:
+            sbnn.load_state_dict(sbnn.init_model)
+            continue
 
-    sampler = Sampler(sbnn, epsilon=0.001, L=2)
-    sampler.sample(trainloader, burn_in, n_samples)
+        try:
+            burn_in, n_samples = 10000, 10000
+            sampler = Sampler(sbnn, epsilon=0.001, L=2)
+            sampler.sample(trainloader, burn_in, n_samples)
+            # sampler.model.check_chain(sampler.chain) # already included in .sample()
+        except:
+
+            sampler.model.plot(X[0:100], y[0:100], sampler.chain[:30])
+            sampler.model.plot(X[0:100], y[0:100], sampler.chain[-30:])
 
     import random
 
