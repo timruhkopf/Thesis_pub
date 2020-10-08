@@ -84,7 +84,7 @@ if __name__ == '__main__':
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
     X = X_dist.sample(torch.Size([n]))
 
-    sbnn = ShrinkageBNN(hunits=[no_in, 10, 5, no_out], shrinkage='multilasso', bijected=True, seperated=True)
+    sbnn = ShrinkageBNN(hunits=[no_in, 10, 5, no_out], shrinkage='multihorse', bijected=True, seperated=True)
     sbnn.reset_parameters(seperated=True)
     sbnn.true_model = deepcopy(sbnn.state_dict())
     y = sbnn.likelihood(X).sample()
@@ -106,12 +106,33 @@ if __name__ == '__main__':
                'SGRLD': myRSGLD,  # epsilon
                'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
                }['RHMC']
+
+    counter = 0
+
+    import matplotlib
+
+    matplotlib.use('Agg')
     while True:
         try:
-            burn_in, n_samples = 1000, 1000
-            sampler = Sampler(sbnn, epsilon=0.001, L=2)
+            # generate a new true model
+            sbnn.reset_parameters(seperated=True)
+            sbnn = ShrinkageBNN(hunits=[no_in, 10, 5, no_out], shrinkage='multihorse', bijected=True, seperated=True)
+            sbnn.reset_parameters(seperated=True)
+            sbnn.true_model = deepcopy(sbnn.state_dict())
+            y = sbnn.likelihood(X).sample()
+
+            # generate a new init model
+            sbnn.reset_parameters()
+            sbnn.init_model = deepcopy(sbnn.state_dict())
+            burn_in, n_samples = 100, 1000
+            sampler = Sampler(sbnn, epsilon=0.002, L=2)
             sampler.sample(trainloader, burn_in, n_samples)
             sampler.model.check_chain(sampler.chain)
+
+            counter += 1
+            sampler.model.plot(X[0:100], y[0:100], sampler.chain[-30:],
+                               path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiment/Relevant_models'
+                                    '/shrinkage_Horse_manual{}_init'.format(str(counter)))
         except:
             sbnn.load_state_dict(sbnn.init_model)
             continue
@@ -121,10 +142,27 @@ if __name__ == '__main__':
             sampler = Sampler(sbnn, epsilon=0.001, L=2)
             sampler.sample(trainloader, burn_in, n_samples)
             # sampler.model.check_chain(sampler.chain) # already included in .sample()
-        except:
-
             sampler.model.plot(X[0:100], y[0:100], sampler.chain[:30])
-            sampler.model.plot(X[0:100], y[0:100], sampler.chain[-30:])
+            sampler.model.plot(X[0:100], y[0:100], sampler.chain[-30:],
+                               path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiment/Relevant_models'
+                                    '/shrinkage_Horse_manual{}_final'.format(str(counter)))
+
+            config = {'n': 1000, 'n_val': 100, 'model_class': ShrinkageBNN, 'model_param':
+                dict(hunits=[no_in, 10, 5, no_out], shrinkage='multihorse', bijected=True, seperated=True),
+                      'sampler_name': 'RHMC', 'sampler_param': dict(epsilon=0.001, L=2), 'seperated': True}
+
+            import pickle
+
+            basename = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiment/Relevant_models/shrinkage_Horse_manual{}_final'.format(
+                str(counter))
+            with open(basename + '_config.pkl', 'wb') as handle:
+                pickle.dump(config, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+            with open(basename + '_chain.pkl', 'wb') as handle:
+                pickle.dump(sampler.chain, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        except:
+            continue
 
     import random
 
