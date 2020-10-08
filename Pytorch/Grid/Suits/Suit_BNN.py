@@ -12,26 +12,28 @@ steps = 1000
 n = 1000
 n_val = 100
 batch = 100
-
-model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
-                   final_activation=nn.Identity(),
-                   prior='normal',
-                   heteroscedast=False)
-samplers(cls, cls_Grid, n, n_val, model_param, steps, batch,
-         epsilons=np.arange(0.0001, 0.02, 0.002), Ls=[1, 2, 3], repeated=15)
+#
+# model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
+#                    final_activation=nn.Identity(),
+#                    prior='normal',
+#                    heteroscedast=False)
+# samplers(cls, cls_Grid, n, n_val, model_param, steps, batch,
+#          epsilons=np.arange(0.0001, 0.02, 0.002), Ls=[1, 2, 3], repeated=15)
 
 # (Continuation) ----------------------
 import os
-#
-# git = '390663d'  # hash for folder to continue
+
+git = '390663d'  # hash for folder to continue
 # base = '/'.join(os.path.abspath(__file__).split('/')[:-3])
 # rooting = base + '/Experiment/Result_{}'.format(git)
-# # rooting = '/usr/users/truhkop/Thesis/Pytorch/Experiment/Result_{}'.format(git)  # server
-#
-# grid = cls_Grid(root=rooting)  # FIXME: SPLIT ROOTING AND CONTINUE
-# m = grid.find_successfull(path=rooting,
-#                           model=cls.__name__)
-# # m.pop('BNN_SGRHMC')
-#
-# grid.continue_sampling_successfull(
-#     n=10000, n_val=100, n_samples=10000, burn_in=10000, models=m)
+base = '/usr/users/truhkop/Thesis/Pytorch'
+rooting = base + '/Experiment/Result_{}'.format(git)
+
+grid = cls_Grid(root=rooting)  # FIXME: SPLIT ROOTING AND CONTINUE
+m = grid.find_successfull(path=rooting,
+                          model=cls.__name__)
+# m.pop('BNN_SGRHMC')
+m = dict(BNN_SGRLD=m['BNN_SGRLD'])
+
+grid.continue_sampling_successfull(
+    n=10000, n_val=100, n_samples=10000, burn_in=10000, models=m)
