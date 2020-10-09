@@ -33,7 +33,7 @@ batch = 100
 
 import os
 
-git = '17f4f95cdfF'  # hash for folder to continue  a specific folder
+git = 'a83b999cdfF'  # hash for folder to continue  a specific folder
 # git = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip(),
 # base = '/'.join(os.path.abspath(__file__).split('/')[:-3])  # for local machine
 base = '/usr/users/truhkop/Thesis/Pytorch'
@@ -42,6 +42,7 @@ rooting = base + '/Experiment/Result_{}'.format(git)
 # rooting = '/usr/users/truhkop/Thesis/Pytorch/Experiment/Result_0365244'  # this on server
 
 grid = cls_Grid(root=rooting)
+
 m = grid.find_successfull(path=rooting,
                           model=cls.__name__)
 
