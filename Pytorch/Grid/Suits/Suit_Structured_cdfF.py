@@ -46,12 +46,12 @@ grid = cls_Grid(root=rooting)
 m = grid.find_successfull(path=rooting,
                           model=cls.__name__)
 m = dict()
-for folder in os.listdir(rooting)[:-1]:
+for folder in [f for f in os.listdir(rooting) if f != 'pip_freeze.txt']:
     model, sampler = folder.split('_')
     m[folder] = list()
     for file in os.listdir(rooting + '/' + folder):
         if file.endswith('.model'):
             m[folder].append(file.split('.')[0])
-
+print(m)
 grid.continue_sampling_successfull(
     n=10000, n_val=100, n_samples=10000, burn_in=10000, models=m)
