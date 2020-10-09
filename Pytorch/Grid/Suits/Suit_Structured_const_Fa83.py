@@ -35,7 +35,7 @@ import os
 
 git = 'a83b999constF'  # hash for folder to continue  a specific folder
 # git = check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip(),
-base = '/'.join(os.path.abspath(__file__).split('/')[:-3])  # for local machine
+# base = '/'.join(os.path.abspath(__file__).split('/')[:-3])  # for local machine
 base = '/usr/users/truhkop/Thesis/Pytorch'
 rooting = base + '/Experiment/Result_{}'.format(git)
 #
