@@ -2,7 +2,7 @@ import torch.nn as nn
 from Pytorch.Grid.Grid_GAM_Cases import GRID_Layout_STRUCTURED
 from Pytorch.Models.StructuredBNN import StructuredBNN
 
-from Pytorch.Grid.Suits.Suit_Samplers import samplers
+from Pytorch.Grid.Util.Suit_Samplers import samplers
 import numpy as np
 
 from subprocess import check_output

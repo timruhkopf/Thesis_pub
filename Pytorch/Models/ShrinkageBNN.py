@@ -84,7 +84,7 @@ if __name__ == '__main__':
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
     X = X_dist.sample(torch.Size([n]))
 
-    sbnn = ShrinkageBNN(hunits=[no_in, 10, 5, no_out], shrinkage='multihorse', bijected=True, seperated=True)
+    sbnn = ShrinkageBNN(hunits=[no_in, 10, 5, no_out], shrinkage='multilasso', bijected=True, seperated=True)
     sbnn.reset_parameters(seperated=True)
     sbnn.true_model = deepcopy(sbnn.state_dict())
     y = sbnn.likelihood(X).sample()
@@ -107,16 +107,19 @@ if __name__ == '__main__':
                'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
                }['RHMC']
 
-    counter = 0
-
+    import pickle
     import matplotlib
 
     matplotlib.use('Agg')
+
+    path = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiment/manualShrinkage_glasso/'
+    counter = 0
     while True:
+        counter += 1
+        basename = path + 'Shrinkage_Hierarchical_glasso{}'.format(str(counter))
         try:
             # generate a new true model
-            sbnn.reset_parameters(seperated=True)
-            sbnn = ShrinkageBNN(hunits=[no_in, 10, 5, no_out], shrinkage='multihorse', bijected=True, seperated=True)
+            sbnn = ShrinkageBNN(hunits=[no_in, 10, 5, no_out], shrinkage='multilasso', bijected=True, seperated=True)
             sbnn.reset_parameters(seperated=True)
             sbnn.true_model = deepcopy(sbnn.state_dict())
             y = sbnn.likelihood(X).sample()
@@ -124,17 +127,18 @@ if __name__ == '__main__':
             # generate a new init model
             sbnn.reset_parameters()
             sbnn.init_model = deepcopy(sbnn.state_dict())
-            burn_in, n_samples = 100, 1000
+            burn_in, n_samples = 1000, 1000
             sampler = Sampler(sbnn, epsilon=0.002, L=2)
             sampler.sample(trainloader, burn_in, n_samples)
             sampler.model.check_chain(sampler.chain)
 
-            counter += 1
+            matplotlib.use('TkAgg')
+            sampler.model.plot(X[0:100], y[0:100], sampler.chain[-30:])
+
             sampler.model.plot(X[0:100], y[0:100], sampler.chain[-30:],
-                               path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiment/Relevant_models'
-                                    '/shrinkage_Horse_manual{}_init'.format(str(counter)))
+                               path=basename)
         except:
-            sbnn.load_state_dict(sbnn.init_model)
+            # sbnn.load_state_dict(sbnn.init_model)
             continue
 
         try:
@@ -144,17 +148,15 @@ if __name__ == '__main__':
             # sampler.model.check_chain(sampler.chain) # already included in .sample()
             sampler.model.plot(X[0:100], y[0:100], sampler.chain[:30])
             sampler.model.plot(X[0:100], y[0:100], sampler.chain[-30:],
-                               path='/home/tim/PycharmProjects/Thesis/Pytorch/Experiment/Relevant_models'
-                                    '/shrinkage_Horse_manual{}_final'.format(str(counter)))
-
+                               path=basename)
+            sampler.save(basename)
             config = {'n': 1000, 'n_val': 100, 'model_class': ShrinkageBNN, 'model_param':
-                dict(hunits=[no_in, 10, 5, no_out], shrinkage='multihorse', bijected=True, seperated=True),
+                dict(hunits=[no_in, 10, 5, no_out], shrinkage='multilasso', bijected=True, seperated=True),
                       'sampler_name': 'RHMC', 'sampler_param': dict(epsilon=0.001, L=2), 'seperated': True}
 
-            import pickle
+            sampler.traceplots(path=basename + '_traces_baseline.pdf')
+            sampler.traceplots(path=basename + '_traces.pdf', baseline=False)
 
-            basename = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiment/Relevant_models/shrinkage_Horse_manual{}_final'.format(
-                str(counter))
             with open(basename + '_config.pkl', 'wb') as handle:
                 pickle.dump(config, handle, protocol=pickle.HIGHEST_PROTOCOL)
 

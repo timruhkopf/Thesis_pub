@@ -168,7 +168,7 @@ if __name__ == '__main__':
     # X_joint = torch.cat([X, Z], dim=1)
     # X_joint.requires_grad_(True)
 
-    h = StructuredBNN(hunits=[2, 10, 1], bijected=True)
+    h = StructuredBNN(hunits=[2, 10, 5, 1], bijected=True)
     h.reset_parameters(True)
     h.true_model = deepcopy(h.state_dict())
     # L = h(X).sum()

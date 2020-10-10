@@ -2,7 +2,7 @@ import numpy as np
 import torch.nn as nn
 from Pytorch.Layer.Hidden import Hidden
 from Pytorch.Grid.Grid_Layout import GRID_Layout
-from Pytorch.Grid.Suits.Suit_Samplers import samplers
+from Pytorch.Grid.Util.Suit_Samplers import samplers
 from subprocess import check_output
 
 # (CONFIG) ---------------------------------------------------------------------

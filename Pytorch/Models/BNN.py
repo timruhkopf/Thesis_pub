@@ -99,7 +99,7 @@ if __name__ == '__main__':
     no_in = 2
     no_out = 1
     n = 1000
-    bnn = BNN(hunits=[no_in, 3, 2, no_out], activation=nn.ReLU(), prior='normal')
+    bnn = BNN(hunits=[no_in, 10, 5, no_out], activation=nn.ReLU(), prior='normal')
 
     # generate data
     X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)

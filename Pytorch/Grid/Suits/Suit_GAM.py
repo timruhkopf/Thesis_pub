@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 from Pytorch.Layer.GAM import GAM
 from Pytorch.Grid.Grid_GAM_Cases import GRID_Layout_GAM
-from Pytorch.Grid.Suits.Suit_Samplers import samplers
+from Pytorch.Grid.Util.Suit_Samplers import samplers
 from subprocess import check_output
 
 # (CONFIG) ---------------------------------------------------------------------

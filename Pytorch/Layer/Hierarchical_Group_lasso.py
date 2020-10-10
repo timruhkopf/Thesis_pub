@@ -152,6 +152,124 @@ class Hierarchical_Group_lasso(Hidden):
 
 
 if __name__ == '__main__':
+
+    no_in = 2
+
+    no_out = 1
+    n = 1000
+    n_val = 200
+    X_dist = td.Uniform(torch.ones(no_in) * -10., torch.ones(no_in) * 10.)
+    X = X_dist.sample(torch.Size([n])).view(n, no_in)
+    X_val = X_dist.sample(torch.Size([n_val])).view(n_val, no_in)
+
+    glasso = Hierarchical_Group_lasso(no_in, no_out, bias=True, activation=nn.ReLU(), bijected=True)
+    glasso.reset_parameters(seperated=True)
+    glasso.true_model = deepcopy(glasso.state_dict())
+
+    y = glasso.likelihood(X).sample()
+
+    # glasso.reset_parameters()
+    # glasso.init_model = deepcopy(glasso.state_dict())
+    # print(glasso.prior_log_prob())
+
+    print(glasso.true_model)
+    glasso.plot(X[:400], y[:400])
+
+    from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
+    from torch.utils.data import TensorDataset, DataLoader
+
+    burn_in, n_samples = 1000, 2000
+
+    trainset = TensorDataset(X, y)
+    trainloader = DataLoader(trainset, batch_size=n, shuffle=True, num_workers=0)
+
+    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+               'SGRLD': myRSGLD,  # epsilon
+               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+               }['RHMC']
+
+    # glasso.reset_parameters(False)
+    # glasso.plot(X_joint, y)
+
+    # torch.autograd.set_detect_anomaly(False)
+
+    import pickle
+    import random
+    import matplotlib
+
+    # matplotlib.use('TkAgg')
+    matplotlib.use('Agg')
+
+    path = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiment/manualGlasso/'
+    counter = 0
+    glasso.check_chain
+    while True:
+        counter += 1
+        basename = path + 'Hierarchical_glasso{}'.format(str(counter))
+        try:
+
+            # GENERATE NEW DATA & INIT --------------
+            # glasso.load_state_dict(glasso.init_model)
+            # glasso.load_state_dict(OrderedDict([('lamb', torch.tensor([0.5282])), ('tau', torch.tensor([1.,1.])),
+            #              ('W_shrinked', torch.tensor([1., 1.])), ('b', torch.tensor([0.]))]))
+            glasso.reset_parameters(True)
+            glasso.true_model = deepcopy(glasso.state_dict())
+            y = glasso.likelihood(X).sample()
+            y_val = glasso.likelihood(X_val).sample()
+
+            # glasso.plot(X_val, y_val)
+
+            glasso.reset_parameters()
+            glasso.init_model = deepcopy(glasso.state_dict())
+
+            # BURN SAMPLING --------------------
+            burn_in, n_samples = 1000, 1000
+            sampler = Sampler(glasso, epsilon=0.001, L=2)
+            sampler.sample(trainloader, burn_in, n_samples)
+
+            print(sampler.chain)
+            print('state: ', glasso.state_dict())
+            print('true_model: ', glasso.true_model)
+
+            # CONTINUE SAMPLING ------------------
+            glasso.plot(X_val, y_val, chain=random.sample(sampler.chain, 30),
+                        **{'title': 'G-lasso'})
+            glasso.plot(X_val, y_val, chain=sampler.chain[-30:])
+
+            manual_switch = False
+            if manual_switch:
+                continue
+
+            burn_in, n_samples = 10000, 10000
+            sampler = Sampler(glasso, epsilon=0.001, L=2)
+            sampler.sample(trainloader, burn_in, n_samples)
+
+            # STORE RESULTS --------------
+            sampler.save(basename)
+            glasso.plot(X_val, y_val, chain=random.sample(sampler.chain, 30),
+                        **{'title': 'G-lasso'}, path=basename)
+            glasso.plot(X_val, y_val, chain=sampler.chain[-30:],
+                        **{'title': 'G-lasso'}, path=basename)
+
+            sampler.traceplots(path=basename + '_traces_baseline.pdf')
+            sampler.traceplots(path=basename + '_traces.pdf', baseline=False)
+
+            config = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU(), bijected=True, seperated=True)
+            config['true_model'] = glasso.true_model
+            config['init_model'] = glasso.init_model
+            with open(basename + '_config.pkl', 'wb') as handle:
+                pickle.dump(config, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+            with open(basename + '_chain.pkl', 'wb') as handle:
+                pickle.dump(sampler.chain, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        except Exception as e:
+
+            print(sampler.chain)
+            print(glasso.state_dict())
+            print(e)
+            continue
+
     # generate data
     no_in = 2
     no_out = 1

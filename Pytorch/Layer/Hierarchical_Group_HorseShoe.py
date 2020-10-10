@@ -5,6 +5,7 @@ import torch.distributions as td
 from Pytorch.Layer.Hidden import Hidden
 from Pytorch.Layer.Group_lasso import Group_lasso
 from Pytorch.Util.Util_Distribution import LogTransform
+from copy import deepcopy
 
 
 class Hierarchical_Group_HorseShoe(Hidden, ):
@@ -78,6 +79,7 @@ class Hierarchical_Group_HorseShoe(Hidden, ):
                     p.data[0] = 0.001
 
             self.update_distributions()
+        self.init_model = deepcopy(self.state_dict())
 
     def prior_log_prob(self):
 
