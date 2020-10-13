@@ -11,7 +11,7 @@ from Pytorch.Util.Util_bspline import get_design, diff_mat1D
 
 class GAM(Hidden):
     def __init__(self, xgrid=(0, 10, 0.5), order=1, no_basis=20, no_out=1,
-                 activation=nn.Identity(), bijected=False):
+                 activation=nn.Identity(), bijected=True):
         """
         RandomWalk Prior Model on Gamma (W) vector.
         Be carefull to transform the Data beforehand with some DeBoor Style algorithm.
@@ -44,40 +44,40 @@ class GAM(Hidden):
         self.define_proper_cov()
 
         self.tau = nn.Parameter(torch.Tensor(1))
-        self.dist['tau'] = td.Gamma(torch.tensor([2.]), torch.tensor([2.]))
+        self.tau.dist = td.Gamma(torch.tensor([2.]), torch.tensor([2.]))
         self.W = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
 
         if self.bijected:
-            self.dist['tau'] = td.TransformedDistribution(self.dist['tau'], LogTransform())
-            self.tau.data = self.dist['tau'].sample()
-            self.tau_bij = self.dist['tau'].transforms[0]._inverse(self.tau)
-            self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis),
-                                                   self.tau_bij ** -1 * self.cov)
+            self.tau.dist = td.TransformedDistribution(self.tau.dist, LogTransform())
+            self.tau.data = self.tau.dist.sample()
+            self.tau_bij = self.tau.dist.transforms[0]._inverse(self.tau)
+            self.W.dist = td.MultivariateNormal(torch.zeros(self.no_basis),
+                                                self.tau_bij ** 2 * self.cov)
 
         else:
-            self.tau.data = self.dist['tau'].sample()  # to ensure dist W is set up properly
-            self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis),
-                                                   self.tau ** -1 * self.cov)
+            self.tau.data = self.tau.dist.sample()  # to ensure dist W is set up properly
+            self.W.dist = td.MultivariateNormal(torch.zeros(self.no_basis),
+                                                self.tau ** 2 * self.cov)
 
     def update_distributions(self):
         # tau_bij is the actual variance parameter of W (on R+)- whilest if self.bijected==True,
         # tau becomes the bijected i.e. unconstrained parameter on entire R
         if self.bijected:
             # here tau (is on R) ---> tau_bij (on R+)
-            self.tau_bij = self.dist['tau'].transforms[0]._inverse(self.tau)
+            self.tau_bij = self.tau.dist.transforms[0]._inverse(self.tau)
 
             try:
-                self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis),
-                                                       self.tau_bij ** -1 * self.cov)
+                self.W.dist = td.MultivariateNormal(torch.zeros(self.no_basis),
+                                                    self.tau_bij ** 2 * self.cov)
             except Exception as e:
                 print(self.tau_bij)
-                print(self.tau_bij ** -1 * self.cov)
+                print(self.tau_bij * self.cov)
                 raise RuntimeError('GAM_update: cannot update distribution, as covariance is invalid:\n'
                                    'tau:{}\ntau_bij:{}\ncov:{}'.format(self.tau, self.tau_bij,
-                                                                       self.tau_bij ** -1 * self.cov))
+                                                                       self.tau_bij ** 2 * self.cov))
         else:
-            self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis),
-                                                   self.tau ** -1 * self.cov)
+            self.W.dist = td.MultivariateNormal(torch.zeros(self.no_basis),
+                                                self.tau ** 2 * self.cov)
 
     def reset_parameters(self, tau=None):
         """
@@ -93,15 +93,16 @@ class GAM(Hidden):
         if int((self.xgrid[1] - self.xgrid[0]) // 0.5) != self.no_basis:
             raise ValueError('The Specified range(*xgrid) does not imply '
                              'no_basis (len(range) must be equal to no_basis)')
+
+        # udate tau
         if tau is None:
             # FIXME: carefull with transformed distributions! (need to transform tau back)
-            self.tau.data = self.dist['tau'].sample()
-
+            self.tau.data = self.tau.dist.sample()
         else:
             self.tau.data = tau
         self.update_distributions()
 
-        self.W.data = self.dist['W'].sample().view(self.no_basis, 1)
+        self.W.data = self.W.dist.sample().view(self.no_basis, 1)
 
         # gamma = torch.cat(
         #     [td.Uniform(torch.tensor([-1.]), torch.tensor([1.])).sample(),
@@ -122,10 +123,10 @@ class GAM(Hidden):
         # p321 fahrmeir kneib lang:
         # const = - 0.5 * (self.K.shape[0] - 1) * torch.log(self.tau_bij)
         # kernel = -(2 * self.tau_bij) ** -1 * self.W.t() @ self.K @ self.W
-        # return sum(const + kernel + self.dist['tau'].log_prob(self.tau))  # notice that tau can be on R if
+        # return sum(const + kernel + self.tau.dist.log_prob(self.tau))  # notice that tau can be on R if
         # # self.bijected is true!
 
-        return sum(self.dist['W'].log_prob(self.W)) + self.dist['tau'].log_prob(self.tau)
+        return sum(self.W.dist.log_prob(self.W)) + self.tau.dist.log_prob(self.tau)
 
     def plot(self, X, y, chain=None, path=None, title='', **kwargs):
         Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=self.no_basis), dtype=torch.float32,
@@ -157,18 +158,31 @@ if __name__ == '__main__':
     gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=True)
     # gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=False)
 
-    gam.reset_parameters(tau=torch.tensor([0.001]))
+    # since RandomWalk variance approx=0, flat gam
+
+    # consider the parameters is bijected:
+    gam.tau.dist.transforms[0]._inverse(torch.tensor(-4.))
+
+    # gam.reset_parameters(tau=torch.tensor([-4.]))  # ~= approx 0.018 as variance
+    # # gam.reset_parameters(tau=torch.tensor([0.01]))
+    # gam.true_model = deepcopy(gam.state_dict())
+    #
+    # y = gam.likelihood(Z).sample()
+
+    gam.reset_parameters()  # ~= approx 0.018 as variance
     # gam.reset_parameters(tau=torch.tensor([0.01]))
     gam.true_model = deepcopy(gam.state_dict())
+    gam.true_vec = gam.vec
     y = gam.likelihood(Z).sample()
 
-    gam.reset_parameters(tau=torch.tensor([1.]))
+    # flexible GAM
+    gam.reset_parameters(tau=torch.tensor([-1.]))
+    gam.init_model = deepcopy(gam.state_dict())
 
-    gam.plot(X, y)
+    gam.plot(X[:300], y[:300])
 
     gam.forward(Z)
     gam.prior_log_prob()
-
 
     from Pytorch.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
     from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
@@ -234,13 +248,14 @@ if __name__ == '__main__':
                     sampler = Sampler(model, trainloader, **sampler_param)
                     try:
                         sampler.sample()
-                        sampler.save('/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Results_GAM/' + name)
+                        sampler.save('/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Results_GAM/')
                         print(sampler.chain[:3])
                         print(sampler.chain[-3:])
 
                         # Visualize the resulting estimation -------------------------
                         sampler.model.plot(X[:100], y[:100], sampler.chain[:30], path=path + name)
                         sampler.model.plot(X[:100], y[:100], random.sample(sampler.chain, 30), path=path + name)
+                        sampler.traceplots(baseline=True)
                         matplotlib.pyplot.close('all')
                     except Exception as error:
                         print(name, 'failed')
@@ -259,11 +274,12 @@ if __name__ == '__main__':
                     Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
                                'SGRLD': myRSGLD,  # epsilon
                                'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
-                               }['RHMC']
+                               }[sampler_name]
                     sampler = Sampler(model, **sampler_param)
                     try:
                         sampler.sample(trainloader, burn_in, n_samples)
-                        sampler.save('/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Results_GAM/' + name)
+                        sampler.save('/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Results_GAM/')
+                        sampler.traceplots(baseline=True)
                         print(sampler.chain[:3])
                         print(sampler.chain[-3:])
 
@@ -280,7 +296,7 @@ if __name__ == '__main__':
     from Pytorch.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
     from torch.utils.data import TensorDataset, DataLoader
 
-    burn_in, n_samples = 100, 100
+    burn_in, n_samples = 100, 1000
 
     trainset = TensorDataset(Z, y)
     trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
@@ -289,13 +305,18 @@ if __name__ == '__main__':
                'SGRLD': myRSGLD,  # epsilon
                'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
                }['RHMC']
-    sampler = Sampler(gam, epsilon=0.01, L=2)
+    sampler = Sampler(gam, epsilon=0.004, L=2)
     sampler.sample(trainloader, burn_in, n_samples)
-    sampler.check_chain()
+    sampler.model.check_chain(sampler.chain)
     import random
+    import matplotlib
 
-    sampler.model.plot(X[0:100], y[0:100], sampler.chain[:30])
+    matplotlib.use('TkAgg')
+
+    sampler.model.plot(X[0:100], y[0:100], sampler.chain[-30:])
     sampler.model.plot(X[0:100], y[0:100], random.sample(sampler.chain, 100))
+    sampler.traceplots(baseline=True)
+
     print(sampler.chain[0])
     print(sampler.chain[-1])
 

@@ -119,7 +119,7 @@ if __name__ == '__main__':
     # reg = flat
 
     # single Hidden Unit Example
-    reg = Hidden(no_in, no_out, bias=True, activation=nn.ReLU())
+    reg = Hidden(no_in, no_out, bias=True, activation=nn.Identity())
     reg.true_model = deepcopy(reg.state_dict())
 
     # reg.W = reg.W_.data
@@ -147,11 +147,11 @@ if __name__ == '__main__':
 
     matplotlib.use('Agg')  # 'TkAgg' for explicit plotting
 
-    sampler_name = ['SGNHT', 'SGLD', 'MALA', 'RHMC', 'SGRLD', 'SGRHMC'][3]
+    sampler_name = ['SGNHT', 'SGLD', 'MALA', 'RHMC', 'SGRLD', 'SGRHMC'][0]
     model = reg
 
     # Setting up the parameters  -----------------------------------------------
-    sg_batch = 100
+    sg_batch = 1000
     for rep in range(15):
         for L in [1, 2, 3]:
             for eps in np.arange(0.001, 0.008, 0.002):
@@ -159,7 +159,7 @@ if __name__ == '__main__':
                 name = '{}_{}_{}_{}'.format(sampler_name, str(eps), str(L), str(rep))
                 path = '/home/tim/PycharmProjects/Thesis/Pytorch/Experiments/Results/Results_Hidden1/'
                 sampler_param = dict(
-                    epsilon=eps, num_steps=200, burn_in=200,
+                    epsilon=eps, num_steps=1000, burn_in=1000,
                     pretrain=False, tune=False, num_chains=1)
 
                 if sampler_name in ['SGNHT', 'RHMC', 'SGRHMC']:

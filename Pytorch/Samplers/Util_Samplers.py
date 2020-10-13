@@ -53,7 +53,7 @@ class Util_Sampler:
 
     @property
     def chain_mat(self):
-        vecs = [torch.cat([p.view(p.nelement()) for p in chain.values()], axis=0) for chain in self.chain]
+        vecs = [torch.cat([p.reshape(p.nelement()) for p in chain.values()], axis=0) for chain in self.chain]
         return torch.stack(vecs, axis=0).numpy()
 
         # return torch.cat(self.chain).reshape(len(self.chain), -1)
