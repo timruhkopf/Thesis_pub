@@ -3,7 +3,6 @@ import torch.distributions as td
 import torch.nn as nn
 from copy import deepcopy
 
-from src.Layer.Hidden import Hidden
 from src.Layer.GAM import GAM
 
 
@@ -44,7 +43,7 @@ class GAM_fix_var(GAM):
         self.init_model = deepcopy(self.state_dict())
 
     def prior_log_prob(self):
-        return self.W.dist.log_prob(self.W)
+        return self.W.dist.log_prob(self.W).sum()
 
 
 if __name__ == '__main__':
