@@ -6,7 +6,7 @@ import pandas as pd
 from src.Util.Util_bspline import get_design
 from src.Layer.GAM import GAM
 
-from src.Models.ShrinkageBNN import ShrinkageBNN
+from src.Models.PartialModels.ShrinkageBNN import ShrinkageBNN
 from src.Util.Util_Model import Util_Model
 
 from copy import deepcopy
