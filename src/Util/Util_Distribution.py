@@ -122,7 +122,7 @@ class LogTransform(td.Transform):
     parameter back to the constrained space!
 
         a = unconst_ga.sample([samples])
-        b = unconst_ga.transforms[0]._inverse(c)
+        b = unconst_ga.transforms[0]._inverse(a)
     """
 
     # see td.Transform for details of following attrib.
