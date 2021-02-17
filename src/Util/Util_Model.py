@@ -7,27 +7,6 @@ from math import prod
 
 class Util_Model(Util_plots):
 
-    @property
-    def p_names(self):
-        return list(dict(self.named_parameters()).keys())
-
-    def get_param(self, name):
-        return dict(self.named_parameters())[name]
-
-    @property
-    def parameters_dict(self):
-        # print(self)
-        return {name: self.get_param(name) for name in self.p_names}
-
-    @property
-    def vec(self):
-        """vectorize provides the view of all of the object's parameters in form
-        of a single vector. essentially it is hamiltorch.util.flatten, but without
-        dependence to the nn.Parameters. instead it works on the """
-        return torch.cat([self.get_param(name).view(
-            self.get_param(name).nelement())
-            for name in self.p_names])
-
     # LOG-PROB related
     def update_distributions(self):
         raise NotImplementedError('update_distribution function must be specified')
@@ -47,15 +26,12 @@ class Util_Model(Util_plots):
         return self.prior_log_prob() + \
                self.likelihood(X).log_prob(y).sum()
 
-    def log_prob(self, X, y, vec=None):
+    def log_prob(self, X, y):
         if hasattr(self, 'update_distributions'):
             # in case of a hierarchical model, the distributions hyperparam are updated,
             # changing the (conditional) distribution
             self.update_distributions()
         return self.my_log_prob(X, y)
-
-    def invert_bij(self, name):
-        return self.dist[name].transforms[0]._inverse(self.get_param(name))
 
     def _chain_predict(self, chain, *args):
         """
