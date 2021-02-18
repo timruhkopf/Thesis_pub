@@ -1,5 +1,5 @@
 from geoopt.samplers import RHMC, RSGLD, SGRHMC
-from src.Samplers.Util_Samplers import Util_Sampler
+from src.Util.Util_Samplers import Util_Sampler
 from functools import partial
 from tqdm import tqdm
 import torch

@@ -1,4 +1,4 @@
-from src.Samplers.Util_Samplers import Util_Sampler
+from src.Util.Util_Samplers import Util_Sampler
 from thirdparty_repo.ludwigwinkler.src.MCMC_Sampler import \
     HMC_Sampler, SGLD_Sampler, MALA_Sampler, SGNHT_Sampler
 

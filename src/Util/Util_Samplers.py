@@ -3,7 +3,7 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from statsmodels.tsa.stattools import acf
+# from statsmodels.tsa.stattools import acf
 import math
 from itertools import chain
 
