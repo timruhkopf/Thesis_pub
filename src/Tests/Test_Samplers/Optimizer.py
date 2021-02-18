@@ -29,7 +29,8 @@ class Optimizer:
 
             with torch.no_grad():
                 for name, p in self.model.named_parameters():
-                    print(p.grad)
+                    if step % 100 == 0:
+                        print(p.grad)
                     p -= lr * (p.grad + td.Normal(torch.zeros_like(p), 1.).sample())
                     p.grad = None
 
