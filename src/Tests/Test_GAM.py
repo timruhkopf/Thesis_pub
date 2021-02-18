@@ -1,9 +1,11 @@
 import unittest
 from ..Layer import GAM
 
+
 class TestGAM(unittest.TestCase):
     def setUp(self) -> None:
-        pass
+        self.model = GAM()
+        X, Z, y = self.model.sample_model(n=1000)
 
     def tearDown(self) -> None:
         pass
@@ -16,6 +18,7 @@ class TestGAM(unittest.TestCase):
 
     def test_resample_hierarchical(self):
         """ensure, the a proper variance is updated in W's distribution  """
+        # check it does not flatline if variance is not close to zero!
         pass
 
     def test_update_distribution(self):
@@ -24,7 +27,6 @@ class TestGAM(unittest.TestCase):
     def test_samplable(self):
         # very simple hierarchical model
         pass
-
 
 
 if __name__ == '__main__':

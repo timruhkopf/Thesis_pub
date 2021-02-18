@@ -102,7 +102,6 @@ class Hidden_flat(Hidden):
 
 
 if __name__ == '__main__':
-    from copy import deepcopy
 
     no_in = 1
     no_out = 1

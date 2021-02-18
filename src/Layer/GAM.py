@@ -28,6 +28,9 @@ class GAM(Hidden):
         self.no_basis = no_basis
 
         Hidden.__init__(self, no_basis, no_out, bias=False, activation=activation)
+        # FIXME: Experimental feature: to increase speed of sampling, always use the like instance
+        #  and change the .loc attribute rather than instantiating a new td instance!
+        # self.like = td.Normal(self.forward(torch.zeros(1000, 20)), scale=torch.tensor(1.))  # n, no_basis
 
     # TODO : check if cov (without variance factor) can be made a lazy property.
     #   compare with  MultivariateNormal(Distribution).covariance_matrix
@@ -160,6 +163,13 @@ class GAM(Hidden):
         y = self.likelihood(Z).sample()
         return X, Z, y
 
+    # def log_prob(self, Z, y, vec=None):
+    #     # FIXME: Experimental feature: to increase speed of sampling, always use the like instance
+    #     #  and change the .loc attribute rather than instantiating a new td instance!
+    #     self.update_distributions()
+    #     self.like.loc = self.forward(Z)
+    #     return self.prior_log_prob() + \
+    #            self.like.log_prob(y).sum()
 
 
 if __name__ == '__main__':
@@ -210,7 +220,7 @@ if __name__ == '__main__':
     if '/PycharmProjects' in __file__:
         # file is on local machine
         home += '/PycharmProjects'
-    path = home + '/Thesis/Experiments/Results_GAM4/'
+    path = home + '/Thesis_pub/Experiments/Results_GAM4/'
     if not os.path.isdir(path):
         os.mkdir(path)
 
