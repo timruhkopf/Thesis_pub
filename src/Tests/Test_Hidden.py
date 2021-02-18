@@ -8,26 +8,31 @@ from ..Samplers.mygeoopt import myRHMC
 
 
 class TestHidden(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.p = 3
+        self.no_out = 2
+        self.dist = td.Normal(torch.tensor(0.), torch.tensor(1.))
+        self.model = Hidden(self.p, self.no_out, bias=True, activation=nn.ReLU())
+
     def tearDown(self) -> None:
         del self.model
 
     def test_prior_log_prob(self):
         """ensure, that each w is evaluated under standard normal correctly"""
-        dist = td.Normal(torch.tensor(0.), torch.tensor(1.))
-
         self.model = Hidden(2, 1, bias=True, activation=nn.ReLU())
-        prior = dist.log_prob(self.model.W).sum() + dist.log_prob(self.model.b).sum()
-        self.assertEqual(self.model.prior_log_prob(), prior, msg='Hidden\'s prior log prob is not correct')
-
-        self.model = Hidden(3, 2, bias=True, activation=nn.ReLU())
-        prior = dist.log_prob(self.model.W).sum() + dist.log_prob(self.model.b).sum()
+        prior = self.dist.log_prob(self.model.W).sum() + self.dist.log_prob(self.model.b).sum()
         self.assertEqual(self.model.prior_log_prob(), prior, msg='Hidden\'s prior log prob is not correct')
 
         self.model = Hidden(3, 2, bias=False, activation=nn.ReLU())
-        prior = dist.log_prob(self.model.W).sum()
+        prior = self.dist.log_prob(self.model.W).sum()
         self.assertEqual(self.model.prior_log_prob(), prior, msg='Hidden\'s prior log prob is not correct')
 
-    def test_forward(self):
+    def test_prior_log_prob2(self):
+        prior = self.dist.log_prob(self.model.W).sum() + self.dist.log_prob(self.model.b).sum()
+        self.assertEqual(self.model.prior_log_prob(), prior, msg='Hidden\'s prior log prob is not correct')
+
+    def test_forward1(self):
         X = torch.ones((1, 3))
         self.model = Hidden(3, 2, bias=False, activation=nn.ReLU())
         self.model.W.data = torch.tensor([[1., 2.],
@@ -35,19 +40,17 @@ class TestHidden(unittest.TestCase):
                                           [1., 2.]])
         self.assertTrue(torch.all(torch.eq(self.model.forward(X), torch.tensor([[3., 6.]]))))
 
-        X = torch.ones((1, 3))
-        self.model = Hidden(3, 2, bias=True, activation=nn.ReLU())
-        self.model.W.data = torch.tensor([[1., 2.],
-                                          [1., 2.],
-                                          [1., 2.]])
-        self.model.b.data = torch.tensor([1., 1.])
-        self.assertTrue(torch.all(torch.eq(self.model.forward(X), torch.tensor([[4., 7.]]))))
+    def test_forward2(self):
+        X = torch.ones((1, self.p))
+
+        self.model.W.data = torch.tensor([[1., 2.]] * self.p)
+        self.model.b.data = torch.ones(self.no_out)
+        self.assertTrue(torch.all(torch.eq(self.model.forward(X),
+                                           torch.tensor([[1., 2.]] * self.p).sum(0) + self.model.b)))
 
     def test_resample_model(self):
         """ensure, that after sampling, the model is a new one, but the tensor shapes are preserved"""
         from copy import deepcopy
-        self.model = Hidden(3, 2, bias=True, activation=nn.ReLU())
-
         W = deepcopy(self.model.W)
         b = deepcopy(self.model.b)
 
@@ -58,11 +61,12 @@ class TestHidden(unittest.TestCase):
         self.assertEqual(self.model.W.shape, W.shape)
         self.assertEqual(self.model.b.shape, b.shape)
 
-    def test_samplable(self):
-        """double check that a simple regression example works"""
-        from .Test_Samplers import Test_Samplers
-        self.model = Hidden(3, 1, bias=True, activation=nn.Identity())
-        Test_Samplers.test_RHMC(self)
+    # def test_samplable(self):
+    #     """double check that a simple regression example works"""
+    #     from .Test_Samplers import Test_Samplers
+    #     self.model = Hidden(3, 1, bias=True, activation=nn.Identity())
+    #     X, y = self.model.sample_model()
+    #     Test_Samplers.test_RHMC(self)
 
 
 if __name__ == '__main__':

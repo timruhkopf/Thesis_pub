@@ -77,8 +77,8 @@ class Hidden(nn.Module, Util_Model):
         return value
 
     def sample_model(self, n):
-        self.true_model = deepcopy(reg.state_dict())
-        X_dist = td.Uniform(torch.ones(no_in) * (-10.), torch.ones(no_in) * 10.)
+        self.true_model = deepcopy(self.state_dict())
+        X_dist = td.Uniform(torch.ones(self.no_in) * (-10.), torch.ones(self.no_in) * 10.)
         X = X_dist.sample(torch.Size([n]))
         y = self.likelihood(X).sample()
 
