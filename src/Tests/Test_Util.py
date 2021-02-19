@@ -2,10 +2,11 @@ import unittest
 
 import torch
 import torch.distributions as td
+import numpy as np
 
 from ..Util.Util_Model import Util_Model
 from ..Util.Util_Distribution import LogTransform
-from ..Util.Util_bspline import get_design
+from ..Util.Util_bspline import get_design, eval_basis, diff_mat1D
 from ..Models.BNN import BNN
 from ..Layer.Hidden import Hidden
 
@@ -87,6 +88,60 @@ class TestUtil(unittest.TestCase):
         # Fixme: fails: observations, that fall close to the edge are not guaranteed to
         #  sum to 1, but approximately 1 (round about - 0.04)
         self.assertTrue(torch.allclose(Z.sum(1), torch.ones(no_basis)))
+
+    def test_util_bspline_LS(self):
+        """generate linear data X = [1, x1] & do an GAM OLS fit using Z, the bspline expansion of x1"""
+        # (1.1) Least squares example: ---------------------------------------------
+        # Effects generation
+        n = 100
+        X = np.stack([np.ones(n), np.random.uniform(0, 10, n)], axis=1)
+        beta = np.array([4, -2])
+        mu = X.dot(beta)
+        y = mu + np.random.normal(loc=0, scale=1, size=n)
+
+        # basis expansion & OLS fit
+        Z = get_design(X[:, 1], no_basis=10, degree=2)
+        OLS = lambda Z, y: np.linalg.inv(Z.T.dot(Z)).dot(Z.T).dot(y)
+        beta_hat = OLS(Z, y)
+        y_hat = Z.dot(beta_hat)
+
+        # Metrics
+        resid = y - y_hat
+        bias = (mu - y_hat) ** 2
+
+        self.assertAlmostEqual(sum(resid), 0, places=2)
+
+    def test_eval_basis(self):
+        """evaluate an observation on bspline grid; single obs. becomes a vector that must sum to 1"""
+        # carefull to get the boundary regions right! Through in extra kappas, such that the
+        lower, upper = 0, 10  # support of x
+        degree = 2
+        l_knots = lower - degree - 1
+        u_knots = upper + degree + 2
+
+        z = eval_basis(x=upper, knots=np.arange(l_knots, u_knots, 1), degree=degree)
+        self.assertAlmostEqual(z.sum(), 1.)
+
+        z = eval_basis(x=lower, knots=np.arange(l_knots, u_knots, 1), degree=degree)
+        self.assertAlmostEqual(z.sum(), 1.)
+
+    def test_diff_mat1D(self):
+        d1, k1 = diff_mat1D(dim=5, order=1)
+        self.assertTrue(np.all(d1 == np.array([[-1, 1, 0, 0, 0],
+                                               [0, -1, 1, 0, 0],
+                                               [0, 0, -1, 1, 0],
+                                               [0, 0, 0, -1, 1]])))
+
+        self.assertTrue(np.all(k1 == np.array([[1, -1, 0, 0, 0],  # K1
+                                               [-1, 2, -1, 0, 0],
+                                               [0, -1, 2, -1, 0],
+                                               [0, 0, -1, 2, -1],
+                                               [0, 0, 0, -1, 1]])))
+
+        # Check the diff_mat for higher orders -----------------------------
+        # for order in [1, 2, 3, 4, 5]:
+        #     d, K = diff_mat1D(dim=5, order=order)
+        #     print('order {order}\n, D{order}: \n {d}, \n K{order} \n{K}, \n'.format(order=order, d=d, K=K))
 
 
 if __name__ == '__main__':
