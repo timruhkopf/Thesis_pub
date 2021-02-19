@@ -1,45 +1,54 @@
-(CODE) -------------------------------------------------------------------------
-(1) Reinstate Project with Github:
-https://docs.github.com/en/github/importing-your-projects-to-github/adding-an-existing-project-to-github-using-the-command-line
-
-(*) set up BOHB to avoid Grid.
-
-optional (+) review Sampler functionallity & what can be removed
-optional (+) write an Adapter pattern for the different samplers
-optional (+)
-
 
 (Theory) -----------------------------------------------------------------------
-# STABILITY
+# TODO STABILITY
 (*) simulate less extreme data:
     1) other priors
     2) less explicit simulation
         - choose specific functions
-        - choose hyperprior explicit
-    3) force the scenario
+        - choose hyperprior explicit - i.e. the reset_parameter has some fix
+          value for the hyperprior.
+    3) force the shrinkage scenario.
 
 (*) find suitible eps. (BOHB: what is the correct metric for choosing?)
 
-# MODELS gradual increase
+# TODO MODELS gradual increase
 (*) make GAM Pz Xbeta work
 (*) make GAM Pz BNN work (OrthBNN)
 (*) make GAM Pz ShrinkageBNN work (OrhtSBNN)
 (*) multi Group penalty priors
 
-(*) METRIKEN für Ergebnis präsentation / bewertung (statt plot(data/prediction))
+(*) TODO METRIKEN für Ergebnis präsentation / bewertung (statt plot(data/prediction))
     ALTAIR?
         - share of successfull models
         - avg. MSE distribution of models' predictions
         - successful shrinkage variance estimation?
 
-(*) Bayesian Null space penalty (WOOD?)
+(*) Consider Bayesian Null space penalty (WOOD?)
+
+
+(CODE) -------------------------------------------------------------------------
+(*) TODO set up BOHB to avoid Grid.
+
+(*) Util_Model.check_chain_seq(chain) does not raise when first and last are the same!
+
+(*) src.Util.Util_bspline.get_design is not necessarily 1 in rowsum - if observations are at the boundary
+
+(*) GAM + regression orthogonal compl example: check that its orth_projection(X!!!) @ Z\gamma
+(*) BNN + GAM orthogonal compl example: check that its orth_projection(Z!!!) @ bnn(X)
+
+(*) refactor the orth_projection: rename: it is the projection on orth_complement
+
+optional (+) review Sampler functionallity & what can be removed (vec model legacy)
+optional (+) write an Adapter pattern for the different samplers
+optional (+) make likelihood attribute = td.Distrib update likelihood's location parameter.
+             this avoids creating new td.Distrib instances all the time during
+             training!
 
 
 (Document) ---------------------------------------------------------------------
 (*) Literatur vorarbeit
 (*) core source paper
 
-(*) add Structure (Sections)
 (*) abstract: ARD + Unified Network Architecture extension / fusion
 (*) add (Sublementary) --
     1) Sampler summary & related issues

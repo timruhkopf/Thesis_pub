@@ -3,8 +3,7 @@ import unittest
 import torch
 import torch.distributions as td
 import torch.nn as nn
-from ..Layer import Hidden
-from ..Samplers.mygeoopt import myRHMC
+from src.Layer import Hidden
 
 
 class TestHidden(unittest.TestCase):
@@ -60,13 +59,6 @@ class TestHidden(unittest.TestCase):
 
         self.assertEqual(self.model.W.shape, W.shape)
         self.assertEqual(self.model.b.shape, b.shape)
-
-    # def test_samplable(self):
-    #     """double check that a simple regression example works"""
-    #     from .Test_Samplers import Test_Samplers
-    #     self.model = Hidden(3, 1, bias=True, activation=nn.Identity())
-    #     X, y = self.model.sample_model()
-    #     Test_Samplers.test_RHMC(self)
 
 
 if __name__ == '__main__':

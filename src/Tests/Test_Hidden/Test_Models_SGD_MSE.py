@@ -1,22 +1,16 @@
 import unittest
 
-from torch.utils.data import TensorDataset, DataLoader
-
-from src.Tests.Optimizer import Optimizer
-from copy import deepcopy
-from tqdm import tqdm
 import torch
 import torch.nn as nn
+from torch.utils.data import TensorDataset, DataLoader
+from copy import deepcopy
+from tqdm import tqdm
 
-from .Test_Samplers import Test_Samplers
+from ..Test_Samplers.Optimizer import Optimizer
+from ..Test_Samplers.Convergence_Unittest_Setup import Convergence_Unittest_Setup
 
 
-class Test_Models_SGD_MSE(unittest.TestCase):
-    def setUp(self) -> None:
-        Test_Samplers.setUp(self)
-
-    def tearDown(self) -> None:
-        Test_Samplers.tearDown(self)
+class Test_Models_SGD_MSE(Convergence_Unittest_Setup, unittest.TestCase):
 
     def test_usingADAM(self):
         loss_fn = torch.nn.MSELoss(reduction='mean')
@@ -44,12 +38,6 @@ class Test_Models_SGD_MSE(unittest.TestCase):
                 print("gradients:",
                       torch.cat([p.grad.reshape((p.grad.shape[0], 1)) for p in self.model.parameters()], 0), '\n')
 
-        # print(chain_mat([self.model.state_dict(),
-        #                  self.model.true_model,
-        #                  self.model.init_model]))
-        # print(self.LS, '\n', self.model_in_LS_format())
-
-
     def test_OptimSGD(self):
 
         from torch import optim
@@ -74,7 +62,6 @@ class Test_Models_SGD_MSE(unittest.TestCase):
         self.sampler = optimizer
 
     def test_OptimizerMSE(self):
-        # TODO test with MSE & with log_prob
 
         lr = 0.02
         n_samples = 1000
@@ -82,8 +69,7 @@ class Test_Models_SGD_MSE(unittest.TestCase):
         trainset = TensorDataset(self.X, self.y)
         trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
 
-        # x, y = next(trainloader.__iter__())
-        # x1 = x.detach().clone()
+
         self.sampler = Optimizer(self.model, trainloader)
         # self.sampler.sample(loss_closure=lambda X, y: ((self.model.forward(X) - y) ** 2).mean(),
         #                     steps=n_samples, lr=lr)
