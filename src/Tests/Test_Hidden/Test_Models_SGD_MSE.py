@@ -6,7 +6,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from copy import deepcopy
 from tqdm import tqdm
 
-from ..Test_Samplers.Optimizer import Optimizer
+from .Optimizer import Optimizer
 from ..Test_Samplers.Convergence_Unittest_Setup import Convergence_Unittest_Setup
 
 
