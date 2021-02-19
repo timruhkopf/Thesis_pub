@@ -190,7 +190,6 @@ if __name__ == '__main__':
     n = 1000
     n_val = 100
     model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU())
-    import matplotlib
 
     # matplotlib.use('TkAgg')
 
@@ -204,7 +203,7 @@ if __name__ == '__main__':
                   sampler_name='RHMC', sampler_param=config)
 
     # (Glasso) -----------------------------------------------------------------
-    from src.Layer.Group_lasso import Group_lasso
+    from src.Layer.Shrinkage.Group_lasso import Group_lasso
 
     run = 'Glasso_SGNHT'
     root = '/home/tim/PycharmProjects/Thesis/src/Experiments/Results/{}/'.format(run)
@@ -224,7 +223,7 @@ if __name__ == '__main__':
                              sampler_name='SGNHT', sampler_param=config, seperated=True)
 
     # (Ghorse) -----------------------------------------------------------------
-    from src.Layer.Group_HorseShoe import Group_HorseShoe
+    from src.Layer.Shrinkage.Group_HorseShoe import Group_HorseShoe
 
     run = 'Ghorse_SGNHT'
     root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \

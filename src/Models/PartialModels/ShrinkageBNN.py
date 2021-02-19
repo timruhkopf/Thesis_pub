@@ -4,10 +4,10 @@ import torch.nn as nn
 
 from src.Models.BNN import BNN
 from src.Layer.Hidden import Hidden, Hidden_flat
-from src.Layer.Group_lasso import Group_lasso
-from src.Layer.Group_HorseShoe import Group_HorseShoe
-from src.Layer.Hierarchical_Group_HorseShoe import Hierarchical_Group_HorseShoe
-from src.Layer.Hierarchical_Group_lasso import Hierarchical_Group_lasso
+from src.Layer.Shrinkage.Group_lasso import Group_lasso
+from src.Layer.Shrinkage.Group_HorseShoe import Group_HorseShoe
+from src.Layer.Shrinkage.Hierarchical_Group_HorseShoe import Hierarchical_Group_HorseShoe
+from src.Layer.Shrinkage.Hierarchical_Group_lasso import Hierarchical_Group_lasso
 
 
 class ShrinkageBNN(BNN):
@@ -183,7 +183,7 @@ if __name__ == '__main__':
     sampler.traceplots()
     sampler.acf_plots(nlags=200)
 
-    from src.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
+    from src.Samplers.LudwigWinkler import SGNHT
 
     step_size = 0.001
     num_steps = 5000  # <-------------- important
