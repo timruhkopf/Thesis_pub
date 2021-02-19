@@ -3,7 +3,7 @@ import unittest
 import torch
 import torch.distributions as td
 import torch.nn as nn
-from src.Layer import Hidden
+from src.Layer.Hidden import Hidden
 
 
 class TestHidden(unittest.TestCase):
