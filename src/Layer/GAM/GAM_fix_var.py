@@ -3,7 +3,7 @@ import torch.distributions as td
 import torch.nn as nn
 from copy import deepcopy
 
-from src.Layer.GAM import GAM
+from src.Layer.GAM.GAM import GAM
 
 
 class GAM_fix_var(GAM):

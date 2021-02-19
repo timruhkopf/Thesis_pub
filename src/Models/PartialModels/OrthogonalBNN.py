@@ -3,8 +3,8 @@ import torch.nn as nn
 import torch.distributions as td
 
 from src.Util.Util_Model import Util_Model
-from src.Layer.GAM import GAM
-from src.Layer.GAM_fix_var import GAM_fix_var
+from src.Layer.GAM.GAM import GAM
+from src.Layer.GAM.GAM_fix_var import GAM_fix_var
 
 from src.Models.BNN import BNN
 from src.Models.StructuredBNN import StructuredBNN

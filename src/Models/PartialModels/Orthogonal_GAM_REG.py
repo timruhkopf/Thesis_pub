@@ -1,9 +1,8 @@
-import torch
 import torch.nn as nn
 
 from src.Layer.Hidden import Hidden
-from src.Layer.GAM import GAM
-from src.Layer.GAM_fix_var import GAM_fix_var
+from src.Layer.GAM.GAM import GAM
+from src.Layer.GAM.GAM_fix_var import GAM_fix_var
 
 from .OrthogonalBNN import OrthogonalBNN
 from copy import deepcopy
@@ -146,8 +145,6 @@ class Orth_GAM_Reg(OrthogonalBNN):
 
 
 if __name__ == '__main__':
-    import torch.distributions as td
-
     h = Orth_GAM_Reg(hunits=[2, 1], gam_type='fix_variance', no_basis=10,
                      activation=nn.Identity(), final_activation=nn.Identity())
     n = 1000

@@ -4,7 +4,7 @@ import torch.distributions as td
 from copy import deepcopy
 
 from src.Util.Util_Distribution import LogTransform
-from src.Layer.GAM import GAM
+from src.Layer.GAM.GAM import GAM
 from src.Util.Util_bspline import get_design, diff_mat1D
 
 
