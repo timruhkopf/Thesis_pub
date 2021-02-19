@@ -3,9 +3,8 @@ import torch.nn as nn
 import torch.distributions as td
 
 from src.Layer.Hidden import Hidden
-from src.Layer.Group_lasso import Group_lasso
+from src.Layer.Shrinkage.Group_lasso import Group_lasso
 from src.Util.Util_Distribution import LogTransform
-from copy import deepcopy
 
 
 class Hierarchical_Group_HorseShoe(Hidden, ):
@@ -135,7 +134,6 @@ if __name__ == '__main__':
     # horse.plot(X_joint, y)
 
     # torch.autograd.set_detect_anomaly(False)
-    from collections import OrderedDict
 
     while True:
         try:

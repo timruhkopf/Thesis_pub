@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.distributions as td
 
 from src.Layer.Hidden import Hidden
-from src.Layer.Group_lasso import Group_lasso
+from src.Layer.Shrinkage.Group_lasso import Group_lasso
 from src.Util.Util_Distribution import LogTransform
 
 
