@@ -3,7 +3,7 @@ import torch.distributions as td
 import torch.nn as nn
 
 from src.Models.BNN import BNN
-from src.Layer.Hidden import Hidden, Hidden_flat
+from src.Layer.Hidden import Hidden
 from src.Layer.Shrinkage.Group_lasso import Group_lasso
 from src.Layer.Shrinkage.Group_HorseShoe import Group_HorseShoe
 from src.Layer.Shrinkage.Hierarchical_Group_HorseShoe import Hierarchical_Group_HorseShoe
@@ -20,7 +20,6 @@ class ShrinkageBNN(BNN):
         'multilasso': Hierarchical_Group_lasso}
 
     layer_type = {
-        'flat': Hidden_flat,
         'normal': Hidden
     }
 
