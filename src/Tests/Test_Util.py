@@ -6,7 +6,7 @@ import torch.distributions as td
 
 from ..Util.Util_Model import Util_Model
 from ..Util.Util_Distribution import LogTransform
-from ..Models.PartialModels.Orthogonal_GAM_REG import OrthogonalBNN
+from src.Models.Orthogonal_GAM_REG import OrthogonalBNN
 from ..Models.BNN import BNN
 
 from src.Layer.GAM.GAM import GAM
