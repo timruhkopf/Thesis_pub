@@ -1,16 +1,22 @@
 import unittest
 
-import torch
-import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
+
+from src.Tests.Optimizer import Optimizer
 from copy import deepcopy
 from tqdm import tqdm
+import torch
+import torch.nn as nn
 
-from ..Test_Samplers.Optimizer import Optimizer
-from ..Test_Samplers.Convergence_Unittest_Setup import Convergence_Unittest_Setup
+from .Test_Samplers import Test_Samplers
 
 
-class Test_Models_SGD_MSE(Convergence_Unittest_Setup, unittest.TestCase):
+class Test_Models_SGD_MSE(unittest.TestCase):
+    def setUp(self) -> None:
+        Test_Samplers.setUp(self)
+
+    def tearDown(self) -> None:
+        Test_Samplers.tearDown(self)
 
     def test_usingADAM(self):
         loss_fn = torch.nn.MSELoss(reduction='mean')
