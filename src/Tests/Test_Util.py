@@ -9,7 +9,7 @@ from ..Util.Util_Distribution import LogTransform
 from ..Models.PartialModels.Orthogonal_GAM_REG import OrthogonalBNN
 from ..Models.BNN import BNN
 
-from ..Layer.GAM import GAM
+from src.Layer.GAM.GAM import GAM
 from ..Layer.Hidden import Hidden
 from ..Util.Util_bspline import get_design
 

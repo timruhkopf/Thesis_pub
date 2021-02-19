@@ -4,7 +4,7 @@ import torch.distributions as td
 import pandas as pd
 
 from src.Util.Util_bspline import get_design
-from src.Layer.GAM import GAM
+from src.Layer.GAM.GAM import GAM
 
 from src.Models.PartialModels.ShrinkageBNN import ShrinkageBNN
 from src.Util.Util_Model import Util_Model
@@ -193,7 +193,7 @@ if __name__ == '__main__':
     h.plot(X[:100], Z[:100], y[:100], chain=random.sample(sampler.chain, 100),
            **{'title': 'structuredBNN'})
 
-    from src.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
+    from src.Samplers.LudwigWinkler import SGNHT
 
     num_samples = 1000
     step_size = 0.01
