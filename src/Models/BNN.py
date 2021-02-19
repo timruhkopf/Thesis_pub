@@ -3,16 +3,17 @@ import torch.nn as nn
 import torch.distributions as td
 import inspect
 
-from src.Layer.Hidden import Hidden
+from src.Layer.Hidden import Hidden, Hidden_flat
 from src.Util.Util_Model import Util_Model
 
 from copy import deepcopy
 
 
 class BNN(nn.Module, Util_Model):
+    L = {'flat': Hidden_flat, 'normal': Hidden}
 
-    def __init__(self, hunits=(1, 10, 5, 1), activation=nn.ReLU(), final_activation=nn.Identity(),
-                 heteroscedast=False):
+    def __init__(self, hunits=[1, 10, 5, 1], activation=nn.ReLU(), final_activation=nn.Identity(),
+                 heteroscedast=False, prior='normal'):
         """
         Bayesian Neural Network, consisting of hidden layers.
         :param hunits: list of integers, specifying the input dimensions of hidden units
@@ -24,6 +25,7 @@ class BNN(nn.Module, Util_Model):
         """
         nn.Module.__init__(self)
         self.heteroscedast = heteroscedast
+        self.prior = prior
         self.hunits = hunits
         self.no_in = hunits[0]
         self.no_out = hunits[-1]
@@ -37,11 +39,12 @@ class BNN(nn.Module, Util_Model):
 
     # CLASSICS METHODS ---------------------------------------------------------
     def define_model(self):
+        L = self.L[self.prior]
         # Defining the layers depending on the mode.
         self.layers = nn.Sequential(
-            *[Hidden(no_in, no_units, True, self.activation)
+            *[L(no_in, no_units, True, self.activation)
               for no_in, no_units in zip(self.hunits[:-2], self.hunits[1:-1])],
-            Hidden(self.hunits[-2], self.hunits[-1], bias=False, activation=self.final_activation))
+            L(self.hunits[-2], self.hunits[-1], bias=False, activation=self.final_activation))
 
         if self.heteroscedast:
             self.sigma_ = nn.Parameter(torch.Tensor(1))
@@ -105,7 +108,7 @@ class BNN(nn.Module, Util_Model):
 
 if __name__ == '__main__':
     n = 1000
-    bnn = BNN(hunits=(1, 2, 5, 1), activation=nn.ReLU())
+    bnn = BNN(hunits=[1, 2, 5, 1], activation=nn.ReLU(), prior='normal')
     X, y = bnn.sample_model(n)
     bnn.reset_parameters()
     bnn.plot(X, y)
@@ -118,3 +121,167 @@ if __name__ == '__main__':
 
     # check accumulation of parameters & parsing
     bnn.log_prob(X, y)
+
+    # ------------------------------------------------------
+    from src.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
+    from src.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
+    from torch.utils.data import TensorDataset, DataLoader
+    import numpy as np
+    import matplotlib
+    import random
+    import os
+    import traceback
+
+    matplotlib.use('Agg')  # 'TkAgg' for explicit plotting
+
+    sampler_name = ['SGNHT', 'SGLD', 'MALA', 'RHMC', 'SGRLD', 'SGRHMC'][3]
+    model = bnn
+    # Setting up the parameters  -----------------------------------------------
+    sg_batch = 100
+    # from pathlib import Path
+
+    # home = str(Path.home())
+    #
+    # path = home + '/results_bnn/'
+    path = '/home/tim/PycharmProjects/Thesis/Experiments/Results_BNN2/'
+    if not os.path.isdir(path):
+        os.mkdir(path)
+
+    for rep in range(3):
+        for L in [1, 2]:
+            for eps in np.arange(0.003, 0.001, -0.0005):
+                model.reset_parameters()
+                name = '{}_{}_{}_{}'.format(sampler_name, str(eps), str(L), str(rep))
+                print(name)
+
+                sampler_param = dict(
+                    epsilon=eps, num_steps=3000, burn_in=100,
+                    pretrain=False, tune=False, num_chains=1)
+
+                if sampler_name in ['SGNHT', 'RHMC', 'SGRHMC']:
+                    sampler_param.update(dict(L=L))
+
+                if sampler_name == 'SGRHMC':
+                    sampler_param.update(dict(alpha=0.8))
+
+                if 'SG' in sampler_name:
+                    batch_size = sg_batch
+                else:
+                    batch_size = X.shape[0]
+
+                eps = batch_size**(-1) * eps
+                trainset = TensorDataset(X, y)
+
+                # Setting up the sampler & sampling
+                if sampler_name in ['SGNHT', 'SGLD', 'MALA']:  # geoopt based models
+                    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
+                    Sampler = {'SGNHT': SGNHT,  # step_size, hmc_traj_length
+                               'MALA': MALA,  # step_size
+                               'SGLD': SGLD  # step_size
+                               }[sampler_name]
+                    sampler = Sampler(model, trainloader, **sampler_param)
+                    try:
+                        sampler.sample()
+                        sampler.model.check_chain(sampler.chain)
+                        print(sampler.chain[:3])
+                        print(sampler.chain[-3:])
+
+                        # Visualize the resulting estimation -------------------------
+                        sampler.model.plot(X[:100], y[:100], sampler.chain[:30], path=path + name)
+                        sampler.model.plot(X[:100], y[:100], random.sample(sampler.chain, 30), path=path + name)
+                        matplotlib.pyplot.close('all')
+                    except Exception as error:
+                        print(name, 'failed')
+                        sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
+                        print(error)
+                        print(traceback.format_exc())
+
+                elif sampler_name in ['RHMC', 'SGRLD', 'SGRHMC']:
+                    n_samples = sampler_param.pop('num_steps')
+                    burn_in = sampler_param.pop('burn_in')
+                    sampler_param.pop('pretrain')
+                    sampler_param.pop('tune')
+                    sampler_param.pop('num_chains')
+
+
+                    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
+
+                    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+                               'SGRLD': myRSGLD,  # epsilon
+                               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+                               }[sampler_name]
+                    sampler = Sampler(model, **sampler_param)
+                    try:
+                        sampler.sample(trainloader, burn_in, n_samples)
+
+                        sampler.model.check_chain(sampler.chain)
+                        # print(sampler.chain[:3])
+                        # print(sampler.chain[-3:])
+
+                        # Visualize the resulting estimation -------------------------
+
+                        # sampler.model.plot(X[:100], y[:100], sampler.chain[:30], path=path + name)
+                        sampler.model.plot(X[:100], y[:100], random.sample(sampler.chain, 30), path=path + name)
+                        print('last avg MSE:', nn.MSELoss()(y, model.forward(X)))
+                        model.load_state_dict(model.init_model)
+                        print('init avg MSE:', nn.MSELoss()(y, model.forward(X)))
+                        matplotlib.pyplot.close('all')
+                    except Exception as error:
+                        print(name, 'failed')
+                        sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
+                        print(error)
+                        print(traceback.format_exc())
+
+    print()
+    # -------------------------------------------------------
+    #
+    # from src.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
+    # from torch.utils.data import TensorDataset, DataLoader
+    #
+    # burn_in, n_samples = 100, 100
+    #
+    # trainset = TensorDataset(X, y)
+    # trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
+    #
+    # Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+    #            'SGRLD': myRSGLD,  # epsilon
+    #            'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+    #            }['RHMC']
+    # sampler = Sampler(bnn, epsilon=0.01, L=2)
+    # sampler.sample(trainloader, burn_in, n_samples)
+    # sampler.check_chain()
+    # import random
+    #
+    # sampler.model.plot(X[0:100], y[0:100], sampler.chain[:30])
+    # sampler.model.plot(X[0:100], y[0:100], random.sample(sampler.chain, 30))
+    # print(sampler.chain[0])
+    # print(sampler.chain[-1])
+    # print(sampler.model.true_model)
+    # print(sampler.model.init_model)
+
+    # from src.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
+    #
+    # param = dict(epsilon=0.001,
+    #              num_steps=5000,  # <-------------- important
+    #              pretrain=False,
+    #              tune=False,
+    #              burn_in=2000,
+    #              # num_chains 		type=int, 	default=1
+    #              num_chains=1,  # os.cpu_count() - 1
+    #              L=24)
+    #
+    # batch_size = 50
+    # val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
+    # val_prediction_steps = 50
+    # val_converge_criterion = 20
+    # val_per_epoch = 200
+    #
+    # bnn.reset_parameters()
+    # sgnht = SGNHT(bnn, trainloader, **param)
+    # sgnht.sample()
+    # print(sgnht.chain)
+    #
+    # import random
+    # sgnht.model.plot(X, y, random.sample(sgnht.chain, 30))
+    #
+    # sgnht.model.plot(X, y, sgnht.chain[0:10])
