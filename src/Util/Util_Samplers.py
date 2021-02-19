@@ -9,16 +9,6 @@ from itertools import chain
 
 
 class Util_Sampler:
-    def __init__(self, model):
-        """
-        Samplers class, implementing all the functionality shared by the samplers:
-        given the MCMC-chain: predictions of (mode, mean --> these two may
-        become problematic in the context of multimodality), uncertainty,
-        clustering the chain vectors, evaluating single parameters -- unconditional distribution
-        plotting of predictions / chains.
-        """
-        self.chain = list()  # list of 1D Tensors, representing the param state
-        self.model = model
 
     def save(self, path):
         import pickle
@@ -127,7 +117,7 @@ class Util_Sampler:
 
 
 if __name__ == '__main__':
-    s = Util_Sampler(model=None)
+    s = Util_Sampler()
     chain = torch.distributions.Normal(0., scale=torch.tensor(1.)).sample([1000, 2])
     new = torch.Tensor(1000, )
 
