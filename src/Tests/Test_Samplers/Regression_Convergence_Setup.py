@@ -3,6 +3,8 @@ import torch.nn as nn
 
 from src.Layer.Hidden import Hidden
 from .util import chain_mat, posterior_mean
+from ..Test_Samplers.util import plot_sampler_path
+
 
 class Regression_Convergence_Setup:
     def setUp(self) -> None:
@@ -31,7 +33,7 @@ class Regression_Convergence_Setup:
         Teardown the setUP's regression example to ensure next sampler has new
         model instance to optimize & check the sampler's progression
         """
-
+        plot_sampler_path(self.sampler, self.model, steps=100, loss=torch.stack(self.sampler.loss).detach().numpy())
         # ensure, the sampler moved at all
         self.assertFalse(torch.all(torch.eq(
             chain_mat([self.model.true_model])[0],
