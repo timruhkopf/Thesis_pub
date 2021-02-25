@@ -6,7 +6,7 @@ from copy import deepcopy
 from tqdm import tqdm
 
 from .Optimizer import Optimizer
-from ..Test_Samplers.Regression_Convergence_Setup import Regression_Convergence_Setup
+from ..Test_Samplers.Regression_Convergence_Setup import Regression_Convergence_Setup, chain_mat
 
 
 class Test_Regression_SGD_logprob(Regression_Convergence_Setup, unittest.TestCase):

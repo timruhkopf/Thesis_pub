@@ -3,7 +3,8 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader
 
 from src.Samplers import *
-from .Regression_Convergence_Setup import Regression_Convergence_Setup, posterior_mean, chain_mat
+from .Regression_Convergence_Setup import Regression_Convergence_Setup
+from .util import posterior_mean, chain_mat, plot_sampler_path
 
 
 class Test_Sampler(Regression_Convergence_Setup, unittest.TestCase):

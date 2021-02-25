@@ -2,17 +2,7 @@ import torch
 import torch.nn as nn
 
 from src.Layer.Hidden import Hidden
-
-
-def chain_mat(chain):
-    vecs = [torch.cat([p.reshape(p.nelement()) for p in state.values()], axis=0) for state in chain]
-    return torch.stack(vecs, axis=0)
-
-
-def posterior_mean(chain):
-    chain_matrix = chain_mat(chain)
-    return chain_matrix.mean(dim=0)
-
+from .util import chain_mat, posterior_mean
 
 class Regression_Convergence_Setup:
     def setUp(self) -> None:
