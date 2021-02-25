@@ -7,10 +7,10 @@ from copy import deepcopy
 from tqdm import tqdm
 
 from .Optimizer import Optimizer
-from ..Test_Samplers.Convergence_Unittest_Setup import Convergence_Unittest_Setup
+from ..Test_Samplers.Regression_Convergence_Setup import Regression_Convergence_Setup
 
 
-class Test_Models_SGD_MSE(Convergence_Unittest_Setup, unittest.TestCase):
+class Test_Regression_SGD_MSE(Regression_Convergence_Setup, unittest.TestCase):
 
     def test_usingADAM(self):
         loss_fn = torch.nn.MSELoss(reduction='mean')

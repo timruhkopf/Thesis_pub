@@ -6,10 +6,10 @@ from copy import deepcopy
 from tqdm import tqdm
 
 from .Optimizer import Optimizer
-from ..Test_Samplers.Convergence_Unittest_Setup import Convergence_Unittest_Setup
+from ..Test_Samplers.Regression_Convergence_Setup import Regression_Convergence_Setup
 
 
-class Test_ModelSGD_logprob(Convergence_Unittest_Setup, unittest.TestCase):
+class Test_Regression_SGD_logprob(Regression_Convergence_Setup, unittest.TestCase):
 
     def test_OptimizerLogProb(self):
         lr = 0.001

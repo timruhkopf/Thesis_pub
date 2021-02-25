@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from src.Layer import Hidden
+from src.Layer.Hidden import Hidden
 
 
 def chain_mat(chain):
@@ -14,7 +14,7 @@ def posterior_mean(chain):
     return chain_matrix.mean(dim=0)
 
 
-class Convergence_Unittest_Setup:
+class Regression_Convergence_Setup:
     def setUp(self) -> None:
         # Regression example data (from Hidden layer)
         # TODO make it 5 regressors + bias!

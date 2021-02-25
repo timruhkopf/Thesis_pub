@@ -3,30 +3,30 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader
 
 from src.Samplers import *
-from .Convergence_Unittest_Setup import Convergence_Unittest_Setup, posterior_mean, chain_mat
+from .Regression_Convergence_Setup import Regression_Convergence_Setup, posterior_mean, chain_mat
 
 
-class Test_Sampler(Convergence_Unittest_Setup, unittest.TestCase):
-    def test_RHMC(self):
-        # sampler config
-        eps, L = 0.001, 1
-        sampler_param = dict(epsilon=eps, L=L)
-
-        burn_in, n_samples = 100, 1000
-        batch_size = self.X.shape[0]
-
-        # dataset setup
-        trainset = TensorDataset(self.X, self.y)
-        trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
-
-        # check that the model's log_prob is not broken
-        # TODO RHMC.step(partial(self.model.log_prob, *data))  # maybe negative?
-        # self.model.log_prob = lambda X, y: self.model.prior_log_prob() + self.model.likelihood(X).log_prob(y).mean()
-
-        # init sampler & sample
-        Sampler = myRHMC
-        self.sampler = Sampler(self.model, **sampler_param)
-        self.sampler.sample(trainloader, burn_in, n_samples)
+class Test_Sampler(Regression_Convergence_Setup, unittest.TestCase):
+    # def test_RHMC(self):
+    #     # sampler config
+    #     eps, L = 0.001, 1
+    #     sampler_param = dict(epsilon=eps, L=L)
+    #
+    #     burn_in, n_samples = 100, 1000
+    #     batch_size = self.X.shape[0]
+    #
+    #     # dataset setup
+    #     trainset = TensorDataset(self.X, self.y)
+    #     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
+    #
+    #     # check that the model's log_prob is not broken
+    #     # TODO RHMC.step(partial(self.model.log_prob, *data))  # maybe negative?
+    #     # self.model.log_prob = lambda X, y: self.model.prior_log_prob() + self.model.likelihood(X).log_prob(y).mean()
+    #
+    #     # init sampler & sample
+    #     Sampler = myRHMC
+    #     self.sampler = Sampler(self.model, **sampler_param)
+    #     self.sampler.sample(trainloader, burn_in, n_samples)
 
     def test_MALA(self):
         burn_in, n_samples = 100, 1000
