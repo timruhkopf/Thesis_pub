@@ -40,6 +40,7 @@ class Test_Regression_SGD_MSE(Regression_Convergence_Setup, unittest.TestCase):
                 print("gradients:",
                       torch.cat([p.grad.reshape((p.grad.shape[0], 1)) for p in self.model.parameters()], 0), '\n')
 
+        self.sampler.loss = torch.stack(self.sampler.loss).detach().numpy()
         # print(chain_mat([self.model.state_dict(),
         #                  self.model.true_model,
         #                  self.model.init_model]))
@@ -69,6 +70,7 @@ class Test_Regression_SGD_MSE(Regression_Convergence_Setup, unittest.TestCase):
             optimizer.chain.append(deepcopy(self.model.state_dict()))
 
         self.sampler = optimizer
+        self.sampler.loss = torch.stack(self.sampler.loss).detach().numpy()
 
     def test_OptimizerMSE(self):
         # TODO test with MSE & with log_prob
@@ -88,6 +90,8 @@ class Test_Regression_SGD_MSE(Regression_Convergence_Setup, unittest.TestCase):
         loss = nn.MSELoss()
         self.sampler.sample(loss_closure=lambda X, y: loss(self.model.forward(X), y),
                             steps=n_samples, lr=lr)
+
+        self.sampler.loss = torch.stack(self.sampler.loss).detach().numpy()
 
 
 if __name__ == '__main__':

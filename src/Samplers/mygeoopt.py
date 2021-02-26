@@ -1,8 +1,10 @@
-from geoopt.samplers import RHMC, RSGLD, SGRHMC
-from src.Util.Util_Samplers import Util_Sampler
 from functools import partial
-from tqdm import tqdm
+
 import torch
+from geoopt.samplers import RHMC, RSGLD, SGRHMC
+from tqdm import tqdm
+
+from src.Util.Util_Samplers import Util_Sampler
 
 
 # geoopt is the inofficial implementation of
@@ -43,7 +45,7 @@ class Geoopt_interface(Util_Sampler):
             # if not all([all(state[k] == v) for k, v in samples[-1].items()]): # this is imprecise
             self.chain.append(state)
 
-        self.model.check_chain(self.chain)
+        # self.model.check_chain(self.chain)
 
         print('\nSampling')
         points = []
@@ -58,7 +60,7 @@ class Geoopt_interface(Util_Sampler):
             # if not all([all(state[k] == v) for k, v in samples[-1].items()]): # this is imprecise
             self.chain.append(state)
 
-        self.model.check_chain(self.chain)
+        # self.model.check_chain(self.chain)
         self.log_probs = torch.tensor(self.log_probs[burn_in:])
         self.state
         self.n_rejected

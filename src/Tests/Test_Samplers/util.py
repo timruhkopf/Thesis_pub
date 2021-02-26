@@ -70,8 +70,8 @@ def plot_sampler_path(sampler, model, steps, loss=None, skip=10, error_margin=0.
         ax.plot(x1, x2)
 
     # contour lines
-    return plt
-    # plt.show()
+
+    plt.show()
 #
 #
 # def plot_log_prob(self, model):

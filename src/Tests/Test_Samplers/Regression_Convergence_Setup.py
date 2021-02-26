@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from src.Layer.Hidden import Hidden
-from .util import chain_mat, posterior_mean
+from src.Tests.Test_Samplers.util import chain_mat, posterior_mean
 from ..Test_Samplers.util import plot_sampler_path
 
 
@@ -12,7 +12,7 @@ class Regression_Convergence_Setup:
         # TODO make it 5 regressors + bias!
         p = 1  # no. regressors
         self.model = Hidden(p, 1, bias=True, activation=nn.Identity())
-        X, y = self.model.sample_model(n=1000)
+        X, y = self.model.sample_model(n=100)
         self.model.reset_parameters()
         self.X = X
         self.y = y
@@ -31,7 +31,8 @@ class Regression_Convergence_Setup:
         # OLS for comparison
         X = self.X.clone()
         X = torch.cat([torch.ones(X.shape[0], 1), X], 1)
-        self.LS = torch.inverse(X.t() @ X) @ X.t() @ y  # least squares
+        self.model.LS = torch.inverse(X.t() @ X) @ X.t() @ y  # least squares
+        self.model.LS = self.model.LS.numpy()
         self.model_in_LS_format = lambda: torch.cat([self.model.b.reshape((1, 1)), self.model.W.data], 0)
 
     def tearDown(self) -> None:
@@ -39,16 +40,13 @@ class Regression_Convergence_Setup:
         Teardown the setUP's regression example to ensure next sampler has new
         model instance to optimize & check the sampler's progression
         """
-        self.model.LS = self.LS.numpy()
 
-        self.model.load_state_dict(self.model.true_model)
-        print('true_log_prob: {}\n'
-              'last_log_prob:{}'.format(self.model.log_prob(self.X, self.y), -self.sampler.loss[-1]))
-
-        plt = plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
-                                loss=torch.stack(self.sampler.loss).detach().numpy())
-
-        plt.show()
+        # self.model.load_state_dict(self.model.true_model)
+        # print('true_log_prob: {}\n'
+        #       'last_log_prob:{}'.format(self.model.log_prob(self.X, self.y), -self.sampler.loss[-1]))
+        #
+        plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                          loss=self.sampler.loss)
 
         # plot_log_prob(self, self.model)
 
@@ -72,13 +70,8 @@ class Regression_Convergence_Setup:
         # FIXME: plot circle does not allign with this models's decision!
         self.assertTrue(torch.allclose(
             chain_mat([self.model.true_model])[0],
-            posterior_mean(self.sampler.chain[-200:]), atol=0.09),
+            posterior_mean(self.sampler.chain[-200:]), atol=0.15),
             msg='True parameters != posterior mean(on last 200 steps of chain)')
-
-        chain_mat([self.model.init_model])[0]
-        chain_mat([self.sampler.chain[-1]])[0]
-
-        # todo avg MSE loss check avg MSE LOSS <= 0.99 quantile von standard Normal?
 
         del self.model
         del self.X
