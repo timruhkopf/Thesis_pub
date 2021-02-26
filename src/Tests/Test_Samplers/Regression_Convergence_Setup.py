@@ -17,12 +17,18 @@ class Regression_Convergence_Setup:
         self.X = X
         self.y = y
 
+        print(self.model.true_model)
+
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         if torch.cuda.is_available():
             torch.cuda.get_device_name(0)
         self.X.to(device)
         self.y.to(device)
 
+        # steps for (real) Samplers
+        self.steps = 1000
+
+        # OLS for comparison
         X = self.X.clone()
         X = torch.cat([torch.ones(X.shape[0], 1), X], 1)
         self.LS = torch.inverse(X.t() @ X) @ X.t() @ y  # least squares
@@ -33,7 +39,19 @@ class Regression_Convergence_Setup:
         Teardown the setUP's regression example to ensure next sampler has new
         model instance to optimize & check the sampler's progression
         """
-        plot_sampler_path(self.sampler, self.model, steps=100, loss=torch.stack(self.sampler.loss).detach().numpy())
+        self.model.LS = self.LS.numpy()
+
+        self.model.load_state_dict(self.model.true_model)
+        print('true_log_prob: {}\n'
+              'last_log_prob:{}'.format(self.model.log_prob(self.X, self.y), -self.sampler.loss[-1]))
+
+        plt = plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                                loss=torch.stack(self.sampler.loss).detach().numpy())
+
+        plt.show()
+
+        # plot_log_prob(self, self.model)
+
         # ensure, the sampler moved at all
         self.assertFalse(torch.all(torch.eq(
             chain_mat([self.model.true_model])[0],
@@ -51,6 +69,7 @@ class Regression_Convergence_Setup:
                     'init and true are distinct from another')
 
         # check the resulting estimates are within a certain range
+        # FIXME: plot circle does not allign with this models's decision!
         self.assertTrue(torch.allclose(
             chain_mat([self.model.true_model])[0],
             posterior_mean(self.sampler.chain[-200:]), atol=0.09),
