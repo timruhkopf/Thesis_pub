@@ -3,17 +3,16 @@ import torch.nn as nn
 import torch.distributions as td
 import inspect
 
-from src.Layer.Hidden import Hidden, Hidden_flat
+from src.Layer.Hidden import Hidden
 from src.Util.Util_Model import Util_Model
 
 from copy import deepcopy
 
 
 class BNN(nn.Module, Util_Model):
-    L = {'flat': Hidden_flat, 'normal': Hidden}
 
     def __init__(self, hunits=[1, 10, 5, 1], activation=nn.ReLU(), final_activation=nn.Identity(),
-                 heteroscedast=False, prior='normal'):
+                 heteroscedast=False):
         """
         Bayesian Neural Network, consisting of hidden layers.
         :param hunits: list of integers, specifying the input dimensions of hidden units
@@ -25,7 +24,6 @@ class BNN(nn.Module, Util_Model):
         """
         nn.Module.__init__(self)
         self.heteroscedast = heteroscedast
-        self.prior = prior
         self.hunits = hunits
         self.no_in = hunits[0]
         self.no_out = hunits[-1]
@@ -39,12 +37,11 @@ class BNN(nn.Module, Util_Model):
 
     # CLASSICS METHODS ---------------------------------------------------------
     def define_model(self):
-        L = self.L[self.prior]
         # Defining the layers depending on the mode.
         self.layers = nn.Sequential(
-            *[L(no_in, no_units, True, self.activation)
+            *[Hidden(no_in, no_units, True, self.activation)
               for no_in, no_units in zip(self.hunits[:-2], self.hunits[1:-1])],
-            L(self.hunits[-2], self.hunits[-1], bias=False, activation=self.final_activation))
+            Hidden(self.hunits[-2], self.hunits[-1], bias=False, activation=self.final_activation))
 
         if self.heteroscedast:
             self.sigma_ = nn.Parameter(torch.Tensor(1))
@@ -233,55 +230,3 @@ if __name__ == '__main__':
                         print(traceback.format_exc())
 
     print()
-    # -------------------------------------------------------
-    #
-    # from src.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
-    # from torch.utils.data import TensorDataset, DataLoader
-    #
-    # burn_in, n_samples = 100, 100
-    #
-    # trainset = TensorDataset(X, y)
-    # trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
-    #
-    # Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
-    #            'SGRLD': myRSGLD,  # epsilon
-    #            'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
-    #            }['RHMC']
-    # sampler = Sampler(bnn, epsilon=0.01, L=2)
-    # sampler.sample(trainloader, burn_in, n_samples)
-    # sampler.check_chain()
-    # import random
-    #
-    # sampler.model.plot(X[0:100], y[0:100], sampler.chain[:30])
-    # sampler.model.plot(X[0:100], y[0:100], random.sample(sampler.chain, 30))
-    # print(sampler.chain[0])
-    # print(sampler.chain[-1])
-    # print(sampler.model.true_model)
-    # print(sampler.model.init_model)
-
-    # from src.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
-    #
-    # param = dict(epsilon=0.001,
-    #              num_steps=5000,  # <-------------- important
-    #              pretrain=False,
-    #              tune=False,
-    #              burn_in=2000,
-    #              # num_chains 		type=int, 	default=1
-    #              num_chains=1,  # os.cpu_count() - 1
-    #              L=24)
-    #
-    # batch_size = 50
-    # val_split = 0.9  # first part is train, second is val i.e. val_split=0.8 -> 80% train, 20% val
-    # val_prediction_steps = 50
-    # val_converge_criterion = 20
-    # val_per_epoch = 200
-    #
-    # bnn.reset_parameters()
-    # sgnht = SGNHT(bnn, trainloader, **param)
-    # sgnht.sample()
-    # print(sgnht.chain)
-    #
-    # import random
-    # sgnht.model.plot(X, y, random.sample(sgnht.chain, 30))
-    #
-    # sgnht.model.plot(X, y, sgnht.chain[0:10])
