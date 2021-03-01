@@ -1,29 +1,22 @@
 import torch
 import torch.nn as nn
 
-from src.Samplers import *
-from src.Layer import Hidden
+from src.Layer.Hidden import Hidden
+from src.Tests.Test_Samplers.util import chain_mat, posterior_mean
+from ..Test_Samplers.util import plot_sampler_path
 
 
-def chain_mat(chain):
-    vecs = [torch.cat([p.reshape(p.nelement()) for p in state.values()], axis=0) for state in chain]
-    return torch.stack(vecs, axis=0)
-
-
-def posterior_mean(chain):
-    chain_matrix = chain_mat(chain)
-    return chain_matrix.mean(dim=0)
-
-class Convergence_Unittest_Setup:
+class Regression_Convergence_Setup:
     def setUp(self) -> None:
         # Regression example data (from Hidden layer)
-        # TODO make it 5 regressors + bias!
         p = 1  # no. regressors
         self.model = Hidden(p, 1, bias=True, activation=nn.Identity())
-        X, y = self.model.sample_model(n=1000)
+        X, y = self.model.sample_model(n=100)
         self.model.reset_parameters()
         self.X = X
         self.y = y
+
+        print(self.model.true_model)
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         if torch.cuda.is_available():
@@ -31,17 +24,30 @@ class Convergence_Unittest_Setup:
         self.X.to(device)
         self.y.to(device)
 
+        # steps for (real) Samplers
+        self.steps = 1000
+
+        # OLS for comparison
         X = self.X.clone()
         X = torch.cat([torch.ones(X.shape[0], 1), X], 1)
-        self.LS = torch.inverse(X.t() @ X) @ X.t() @ y  # least squares
+        self.model.LS = torch.inverse(X.t() @ X) @ X.t() @ y  # least squares
+        self.model.LS = self.model.LS.numpy()
         self.model_in_LS_format = lambda: torch.cat([self.model.b.reshape((1, 1)), self.model.W.data], 0)
-
 
     def tearDown(self) -> None:
         """
         Teardown the setUP's regression example to ensure next sampler has new
         model instance to optimize & check the sampler's progression
         """
+
+        # self.model.load_state_dict(self.model.true_model)
+        # print('true_log_prob: {}\n'
+        #       'last_log_prob:{}'.format(self.model.log_prob(self.X, self.y), -self.sampler.loss[-1]))
+        #
+        plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                          loss=self.sampler.loss)
+
+        # plot_log_prob(self, self.model)
 
         # ensure, the sampler moved at all
         self.assertFalse(torch.all(torch.eq(
@@ -60,15 +66,11 @@ class Convergence_Unittest_Setup:
                     'init and true are distinct from another')
 
         # check the resulting estimates are within a certain range
+        # FIXME: plot circle does not allign with this models's decision!
         self.assertTrue(torch.allclose(
             chain_mat([self.model.true_model])[0],
-            posterior_mean(self.sampler.chain[-200:]), atol=0.09),
-            msg='True parameters != posterior mean(on last 200 steps of chain)')
-
-        chain_mat([self.model.init_model])[0]
-        chain_mat([self.sampler.chain[-1]])[0]
-
-        # todo avg MSE loss check avg MSE LOSS <= 0.99 quantile von standard Normal?
+            posterior_mean(self.sampler.chain[-100:]), atol=0.15),
+            msg='True parameters != posterior mean(on last 100 steps of chain)')
 
         del self.model
         del self.X

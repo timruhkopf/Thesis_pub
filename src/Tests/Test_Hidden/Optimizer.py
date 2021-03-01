@@ -1,7 +1,8 @@
+from copy import deepcopy
+
 import torch
 import torch.distributions as td
-from copy import deepcopy
-from tqdm import  tqdm
+from tqdm import tqdm
 
 
 class Optimizer:
@@ -13,7 +14,7 @@ class Optimizer:
         """
         self.model = model
         self.chain = list()
-        self.losses = list()
+        self.loss = list()
         self.trainloader = trainloader
 
         # todo ensure lr is torch tensor float
@@ -24,8 +25,9 @@ class Optimizer:
             y_pred = self.model.forward(X)
             # TODO choose loss !
             loss = loss_closure(X, y)
+
             loss.backward()
-            self.losses.append(loss)
+            self.loss.append(loss)
 
             with torch.no_grad():
                 for name, p in self.model.named_parameters():

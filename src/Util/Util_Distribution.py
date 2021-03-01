@@ -1,4 +1,3 @@
-import torch
 import torch.distributions as td
 from torch.distributions import constraints
 
@@ -37,6 +36,7 @@ class LogTransform(td.Transform):
 
 
 if __name__ == '__main__':
+    import torch
     samples = 2
     seed = 1
     torch.manual_seed(seed)
@@ -49,5 +49,3 @@ if __name__ == '__main__':
     torch.manual_seed(seed)
     c = unconst_ga.sample([samples])
     d = unconst_ga.transforms[0]._inverse(c)
-
-

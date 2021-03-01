@@ -38,7 +38,7 @@ class TestUtil(unittest.TestCase):
             chain = [h.true_model['W']]
             Util_Model.check_chain(chain)
 
-        # check if with nan todo / inf in chain
+        # check if with nan  todo / inf in chain
         with self.assertRaises(RuntimeError):
             h = Hidden(5, 2, bias=True)
             h.W.data[0] = torch.tensor([float('nan'), 1.])
@@ -70,6 +70,10 @@ class TestUtil(unittest.TestCase):
         c = dist_bij.transforms[0](b)
         self.assertTrue(torch.allclose(a, c))
 
+        # Not optimal testing
+        # consider sample from dist_bij, then invert to gamma's space
+        #  calculating ML estimators for rate and concentration on large sample.
+        #  they should be very close!
 
 if __name__ == '__main__':
     unittest.main(exit=False)
