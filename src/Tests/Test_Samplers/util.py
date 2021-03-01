@@ -25,6 +25,7 @@ def plot_sampler_path(sampler, model, steps, loss=None, skip=10, error_margin=0.
     import matplotlib.pyplot as plt
     import numpy as np
     pmean = posterior_mean(sampler.chain[-200:]).numpy()
+    sampler.chain.insert(0, model.init_model)  # for quiver - init model is not tracked during sampling
     chain = chain_mat(sampler.chain).numpy()
     chain = chain[~(np.isnan(chain).any(axis=1) + np.isinf(chain).any(axis=1))][:steps]
     last = torch.tensor(chain)[-1].numpy()
