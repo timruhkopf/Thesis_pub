@@ -9,7 +9,6 @@ from ..Test_Samplers.util import plot_sampler_path
 class Regression_Convergence_Setup:
     def setUp(self) -> None:
         # Regression example data (from Hidden layer)
-        # TODO make it 5 regressors + bias!
         p = 1  # no. regressors
         self.model = Hidden(p, 1, bias=True, activation=nn.Identity())
         X, y = self.model.sample_model(n=100)
@@ -70,8 +69,8 @@ class Regression_Convergence_Setup:
         # FIXME: plot circle does not allign with this models's decision!
         self.assertTrue(torch.allclose(
             chain_mat([self.model.true_model])[0],
-            posterior_mean(self.sampler.chain[-200:]), atol=0.15),
-            msg='True parameters != posterior mean(on last 200 steps of chain)')
+            posterior_mean(self.sampler.chain[-100:]), atol=0.15),
+            msg='True parameters != posterior mean(on last 100 steps of chain)')
 
         del self.model
         del self.X
