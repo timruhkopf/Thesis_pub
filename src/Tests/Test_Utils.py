@@ -3,10 +3,10 @@ import unittest
 import torch
 import torch.distributions as td
 
-from ..Util.Util_Model import Util_Model
-from ..Util.Util_Distribution import LogTransform
-from ..Models.BNN import BNN
 from ..Layer.Hidden import Hidden
+from ..Models.BNN import BNN
+from ..Util.Util_Distribution import LogTransform
+from ..Util.Util_Model import Util_Model
 
 
 class TestUtil(unittest.TestCase):
