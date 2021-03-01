@@ -1,17 +1,14 @@
+import matplotlib
 import torch
 import torch.distributions as td
 
-import matplotlib
-
 matplotlib.use('TkAgg')
-from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 from numpy import pi
-import numpy as np
 
 from src.Layer import GAM_fix_var
-from src.Util.Util_bspline import get_design, diff_mat1D
+from src.Util.Util_bspline import get_design
 
 order, degree, no_basis = 1, 2, 5
 gam = GAM_fix_var(order=order, no_basis=no_basis)
@@ -33,24 +30,22 @@ y = torch.sin(x1)
 
 ax.scatter(x1.view((n,)).numpy(), x2.view((n,)).numpy(), y.view((n,)).numpy())
 
-x1 = torch.linspace(0., 2.*pi, 1000)
+x1 = torch.linspace(0., 2. * pi, 1000)
 x2 = x1
 Z = torch.tensor(
-            get_design(x1.view((n,)).numpy(), degree=2, no_basis=no_basis) ,dtype=torch.float32,
-            requires_grad=False)
+    get_design(x1.view((n,)).numpy(), degree=2, no_basis=no_basis), dtype=torch.float32,
+    requires_grad=False)
 ax.plot(x1.view((n,)).numpy(),
         torch.zeros_like(x1).view((n,)).numpy(),
         gam.forward(Z).detach().view((n,)).numpy(),
         label='parametric curve')
 plt.show()
 
-
 # estimate model
 from src.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
 from src.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
 from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
-import matplotlib
 import random
 
 # matplotlib.use('Agg')  # 'TkAgg' for explicit plotting
@@ -62,6 +57,7 @@ X = x1
 Z.to(device)
 y.to(device)
 import torch.nn as nn
+
 sampler_name = ['SGNHT', 'SGLD', 'MALA', 'RHMC', 'SGRLD', 'SGRHMC'][3]
 model = gam
 
