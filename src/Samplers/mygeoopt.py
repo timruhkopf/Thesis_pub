@@ -7,14 +7,16 @@ from tqdm import tqdm
 from src.Util.Util_Samplers import Util_Sampler
 
 
-# geoopt is the inofficial implementation of
-# https://openreview.net/pdf?id=r1eiqi09K7 in colloberation with the authors.
-# original code can be found @ https://github.com/geoopt/geoopt
-# https://geoopt.readthedocs.io/en/latest/index.html
-
 class Geoopt_interface(Util_Sampler):
-    """geoopt samplers implementations is based on
-    Hamiltonian Monte-Carlo for Orthogonal Matrices"""
+    """
+    geoopt samplers implementations is based on
+    Hamiltonian Monte-Carlo for Orthogonal Matrices
+
+    geoopt is the inofficial implementation of
+    https://openreview.net/pdf?id=r1eiqi09K7 in colloberation with the authors.
+    original code can be found @ https://github.com/geoopt/geoopt
+    https://geoopt.readthedocs.io/en/latest/index.html
+    """
 
     def sample(self, trainloader, burn_in, n_samples):
         """
@@ -45,12 +47,10 @@ class Geoopt_interface(Util_Sampler):
             # if not all([all(state[k] == v) for k, v in samples[-1].items()]): # this is imprecise
             self.chain.append(state)
 
-        # self.model.check_chain(self.chain)
+        self.model.check_chain(self.chain)
 
         print('\nSampling')
-        points = []
         self.burnin = False
-
         self.chain = list()  # reset the chain
         for _ in tqdm(range(n_samples)):
             data = next(trainloader.__iter__())
@@ -60,16 +60,10 @@ class Geoopt_interface(Util_Sampler):
             # if not all([all(state[k] == v) for k, v in samples[-1].items()]): # this is imprecise
             self.chain.append(state)
 
-        # self.model.check_chain(self.chain)
+        self.model.check_chain(self.chain)
         self.log_probs = torch.tensor(self.log_probs[burn_in:])
-        self.state
-        self.n_rejected
-        self.rejection_rate
 
         return self.chain
-
-
-
 
 
 class myRHMC(RHMC, Geoopt_interface, Util_Sampler):
