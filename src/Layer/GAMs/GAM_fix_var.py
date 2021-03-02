@@ -1,102 +1,64 @@
-import torch
-import torch.nn as nn
-import torch.distributions as td
 from copy import deepcopy
 
-from src.Util.Util_Distribution import LogTransform
-from src.Layer.GAM.GAM import GAM
-from src.Util.Util_bspline import get_design, diff_mat1D
+import torch
+import torch.distributions as td
+import torch.nn as nn
+
+from src.Layer.GAMs.GAM import GAM
 
 
-class GAM_Woodpen(GAM):
+class GAM_fix_var(GAM):
+    """
+    MAIN PURPOSE OF THIS CLASS IS TO PROVIDE EVIDENCE THAT THE SMOOTHNESS PARAMETER
+    / VARIANCE TAU IS NOT RESPONSIBLE FOR THE EXPLODING GRADIENTS - INSTEAD THE BNN
+    PART OR ORTHOGONALISATION MOST LIKELY CAUSE THE PROBLEM!
+    """
+
+    def __init__(self, order=1, no_basis=20, no_out=1,
+                 activation=nn.Identity(), tau=1.):
+        """
+        RandomWalk Prior Model with fixed variance on Gamma (W) vector.
+        Be carefull to transform the Data beforehand with some DeBoor Style algorithm.
+        This Module merely implements the Hidden behaviour + Random Walk Prior
+        :param no_basis: number of basis from the de boor basis expansion to expect (=no_columns of X)
+        which is in fact the no_in of Hidden.
+        :param order: difference order to create the Precision (/Penalty) matrix K
+        :param tau: the fix variance of the random walk prior
+        """
+        self.tau = torch.tensor([tau])
+        GAM.__init__(self, order, no_basis, no_out, activation, bijected=False)
 
     def define_model(self):
-        # set up tau & W
-        GAM.define_model(self)
+        self.define_proper_cov()
 
-        # nullspace penalty "variance"
-        self.l0 = nn.Parameter(torch.Tensor(1))
-        self.dist['l0'] = td.Gamma(2., 2.)
-
-        if self.bijected:
-            self.dist['l0'] = td.TransformedDistribution(self.dist['l0'], LogTransform())
-
-        self.l0.data = self.dist['l0'].sample()
-
-        # construct double (null space) penalty
-        self.K = torch.tensor(diff_mat1D(self.no_basis, self.order)[1], dtype=torch.float32, requires_grad=False)
-        eig_val, eig_vec = torch.eig(self.K, eigenvectors=True)
-        threshold = 1e-2
-        self.rangespace = eig_vec[:, eig_val[:, 0] > threshold]
-        self.nullspace = eig_vec[:, eig_val[:, 0] < threshold]
-
-        # FIXME: Notice how .detach() is necessary to make sampling possible
-        # effectively, this stops gradients from passing through null_cov to
-        # improve on tau & l0: dL / dtau = (dL / d cov) (d cov / d tau) + dGa.log_prob(tau)
-        raise NotImplementedError('null_cov.detach() is necessary, preventing opt of l0 & tau')
-        self.dist['W'] = td.MultivariateNormal(torch.zeros(self.no_basis), self.null_cov.detach())
-
-    @property
-    def null_cov(self):
-        if self.bijected:
-            tau = self.dist['tau'].transforms[0]._inverse(self.tau)
-            l0 = self.dist['l0'].transforms[0]._inverse(self.l0)
-        else:
-            tau = self.tau.data
-            l0 = self.l0.data
-
-        # double penalty - refactored
-        # W^T (tau * K) W + W^T (l0 * U0 U0^T) W
-        # = W^T (tau * K + l0 * U0 U0^T) W
-        # = W^T (tau * K + l0 * U0 U0^T) W
-        # = W^T (tau * K + l0 * null*J) W  since K is rank deficient by 1 and self.nullspace is null * torch.ones()
-        return torch.inverse(tau * self.K + l0 * self.nullspace[0] ** 2)
-
-    def reset_parameters(self, tau=torch.tensor([1.])):
-        self.l0.data = self.dist['l0'].sample()
-        GAM.reset_parameters(self, tau)
+        self.W = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
+        self.W.dist = td.MultivariateNormal(torch.zeros(self.no_basis),
+                                            self.tau ** 2 * self.cov)
 
     def update_distributions(self):
-        self.dist['W'].covariance_matrix = self.null_cov
+        # No hierarchy
+        pass
+
+    def reset_parameters(self, tau=1.):
+        self.W.data = self.W.dist.sample().view(self.no_basis, 1)
+        self.init_model = deepcopy(self.state_dict())
 
     def prior_log_prob(self):
-        return self.dist['W'].log_prob(self.W) + self.dist['tau'].log_prob(self.tau) + self.dist['l0'].log_prob(self.l0)
-
-    # @property
-    # def double_penalty(self):
-    #     # for computational convenience- since K is deficient by only 1,
-    #     # null @ null.t() = null[0]**2 * J
-    #
-    #     self.W.t() @ (self.tau * self.K + self.l0 * self.nullspace[0] ** 2 * self.J) @ self.W
-    #     return self.tau * self.W.t() @ self.K @ self.W + \
-    #            self.l0 * self.W.t() @ self.nullspace @ self.nullspace.t() @ self.W
-    #
+        return self.W.dist.log_prob(self.W).sum()
 
 
 if __name__ == '__main__':
+    import matplotlib
+    matplotlib.use('TkAgg')
+    gam = GAM_fix_var(tau=1., no_basis=10)
 
-    # dense example
-    no_basis = 20
     n = 1000
-    X_dist = td.Uniform(-10., 10)
-    X = X_dist.sample(torch.Size([n]))
-    Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=no_basis),
-                     dtype=torch.float32, requires_grad=False)
-
-    gam = GAM_Wood(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=True)
-    # gam = GAM(no_basis=no_basis, order=1, activation=nn.Identity(), bijected=False)
-
-    gam.reset_parameters(tau=torch.tensor([0.0001]))
-    # gam.reset_parameters(tau=torch.tensor([0.01]))
-    gam.true_model = deepcopy(gam.state_dict())
-    y = gam.likelihood(Z).sample()
-
-    gam.reset_parameters(tau=torch.tensor([1.]))
-
+    X, Z, y = gam.sample_model(n)
+    gam.reset_parameters()
     gam.plot(X, y)
 
-    gam.forward(Z)
     gam.prior_log_prob()
+    gam.likelihood(Z).log_prob(y)
 
     from src.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
     from src.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
@@ -119,7 +81,7 @@ if __name__ == '__main__':
     if '/PycharmProjects' in __file__:
         # file is on local machine
         home += '/PycharmProjects'
-    path = home + '/Thesis/src/Experiments/Results_GAM_Wood/'
+    path = home + '/Thesis/Experiments/Results_GAM/'
     if not os.path.isdir(path):
         os.mkdir(path)
 
@@ -130,14 +92,13 @@ if __name__ == '__main__':
     sg_batch = 100
     for rep in range(3):
         for L in [1, 2, 3]:
-            for eps in np.arange(0.007, 0.04, 0.003):
-                model.reset_parameters()  # initialization
+            for eps in np.arange(0.01, 0.04, 0.003):
+                model.reset_parameters(tau=torch.tensor([0.0001]))  # initialization
                 name = '{}_{}_{}_{}'.format(sampler_name, str(eps), str(L), str(rep))
 
-                # MAYBE DO STOCHASTIC GRADIENT DESCENT
-                trainset = TensorDataset(Z, y)
                 sampler_param = dict(
-                    epsilon=eps, num_steps=1000, burn_in=1000,
+                    epsilon=eps,
+                    num_steps=1000, burn_in=100,
                     pretrain=False, tune=False, num_chains=1)
 
                 if sampler_name in ['SGNHT', 'RHMC', 'SGRHMC']:
@@ -151,17 +112,7 @@ if __name__ == '__main__':
                 else:
                     batch_size = X.shape[0]
 
-                # TODO find a reasonable init
-                # # SGD optimizing for reasonable init
-                # optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-                # dataset = TensorDataset(Z, y)
-                #
-                # for input, target in dataset:
-                #     optimizer.zero_grad()
-                #     output = model(input)
-                #     loss = gam.my_log_prob(output, target)
-                #     loss.backward()
-                #     optimizer.step()
+                trainset = TensorDataset(Z, y)
 
                 # Setting up the sampler & sampling
                 if sampler_name in ['SGNHT', 'SGLD', 'MALA']:  # geoopt based models
@@ -173,12 +124,14 @@ if __name__ == '__main__':
                     sampler = Sampler(model, trainloader, **sampler_param)
                     try:
                         sampler.sample()
+                        sampler.save('/home/tim/PycharmProjects/Thesis/Experiments/Results/Results_GAM/')
                         print(sampler.chain[:3])
                         print(sampler.chain[-3:])
 
                         # Visualize the resulting estimation -------------------------
                         sampler.model.plot(X[:100], y[:100], sampler.chain[:30], path=path + name)
                         sampler.model.plot(X[:100], y[:100], random.sample(sampler.chain, 30), path=path + name)
+                        sampler.traceplots(baseline=True)
                         matplotlib.pyplot.close('all')
                     except Exception as error:
                         print(name, 'failed')
@@ -197,11 +150,12 @@ if __name__ == '__main__':
                     Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
                                'SGRLD': myRSGLD,  # epsilon
                                'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
-                               }['RHMC']
+                               }[sampler_name]
                     sampler = Sampler(model, **sampler_param)
                     try:
                         sampler.sample(trainloader, burn_in, n_samples)
-
+                        sampler.save('/home/tim/PycharmProjects/Thesis/Experiments/Results/Results_GAM/{}'.format(name))
+                        sampler.traceplots(baseline=True)
                         print(sampler.chain[:3])
                         print(sampler.chain[-3:])
 
@@ -214,3 +168,27 @@ if __name__ == '__main__':
                         print(name, 'failed')
                         sampler.model.plot(X[:100], y[:100], path=path + 'failed_' + name)
                         print(error)
+
+    from src.Samplers.mygeoopt import myRHMC, mySGRHMC, myRSGLD
+    from torch.utils.data import TensorDataset, DataLoader
+
+    burn_in, n_samples = 100, 1000
+
+    trainset = TensorDataset(Z, y)
+    trainloader = DataLoader(trainset, batch_size=1000, shuffle=True, num_workers=0)
+
+    Sampler = {'RHMC': myRHMC,  # epsilon, n_steps
+               'SGRLD': myRSGLD,  # epsilon
+               'SGRHMC': mySGRHMC  # epsilon, n_steps, alpha
+               }['RHMC']
+    sampler = Sampler(gam, epsilon=0.004, L=2)
+    sampler.sample(trainloader, burn_in, n_samples)
+    sampler.model.check_chain(sampler.chain)
+    import random
+    import matplotlib
+
+    matplotlib.use('TkAgg')
+
+    sampler.model.plot(X[0:100], y[0:100], sampler.chain[-30:])
+
+

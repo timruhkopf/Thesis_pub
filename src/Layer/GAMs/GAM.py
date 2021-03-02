@@ -1,12 +1,11 @@
+from copy import deepcopy
+
 import torch
 import torch.distributions as td
 import torch.nn as nn
-from copy import deepcopy
 
 from src.Layer.Hidden import Hidden
 from src.Util.Util_Distribution import LogTransform
-import numpy as np
-
 from src.Util.Util_bspline import get_design, diff_mat1D
 
 

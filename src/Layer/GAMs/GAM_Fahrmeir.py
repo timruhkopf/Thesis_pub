@@ -1,11 +1,10 @@
 import torch
-import torch.nn as nn
 import torch.distributions as td
-
+import torch.nn as nn
 
 from src.Util.Util_Distribution import LogTransform
-from .GAM import GAM
 from src.Util.Util_bspline import get_design, diff_mat1D
+from .GAM import GAM
 
 
 class GAM_Fahrmeir(GAM):

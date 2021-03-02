@@ -1,5 +1,6 @@
 import torch
 import torch.distributions as td
+
 from src.Grid.Grid_Layout import GRID_Layout
 
 
@@ -89,7 +90,7 @@ if __name__ == '__main__':
         os.getcwd() + '/Results/{}/'.format(run)
     gam_unittest = GRID_Layout_GAM(root)
 
-    from src.Layer.GAM.GAM import GAM
+    from src.Layer.GAMs.GAM import GAM
 
     prelim_configs = gam_unittest.grid_exec_SGRLD(steps=100, batch_size=100)  # TODO: EXTEND THE GRID
     next(prelim_configs)
