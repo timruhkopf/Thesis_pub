@@ -1,16 +1,16 @@
-import torch
-import torch.nn as nn
-import torch.distributions as td
 import inspect
-
-from src.Layer.Hidden import Hidden, Hidden_flat
-from src.Util.Util_Model import Util_Model
-
 from copy import deepcopy
+
+import torch
+import torch.distributions as td
+import torch.nn as nn
+
+from src.Layer.Hidden import Hidden
+from src.Util.Util_Model import Util_Model
 
 
 class BNN(nn.Module, Util_Model):
-    L = {'flat': Hidden_flat, 'normal': Hidden}
+    L = {'normal': Hidden}
 
     def __init__(self, hunits=[1, 10, 5, 1], activation=nn.ReLU(), final_activation=nn.Identity(),
                  heteroscedast=False, prior='normal'):
