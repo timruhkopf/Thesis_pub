@@ -1,5 +1,6 @@
 from copy import deepcopy
 
+import matplotlib.pyplot as plt
 import torch
 import torch.distributions as td
 import torch.nn as nn
@@ -137,7 +138,7 @@ class GAM(Hidden):
         # tau can be the unconstrained if bijected is true
         return self.W.dist.log_prob(self.W).sum() + self.tau.dist.log_prob(self.tau)
 
-    def plot(self, X, y, chain=None, path=None, title='', **kwargs):
+    def plot(self, X, y, chain=None, path=None, **kwargs):
         Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=self.no_basis), dtype=torch.float32,
                          requires_grad=False)
         df0 = self.predict_states(chain, Z)
