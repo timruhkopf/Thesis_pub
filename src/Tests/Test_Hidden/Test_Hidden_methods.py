@@ -3,7 +3,7 @@ import unittest
 import torch
 import torch.distributions as td
 import torch.nn as nn
-from src.Layer import Hidden
+from src.Layer.Hidden import Hidden
 
 
 class TestHidden(unittest.TestCase):
@@ -61,6 +61,8 @@ class TestHidden(unittest.TestCase):
         self.assertEqual(self.model.b.shape, b.shape)
 
     # def test_samplable(self):
+    #     # TODO: once samplers are checked, move a test from TestSampler here - so it is checked everytime Hidden is
+    #     #  run
     #     """double check that a simple regression example works"""
     #     from .Test_Samplers import Test_Samplers
     #     self.model = Hidden(3, 1, bias=True, activation=nn.Identity())
