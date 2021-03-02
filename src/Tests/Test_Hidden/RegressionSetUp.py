@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 
 from src.Layer.Hidden import Hidden
+from ..Test_Samplers.util import OLS
 
 
 class RegressionSetUp:
@@ -24,5 +25,6 @@ class RegressionSetUp:
 
         X = self.X.clone()
         X = torch.cat([torch.ones(X.shape[0], 1), X], 1)
-        self.model.LS = torch.inverse(X.t() @ X) @ X.t() @ y  # least squares
+        # least squares
+        self.model.LS = OLS(X, y)
         self.model_in_LS_format = lambda: torch.cat([self.model.b.reshape((1, 1)), self.model.W.data], 0)

@@ -74,6 +74,10 @@ def plot_sampler_path(sampler, model, steps, loss=None, skip=10, error_margin=0.
 
     plt.show()
 
+
+def OLS(X, y):
+    return torch.inverse(X.t() @ X) @ X.t() @ y
+
 # def plot_log_prob(self, model):
 #     import numpy as np
 #     import matplotlib.pyplot as plt
