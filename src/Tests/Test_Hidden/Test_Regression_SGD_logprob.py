@@ -6,10 +6,12 @@ from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
 
 from .Optimizer import Optimizer
-from ..Test_Samplers.Regression_Convergence_Setup import Regression_Convergence_Setup
+from .RegressionSetUp import RegressionSetUp
+from ..Test_Samplers.Convergence_teardown import Convergence_teardown
+from ..Test_Samplers.util import plot_sampler_path
 
 
-class Test_Regression_SGD_logprob(Regression_Convergence_Setup, unittest.TestCase):
+class Test_Regression_SGD_logprob(RegressionSetUp, Convergence_teardown, unittest.TestCase):
 
     def test_OptimizerLogProb(self):
         lr = 0.001
@@ -19,6 +21,8 @@ class Test_Regression_SGD_logprob(Regression_Convergence_Setup, unittest.TestCas
 
         self.sampler = Optimizer(self.model, trainloader)
         self.sampler.sample(loss_closure=lambda X, y: - self.model.log_prob(X, y), steps=self.steps, lr=lr)
+        plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                          loss=self.sampler.loss)
 
     def test_ADAM_log_prob(self):
         loss_fn = lambda X, y: -self.model.log_prob(X, y)
@@ -44,6 +48,9 @@ class Test_Regression_SGD_logprob(Regression_Convergence_Setup, unittest.TestCas
                 print("[iteration %04d] loss: %.4f" % (j + 1, loss.item()))
                 print("gradients:",
                       torch.cat([p.grad.reshape((p.grad.shape[0], 1)) for p in self.model.parameters()], 0), '\n')
+
+        plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                          loss=self.sampler.loss)
 
     def test_ADAM_log_prob_on_batches(self):
         """This test uses an Adam optimiser on batches of data and log_prob as criterion"""
@@ -76,6 +83,9 @@ class Test_Regression_SGD_logprob(Regression_Convergence_Setup, unittest.TestCas
                 print("[iteration %04d] loss: %.4f" % (j + 1, loss.item()))
                 print("gradients:",
                       torch.cat([p.grad.reshape((p.grad.shape[0], 1)) for p in self.model.parameters()], 0), '\n')
+
+        plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                          loss=self.sampler.loss)
 
     def test_ADAM_likelihood_on_batches(self):
         """This test uses an Adam optimiser on batches of data and likelihood as criterion """
@@ -110,6 +120,9 @@ class Test_Regression_SGD_logprob(Regression_Convergence_Setup, unittest.TestCas
                 print("[iteration %04d] loss: %.4f" % (j + 1, loss.item()))
                 print("gradients:",
                       torch.cat([p.grad.reshape((p.grad.shape[0], 1)) for p in self.model.parameters()], 0), '\n')
+
+        plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                          loss=self.sampler.loss)
 
 
 if __name__ == '__main__':

@@ -7,10 +7,12 @@ from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
 
 from .Optimizer import Optimizer
-from ..Test_Samplers.Regression_Convergence_Setup import Regression_Convergence_Setup
+from ..Test_Hidden.RegressionSetUp import RegressionSetUp
+from ..Test_Samplers.Convergence_teardown import Convergence_teardown
+from ..Test_Samplers.util import plot_sampler_path
 
 
-class Test_Regression_SGD_MSE(Regression_Convergence_Setup, unittest.TestCase):
+class Test_Regression_SGD_MSE(RegressionSetUp, Convergence_teardown, unittest.TestCase):
 
     def test_usingADAM(self):
         loss_fn = torch.nn.MSELoss(reduction='mean')
@@ -45,6 +47,8 @@ class Test_Regression_SGD_MSE(Regression_Convergence_Setup, unittest.TestCase):
         #                  self.model.true_model,
         #                  self.model.init_model]))
         # print(self.LS, '\n', self.model_in_LS_format())
+        plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                          loss=self.sampler.loss)
 
     def test_OptimSGD(self):
 
@@ -71,6 +75,8 @@ class Test_Regression_SGD_MSE(Regression_Convergence_Setup, unittest.TestCase):
 
         self.sampler = optimizer
         self.sampler.loss = torch.stack(self.sampler.loss).detach().numpy()
+        plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                          loss=self.sampler.loss)
 
     def test_OptimizerMSE(self):
         # TODO test with MSE & with log_prob
@@ -92,6 +98,8 @@ class Test_Regression_SGD_MSE(Regression_Convergence_Setup, unittest.TestCase):
                             steps=n_samples, lr=lr)
 
         self.sampler.loss = torch.stack(self.sampler.loss).detach().numpy()
+        plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                          loss=self.sampler.loss)
 
 
 if __name__ == '__main__':

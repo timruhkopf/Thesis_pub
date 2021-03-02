@@ -73,8 +73,7 @@ def plot_sampler_path(sampler, model, steps, loss=None, skip=10, error_margin=0.
     # contour lines
 
     plt.show()
-#
-#
+
 # def plot_log_prob(self, model):
 #     import numpy as np
 #     import matplotlib.pyplot as plt

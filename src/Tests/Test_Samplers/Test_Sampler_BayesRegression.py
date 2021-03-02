@@ -3,10 +3,12 @@ import unittest
 from torch.utils.data import TensorDataset, DataLoader
 
 from src.Samplers import *
-from src.Tests.Test_Samplers.Regression_Convergence_Setup import Regression_Convergence_Setup
+from src.Tests.Test_Hidden.RegressionSetUp import RegressionSetUp
+from src.Tests.Test_Samplers.Convergence_teardown import Convergence_teardown
+from .util import plot_sampler_path
 
 
-class Test_Sampler(Regression_Convergence_Setup, unittest.TestCase):
+class Test_Sampler(RegressionSetUp, Convergence_teardown, unittest.TestCase):
     # (GEOOPT) -----------------------------------------------------------------
     def test_RSGLD(self):
         eps = 0.001
@@ -25,7 +27,35 @@ class Test_Sampler(Regression_Convergence_Setup, unittest.TestCase):
         self.sampler.sample(trainloader, burn_in, n_samples)
         self.sampler.loss = self.sampler.log_probs.detach().numpy()
 
+        plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                          loss=self.sampler.loss)
+
     def test_RHMC(self):
+        import torch
+        import torch.nn as nn
+        from src.Layer.Hidden import Hidden
+        # OVERWRITE SETUP ; since RHMC works on smaller number of observations only
+        self.steps = 1000
+        # Regression example data (from Hidden layer)
+        # TODO make it 5 regressors + bias!
+        p = 1  # no. regressors
+        self.model = Hidden(p, 1, bias=True, activation=nn.Identity())
+        X, y = self.model.sample_model(n=100)
+        self.model.reset_parameters()
+        self.X = X
+        self.y = y
+
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if torch.cuda.is_available():
+            torch.cuda.get_device_name(0)
+        self.X.to(device)
+        self.y.to(device)
+
+        X = self.X.clone()
+        X = torch.cat([torch.ones(X.shape[0], 1), X], 1)
+        self.model.LS = torch.inverse(X.t() @ X) @ X.t() @ y  # least squares
+        self.model_in_LS_format = lambda: torch.cat([self.model.b.reshape((1, 1)), self.model.W.data], 0)
+
         # sampler config
         eps, L = 0.01, 2
         sampler_param = dict(epsilon=eps, L=L)
@@ -42,6 +72,9 @@ class Test_Sampler(Regression_Convergence_Setup, unittest.TestCase):
         self.sampler = Sampler(self.model, **sampler_param)
         self.sampler.sample(trainloader, burn_in, n_samples)
         self.sampler.loss = self.sampler.log_probs.detach().numpy()
+
+        plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                          loss=self.sampler.loss)
 
     def test_SGRHMC(self):
         eps, L = 0.001, 2
@@ -61,6 +94,9 @@ class Test_Sampler(Regression_Convergence_Setup, unittest.TestCase):
         self.sampler = Sampler(self.model, **sampler_param)
         self.sampler.sample(trainloader, burn_in, n_samples)
         self.sampler.loss = self.sampler.log_probs.detach().numpy()
+
+        plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+                          loss=self.sampler.loss)
 
     # # (LUDWIGWINKLER) ----------------------------------------------------------
     # # FIXME: chain never progresses beyond second step
@@ -87,6 +123,8 @@ class Test_Sampler(Regression_Convergence_Setup, unittest.TestCase):
     #     #     if len(self.sampler.chain) > 2:
     #     #         plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
     #     #                           loss=self.sampler.loss)
+    #       #    plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+    #                           loss=self.sampler.loss)
     #     pass
     #
     # # FIXME: MALA does not work at all - log_prob & chain are single state
@@ -115,7 +153,8 @@ class Test_Sampler(Regression_Convergence_Setup, unittest.TestCase):
     #     #     # self.model.true_model
     #     #     # self.sampler.chain[-1]
     #     pass
-
+    #             plot_sampler_path(self.sampler, self.model, steps=self.steps, skip=50,
+    #                               loss=self.sampler.loss)
 
 if __name__ == '__main__':
     unittest.main(exit=False)
