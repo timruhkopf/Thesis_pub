@@ -1,10 +1,12 @@
 from copy import deepcopy
 
+import matplotlib.pyplot as plt
 import torch
 import torch.distributions as td
 import torch.nn as nn
 
 from src.Layer.Hidden import Hidden
+from src.Tests.Test_Samplers.util import OLS
 from src.Util.Util_Distribution import LogTransform
 from src.Util.Util_bspline import get_design, diff_mat1D
 
@@ -137,15 +139,31 @@ class GAM(Hidden):
         # tau can be the unconstrained if bijected is true
         return self.W.dist.log_prob(self.W).sum() + self.tau.dist.log_prob(self.tau)
 
-    def plot(self, X, y, chain=None, path=None, title='', **kwargs):
+    def plot(self, X, y, chain=None, path=None, ols=False, title='', **kwargs):
         Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=self.no_basis), dtype=torch.float32,
                          requires_grad=False)
-        df0 = self.predict_states(chain, Z)
 
+        if ols:
+            gamma = OLS(Z, y)
+
+            X_base = X.clone().numpy()
+            X_base.sort()
+            Z_base = torch.tensor(get_design(X_base, degree=2, no_basis=self.no_basis), dtype=torch.float32,
+                                  requires_grad=False)
+
+            y_ols = (Z_base @ gamma).view(X.shape[0]).numpy()
+
+        df0 = self.predict_states(chain, Z)
         df0['X'] = X.view(X.shape[0], ).numpy()
         df1 = df0.melt('X', value_name='y')
         df1 = df1.rename(columns={'variable': 'functions'})
-        plt = self._plot1d(X, y, df1, **kwargs)
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111, label="1")
+        ax.plot(X_base, y_ols, linestyle='--', dashes=(5, 1), label='OLS')
+        ax.legend()
+
+        ax = self._plot1d(X, y, df1, **kwargs)
 
         if path is None:
             plt.show()
