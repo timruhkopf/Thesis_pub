@@ -6,11 +6,11 @@ import torch.nn as nn
 
 from src.Layer.GAM.GAM import GAM
 from src.Models.Orthogonal_GAM_REG import OrthogonalBNN
-from ..Layer.Hidden import Hidden
-from ..Util.Util_bspline import get_design
+from src.Layer.Hidden import Hidden
+from src.Util.Util_bspline import get_design
 
 
-class Test_orthoghonal(unittest.TestCase):
+class Test_orthoghonal_projections(unittest.TestCase):
 
     def test_orth_projection(self):
         """check that Pz_orth of a 1 vector creates a vector of means.
