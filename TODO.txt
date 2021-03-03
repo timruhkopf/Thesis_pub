@@ -29,7 +29,7 @@
 (CODE) -------------------------------------------------------------------------
 (*) TODO set up BOHB to avoid Grid.
 
-(*) make stable the new master.
+(ake stable the new master.
 
 (*) Util_Model.check_chain_seq(chain) does not raise when first and last are the same!
 

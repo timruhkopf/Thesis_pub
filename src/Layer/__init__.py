@@ -1,2 +1,2 @@
-from src.Layer.GAMs.GAM import GAM
+from src.Layer.GAM import GAM
 from src.Layer.Hidden import Hidden
