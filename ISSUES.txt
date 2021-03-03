@@ -4,3 +4,6 @@
   out to ensure this condition.
 
 * TEST_UTIL check_chain_seq does not raise, when first and last entry are same.
+
+
+* Make Convergence tests "non-random" or reduce randomness: set a seed in torch!
