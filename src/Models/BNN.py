@@ -79,7 +79,7 @@ class BNN(nn.Module, Util_Model):
         X = X_dist.sample(torch.Size([n])).view(n, self.no_in)
         self.reset_parameters()  # true_model
         self.true_model = deepcopy(self.state_dict())
-        y = bnn.likelihood(X).sample()
+        y = self.likelihood(X).sample()
 
         return X, y
 
