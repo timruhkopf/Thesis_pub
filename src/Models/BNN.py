@@ -1,29 +1,26 @@
 import torch
 import torch.nn as nn
 import torch.distributions as td
+
 import inspect
+from copy import deepcopy
 
 from src.Layer.Hidden import Hidden
 from src.Util.Util_Model import Util_Model
 
-from copy import deepcopy
-
 
 class BNN(nn.Module, Util_Model):
 
-    def __init__(self, hunits=[1, 10, 5, 1], activation=nn.ReLU(), final_activation=nn.Identity(),
-                 heteroscedast=False):
+    def __init__(self, hunits=(1, 10, 5, 1), activation=nn.ReLU(), final_activation=nn.Identity()):
         """
         Bayesian Neural Network, consisting of hidden layers.
         :param hunits: list of integers, specifying the input dimensions of hidden units
         :param activation: each layers activation function (except the last)
         :param final_activation: activation function of the final layer.
-        :param heteroscedast: bool: indicating, whether or not y's conditional
-        variance y|x~N(mu, sigma²) is to be estimated as well
         :remark: see Hidden.activation doc for available activation functions
         """
         nn.Module.__init__(self)
-        self.heteroscedast = heteroscedast
+
         self.hunits = hunits
         self.no_in = hunits[0]
         self.no_out = hunits[-1]
@@ -35,20 +32,13 @@ class BNN(nn.Module, Util_Model):
 
         self.true_model = deepcopy(self.state_dict())
 
-    # CLASSICS METHODS ---------------------------------------------------------
+    # CLASSIC METHODS ---------------------------------------------------------
     def define_model(self):
         # Defining the layers depending on the mode.
         self.layers = nn.Sequential(
             *[Hidden(no_in, no_units, True, self.activation)
               for no_in, no_units in zip(self.hunits[:-2], self.hunits[1:-1])],
             Hidden(self.hunits[-2], self.hunits[-1], bias=False, activation=self.final_activation))
-
-        if self.heteroscedast:
-            self.sigma_ = nn.Parameter(torch.Tensor(1))
-            self.dist_sigma = td.TransformedDistribution(td.Gamma(0.01, 0.01), td.ExpTransform())
-            self.sigma = self.dist_sigma.sample()
-        else:
-            self.sigma = torch.tensor(1.)
 
     def reset_parameters(self, seperated=False):
         """samples each layer individually.
@@ -70,16 +60,7 @@ class BNN(nn.Module, Util_Model):
 
     def prior_log_prob(self):
         """surrogate for the hidden layers' prior log prob"""
-        p_log_prob = sum([h.prior_log_prob().sum() for h in self.layers])
-
-        if self.heteroscedast:
-            p_log_prob += self.dist_sigma.log_prob(self.sigma)
-
-        return p_log_prob
-
-    def likelihood(self, X):
-        """:returns the conditional distribution of y | X"""
-        return td.Normal(self.forward(X), scale=self.sigma)
+        return sum([h.prior_log_prob().sum() for h in self.layers])
 
     # SURROGATE (AGGREGATING) METHODS ------------------------------------------
     def forward(self, *args, **kwargs):
@@ -105,7 +86,7 @@ class BNN(nn.Module, Util_Model):
 
 if __name__ == '__main__':
     n = 1000
-    bnn = BNN(hunits=[1, 2, 5, 1], activation=nn.ReLU(), prior='normal')
+    bnn = BNN(hunits=(1, 2, 5, 1), activation=nn.ReLU())
     X, y = bnn.sample_model(n)
     bnn.reset_parameters()
     bnn.plot(X, y)
@@ -166,7 +147,7 @@ if __name__ == '__main__':
                 else:
                     batch_size = X.shape[0]
 
-                eps = batch_size**(-1) * eps
+                eps = batch_size ** (-1) * eps
                 trainset = TensorDataset(X, y)
 
                 # Setting up the sampler & sampling
@@ -199,7 +180,6 @@ if __name__ == '__main__':
                     sampler_param.pop('pretrain')
                     sampler_param.pop('tune')
                     sampler_param.pop('num_chains')
-
 
                     trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
 
