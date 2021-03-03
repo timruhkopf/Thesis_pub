@@ -10,6 +10,11 @@ from src.Util.Util_Distribution import LogTransform
 from src.Util.Util_bspline import get_design, diff_mat1D
 
 
+# TODO refactor GAM to state pattern bijected - this way before and after sampling
+#  can be unbijected (ease of analysis) -- and sampling can be bijected.
+#  notice, that this entails convergence of the chain (the tau's value)
+
+
 class GAM(Hidden):
     def __init__(self,  # xgrid=(0, 10, 0.5),
                  order=1, no_basis=20, no_out=1,
