@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 
-from src.Layer.GAMs.GAM import GAM
+from src.Layer.GAM import GAM
 from src.Samplers.mygeoopt import myRSGLD
 from ..Test_Samplers.Convergence_teardown import Convergence_teardown
 from ..Test_Samplers.util import posterior_mean, chain_mat

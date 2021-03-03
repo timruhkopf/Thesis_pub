@@ -3,7 +3,7 @@ import unittest
 import torch
 import torch.nn as nn
 
-from src.Layer.GAMs.GAM import GAM
+from src.Layer.GAM import GAM
 
 
 class Test_(unittest.TestCase):

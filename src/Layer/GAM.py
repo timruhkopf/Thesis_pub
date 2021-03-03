@@ -152,11 +152,29 @@ class GAM(Hidden):
     def plot(self, X, y, chain=None, path=None, **kwargs):
         Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=self.no_basis), dtype=torch.float32,
                          requires_grad=False)
-        df0 = self.predict_states(chain, Z)
 
+        # ols=False
+        # TODO make penOLS available
+        # if ols:
+        #     gamma = OLS(Z, y)
+        #
+        #     X_base = X.clone().numpy()
+        #     X_base.sort()
+        #     Z_base = torch.tensor(get_design(X_base, degree=2, no_basis=self.no_basis), dtype=torch.float32,
+        #                           requires_grad=False)
+        #
+        #     y_ols = (Z_base @ gamma).view(X.shape[0]).numpy()
+
+        df0 = self.predict_states(chain, Z)
         df0['X'] = X.view(X.shape[0], ).numpy()
         df1 = df0.melt('X', value_name='y')
         df1 = df1.rename(columns={'variable': 'functions'})
+
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, label="1")
+        # ax.plot(x=X_base, y=y_ols, linestyle='--', dashes=(5, 1), label='OLS')
+        # ax.legend()
+
         plt = self._plot1d(X, y, df1, **kwargs)
 
         if path is None:
