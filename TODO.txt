@@ -29,6 +29,8 @@
 (CODE) -------------------------------------------------------------------------
 (*) TODO set up BOHB to avoid Grid.
 
+(ake stable the new master.
+
 (*) Util_Model.check_chain_seq(chain) does not raise when first and last are the same!
 
 (*) src.Util.Util_bspline.get_design is not necessarily 1 in rowsum - if observations are at the boundary

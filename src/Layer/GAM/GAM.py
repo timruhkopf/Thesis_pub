@@ -1,13 +1,18 @@
+from copy import deepcopy
+
+import matplotlib.pyplot as plt
 import torch
 import torch.distributions as td
 import torch.nn as nn
-from copy import deepcopy
 
 from src.Layer.Hidden import Hidden
 from src.Util.Util_Distribution import LogTransform
-import numpy as np
-
 from src.Util.Util_bspline import get_design, diff_mat1D
+
+
+# TODO refactor GAM to state pattern bijected - this way before and after sampling
+#  can be unbijected (ease of analysis) -- and sampling can be bijected.
+#  notice, that this entails convergence of the chain (the tau's value)
 
 
 class GAM(Hidden):
@@ -32,6 +37,13 @@ class GAM(Hidden):
         #  and change the .loc attribute rather than instantiating a new td instance!
         # self.like = td.Normal(self.forward(torch.zeros(1000, 20)), scale=torch.tensor(1.))  # n, no_basis
 
+        # if bijected:
+        #     # Consider useful for unbijection of the model
+        #     self.bij_parameters = {'tau': self.tau}
+        #
+        #     # for p in self.bij_parameters.values():
+        #     #     p.dist.transforms[0]._inverse(p)
+
     # TODO : check if cov (without variance factor) can be made a lazy property.
     #   compare with  MultivariateNormal(Distribution).covariance_matrix
     #   @lazy_property # from torch.distributions.utils import lazy_property
@@ -46,7 +58,6 @@ class GAM(Hidden):
         val[val[:, 0] < threshold, :] = eig_val_2nd * fraction
         self.penK = vec @ torch.diag(val[:, 0]) @ vec.t()
         self.cov = torch.inverse(self.penK).detach()
-        assert (torch.matrix_rank(self.cov) == self.cov.shape[0])
 
     def define_model(self):
         # setting up a proper covariance for W's random walk prior
@@ -138,14 +149,32 @@ class GAM(Hidden):
         # tau can be the unconstrained if bijected is true
         return self.W.dist.log_prob(self.W).sum() + self.tau.dist.log_prob(self.tau)
 
-    def plot(self, X, y, chain=None, path=None, title='', **kwargs):
+    def plot(self, X, y, chain=None, path=None, **kwargs):
         Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=self.no_basis), dtype=torch.float32,
                          requires_grad=False)
-        df0 = self.predict_states(chain, Z)
 
+        # ols=False
+        # TODO make penOLS available
+        # if ols:
+        #     gamma = OLS(Z, y)
+        #
+        #     X_base = X.clone().numpy()
+        #     X_base.sort()
+        #     Z_base = torch.tensor(get_design(X_base, degree=2, no_basis=self.no_basis), dtype=torch.float32,
+        #                           requires_grad=False)
+        #
+        #     y_ols = (Z_base @ gamma).view(X.shape[0]).numpy()
+
+        df0 = self.predict_states(chain, Z)
         df0['X'] = X.view(X.shape[0], ).numpy()
         df1 = df0.melt('X', value_name='y')
         df1 = df1.rename(columns={'variable': 'functions'})
+
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, label="1")
+        # ax.plot(x=X_base, y=y_ols, linestyle='--', dashes=(5, 1), label='OLS')
+        # ax.legend()
+
         plt = self._plot1d(X, y, df1, **kwargs)
 
         if path is None:
