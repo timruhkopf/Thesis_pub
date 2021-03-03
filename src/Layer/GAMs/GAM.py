@@ -51,7 +51,6 @@ class GAM(Hidden):
         val[val[:, 0] < threshold, :] = eig_val_2nd * fraction
         self.penK = vec @ torch.diag(val[:, 0]) @ vec.t()
         self.cov = torch.inverse(self.penK).detach()
-        assert (torch.matrix_rank(self.cov) == self.cov.shape[0])
 
     def define_model(self):
         # setting up a proper covariance for W's random walk prior
