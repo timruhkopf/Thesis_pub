@@ -7,17 +7,20 @@ from torch.utils.data import TensorDataset, DataLoader
 from src.Layer.GAMs.GAM import GAM
 from src.Samplers.mygeoopt import myRSGLD
 from ..Test_Samplers.Convergence_teardown import Convergence_teardown
-from ..Test_Samplers.util import posterior_mean
+from ..Test_Samplers.util import posterior_mean, chain_mat
 
 
-class Test_GAM(Convergence_teardown, unittest.TestCase):
+class Test_GAM_samplable(unittest.TestCase):
 
-    def setUp(self) -> None:
-        # Model & Data setup
-        n = 1000
-        # TODO Test also unbijected, with reset_parameters(tau=value)
+    def test_samplable_unbijected(self):
+        self.model = GAM(no_basis=5, order=1, activation=nn.Identity(), bijected=False)
+
+    def test_bijected_samplable(self):
         self.model = GAM(no_basis=5, order=1, activation=nn.Identity(), bijected=True)
 
+    def tearDown(self) -> None:
+        # Data setup
+        n = 1000
         X, Z, y = self.model.sample_model(n=n)
         self.model.reset_parameters()
         self.X = X  # for plotting
@@ -30,9 +33,6 @@ class Test_GAM(Convergence_teardown, unittest.TestCase):
         self.Z.to(device)
         self.y.to(device)
 
-        # self.model.LS = OLS(Z, y)
-
-    def test_samplable(self):
         # Sampler set up
         eps = 0.001
         sampler_param = dict(epsilon=eps)
@@ -65,6 +65,19 @@ class Test_GAM(Convergence_teardown, unittest.TestCase):
 
         self.X_backup = self.X  # for plotting when in teardown
         self.X = self.Z  # for Convergence teardown
+
+        # did tau ever hit zero or became negative?
+        mat = chain_mat(self.sampler.chain)
+        taus = mat[:, 0]
+        if self.model.bijected:
+            self.assertFalse(any(self.model.tau.dist.transforms[0]._inverse(taus) <= 0.),
+                             msg='the unbijected sampling did produce negative or 0 values for tau')
+        else:
+            if any(taus <= 0):
+                Warning('for an unbijectd model, sampling produced negative or zero values for tau.'
+                        'This can happen, but be careful with the interpretation of the unittest')
+
+        Convergence_teardown.tearDown(self)
 
 
 if __name__ == '__main__':
