@@ -7,6 +7,7 @@ from ..Layer.Hidden import Hidden
 from ..Models.BNN import BNN
 from ..Util.Util_Distribution import LogTransform
 from ..Util.Util_Model import Util_Model
+from ..Util.Util_bspline import get_design
 
 
 class TestUtil(unittest.TestCase):
@@ -74,6 +75,19 @@ class TestUtil(unittest.TestCase):
         # consider sample from dist_bij, then invert to gamma's space
         #  calculating ML estimators for rate and concentration on large sample.
         #  they should be very close!
+
+    def test_get_design(self):
+        """sum of Z's row must always be 1."""
+        n = 10
+        no_basis = 10
+        X = td.Uniform(-10., 10.).sample([n])
+        Z = torch.tensor(get_design(X.numpy(), degree=2, no_basis=no_basis),
+                         dtype=torch.float32, requires_grad=False)
+
+        # Fixme: fails: observations, that fall close to the edge are not guaranteed to
+        #  sum to 1, but approximately 1 (round about - 0.04)
+        self.assertTrue(torch.allclose(Z.sum(1), torch.ones(no_basis)))
+
 
 if __name__ == '__main__':
     unittest.main(exit=False)

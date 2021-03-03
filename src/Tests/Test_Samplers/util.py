@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import torch
 
 
@@ -9,6 +11,15 @@ def chain_mat(chain):
 def posterior_mean(chain):
     chain_matrix = chain_mat(chain)
     return chain_matrix.mean(dim=0)
+
+
+def odict_pmean(chain):
+    """posterior mean on list of ordered dicts
+    :param chain: list of ordered dicts
+    :returns: Ordereddict
+    """
+    summed = [sum([odict[name] for odict in chain]) for name in chain[0].keys()]
+    return OrderedDict(zip(chain[0].keys(), [t / len(chain) for t in summed]))
 
 
 def plot_sampler_path(sampler, model, steps, loss=None, skip=10, error_margin=0.09):
@@ -73,8 +84,11 @@ def plot_sampler_path(sampler, model, steps, loss=None, skip=10, error_margin=0.
     # contour lines
 
     plt.show()
-#
-#
+
+
+def OLS(X, y):
+    return torch.inverse(X.t() @ X) @ X.t() @ y
+
 # def plot_log_prob(self, model):
 #     import numpy as np
 #     import matplotlib.pyplot as plt
