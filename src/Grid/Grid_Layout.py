@@ -1,16 +1,16 @@
-import os
-import pickle
-from copy import deepcopy
-from inspect import getfullargspec
-
-import matplotlib.pyplot as plt
 import torch
-import torch.distributions as td
 import torch.nn as nn
+import torch.distributions as td
 
-from src.Grid.Util.Continuation import Continuation
+from inspect import getfullargspec
+from copy import deepcopy
+
+import os
+import matplotlib.pyplot as plt
 from src.Grid.Util.Grid_Tracker import Grid_Tracker
+from src.Grid.Util.Continuation import Continuation
 from src.Grid.Util.Sampler_set_up import Sampler_set_up
+import pickle
 
 
 class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
@@ -190,6 +190,7 @@ if __name__ == '__main__':
     n = 1000
     n_val = 100
     model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU())
+    import matplotlib
 
     # matplotlib.use('TkAgg')
 
