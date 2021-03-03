@@ -1,16 +1,16 @@
-import torch
-import torch.nn as nn
-import torch.distributions as td
-
-from inspect import getfullargspec
-from copy import deepcopy
-
 import os
-import matplotlib.pyplot as plt
-from src.Grid.Util.Grid_Tracker import Grid_Tracker
-from src.Grid.Util.Continuation import Continuation
-from src.Grid.Util.Sampler_set_up import Sampler_set_up
 import pickle
+from copy import deepcopy
+from inspect import getfullargspec
+
+import matplotlib.pyplot as plt
+import torch
+import torch.distributions as td
+import torch.nn as nn
+
+from src.Grid.Util.Continuation import Continuation
+from src.Grid.Util.Grid_Tracker import Grid_Tracker
+from src.Grid.Util.Sampler_set_up import Sampler_set_up
 
 
 class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
@@ -157,10 +157,10 @@ class GRID_Layout(Grid_Tracker, Continuation, Sampler_set_up):
 
 
 if __name__ == '__main__':
-    pass
-    # # (Hidden) -----------------------------------------------------------------
-    # from src.Layer.Hidden import Hidden
-    #
+
+    # (Hidden) -----------------------------------------------------------------
+    from src.Layer.Hidden import Hidden
+
     # run = 'HIDDEN_SGNHT'
     # root = '/home/tim/PycharmProjects/Thesis/src/Experiments/Results/{}/'.format(run)
     # #root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
@@ -177,112 +177,111 @@ if __name__ == '__main__':
     #     grid.main(n=n, n_val=n_val, seperated=True,
     #               model_class=Hidden, model_param=model_param,
     #               sampler_name='SGNHT', sampler_param=config)
-    #
-    # # (HiddenRHMC) -----------------------------------------------------------------
-    # run = 'HIDDEN_RHMC2'
-    # root = '/home/tim/PycharmProjects/Thesis/src/Experiments/Results/{}/'.format(run)
-    # # root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-    # #     os.getcwd() + '/Results/{}/'.format(run)
-    #
-    # grid = GRID_Layout(root)
-    # prelim_configs = grid.grid_exec_RHMC(steps=1000)
-    #
-    # n = 1000
-    # n_val = 100
-    # model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU())
-    # import matplotlib
-    #
-    # # matplotlib.use('TkAgg')
-    #
-    # # VERY IMPORTANT FEATURE: continue sampling from successfull models!
-    # grid = GRID_Layout(root)
-    # grid.continue_sampling_successfull(n=1000, n_val=100, n_samples=1000, burn_in=100, path=root)
-    #
-    # for config in prelim_configs:
-    #     grid.main(n=n, n_val=n_val, seperated=True,
-    #               model_class=Hidden, model_param=model_param,
-    #               sampler_name='RHMC', sampler_param=config)
-    #
-    # # (Glasso) -----------------------------------------------------------------
-    # from src.Layer.Group_lasso import Group_lasso
-    #
-    # run = 'Glasso_SGNHT'
-    # root = '/home/tim/PycharmProjects/Thesis/src/Experiments/Results/{}/'.format(run)
-    # # #root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-    # # #    os.getcwd() + '/Results/{}/'.format(run)
-    #
-    # glasso_unittest = GRID_Layout(root)
-    # prelim_configs = glasso_unittest.grid_exec_SGNHT(steps=1000, batch_size=100)
-    #
-    # n = 100
-    # n_val = 100
-    # model_param = dict(no_in=2, no_out=1, bias=True,
-    #                    activation=nn.ReLU(), bijected=True)  # TODO CHECK not bijected
-    #
-    # for config in prelim_configs:
-    #     glasso_unittest.main(n=n, n_val=n_val, model_class=Group_lasso, model_param=model_param,
-    #                          sampler_name='SGNHT', sampler_param=config, seperated=True)
-    #
-    # # (Ghorse) -----------------------------------------------------------------
-    # from src.Layer.Group_HorseShoe import Group_HorseShoe
-    #
-    # run = 'Ghorse_SGNHT'
+
+    # (HiddenRHMC) -----------------------------------------------------------------
+    run = 'HIDDEN_RHMC2'
+    root = '/home/tim/PycharmProjects/Thesis/src/Experiments/Results/{}/'.format(run)
     # root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
     #     os.getcwd() + '/Results/{}/'.format(run)
-    #
-    # glasso_unittest = GRID_Layout(root)
-    # prelim_configs = glasso_unittest.grid_exec_SGNHT(steps=100, batch_size=100)
-    #
-    # n = 100
-    # n_val = 100
-    # model_param = dict(no_in=2, no_out=1, bias=False,
-    #                    activation=nn.ReLU(), bijected=True)  # TODO CHECK not bijected
-    #
-    # for config in prelim_configs:
-    #     glasso_unittest.main(n=n, n_val=n_val, model_class=Group_HorseShoe, model_param=model_param,
-    #                          sampler_name='SGNHT', sampler_param=config, seperated=True)
-    #
-    # # (BNN) --------------------------------------------------------------------
-    # import torch.nn as nn
-    # from src.Models.BNN import BNN
-    #
-    # run = 'BNN_SGNHT'
-    # root = '/home/tim/PycharmProjects/Thesis/src/Experiments/Results/{}/'.format(run)
-    # # #root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-    # # #    os.getcwd() + '/Results/{}/'.format(run)
-    #
-    # grid = GRID_Layout(root)
-    # prelim_configs = grid.grid_exec_SGNHT(steps=1000, batch_size=100)
-    #
-    # n = 1000
-    # n_val = 100
-    # model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
-    #                    final_activation=nn.Identity(),
-    #                    seperated=True)
-    #
-    # for config in prelim_configs:
-    #     grid.main(n=n, n_val=n_val, seperated=True,
-    #               model_class=BNN, model_param=model_param,
-    #               sampler_name='SGNHT', sampler_param=config)
-    #
-    # # (SHRINK BNN) -------------------------------------------------------------
-    # import torch.nn as nn
-    # from src.Models.ShrinkageBNN import ShrinkageBNN
-    #
-    # run = 'Shrinkage_BNN_SGNHT'
-    # root = '/home/tim/PycharmProjects/Thesis/src/Experiments/Results/{}/'.format(run)
-    # # #root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
-    # # #    os.getcwd() + '/Results/{}/'.format(run)
-    # grid = GRID_Layout(root)
-    # prelim_configs = grid.grid_exec_SGNHT(steps=1000, batch_size=100)
-    #
-    # n = 1000
-    # n_val = 100
-    # model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
-    #                    final_activation=nn.Identity(), shrinkage='ghorse',
-    #                    seperated=True, bijected=True)
-    #
-    # for config in prelim_configs:
-    #     grid.main(n=n, n_val=n_val, seperated=True,
-    #               model_class=ShrinkageBNN, model_param=model_param,
-    #               sampler_name='SGNHT', sampler_param=config)
+
+    grid = GRID_Layout(root)
+    prelim_configs = grid.grid_exec_RHMC(steps=1000)
+
+    n = 1000
+    n_val = 100
+    model_param = dict(no_in=2, no_out=1, bias=True, activation=nn.ReLU())
+
+    # matplotlib.use('TkAgg')
+
+    # VERY IMPORTANT FEATURE: continue sampling from successfull models!
+    grid = GRID_Layout(root)
+    grid.continue_sampling_successfull(n=1000, n_val=100, n_samples=1000, burn_in=100, path=root)
+
+    for config in prelim_configs:
+        grid.main(n=n, n_val=n_val, seperated=True,
+                  model_class=Hidden, model_param=model_param,
+                  sampler_name='RHMC', sampler_param=config)
+
+    # (Glasso) -----------------------------------------------------------------
+    from src.Layer.Group_lasso import Group_lasso
+
+    run = 'Glasso_SGNHT'
+    root = '/home/tim/PycharmProjects/Thesis/src/Experiments/Results/{}/'.format(run)
+    # #root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+    # #    os.getcwd() + '/Results/{}/'.format(run)
+
+    glasso_unittest = GRID_Layout(root)
+    prelim_configs = glasso_unittest.grid_exec_SGNHT(steps=1000, batch_size=100)
+
+    n = 100
+    n_val = 100
+    model_param = dict(no_in=2, no_out=1, bias=True,
+                       activation=nn.ReLU(), bijected=True)  # TODO CHECK not bijected
+
+    for config in prelim_configs:
+        glasso_unittest.main(n=n, n_val=n_val, model_class=Group_lasso, model_param=model_param,
+                             sampler_name='SGNHT', sampler_param=config, seperated=True)
+
+    # (Ghorse) -----------------------------------------------------------------
+    from src.Layer.Group_HorseShoe import Group_HorseShoe
+
+    run = 'Ghorse_SGNHT'
+    root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+        os.getcwd() + '/Results/{}/'.format(run)
+
+    glasso_unittest = GRID_Layout(root)
+    prelim_configs = glasso_unittest.grid_exec_SGNHT(steps=100, batch_size=100)
+
+    n = 100
+    n_val = 100
+    model_param = dict(no_in=2, no_out=1, bias=False,
+                       activation=nn.ReLU(), bijected=True)  # TODO CHECK not bijected
+
+    for config in prelim_configs:
+        glasso_unittest.main(n=n, n_val=n_val, model_class=Group_HorseShoe, model_param=model_param,
+                             sampler_name='SGNHT', sampler_param=config, seperated=True)
+
+    # (BNN) --------------------------------------------------------------------
+    import torch.nn as nn
+    from src.Models.BNN import BNN
+
+    run = 'BNN_SGNHT'
+    root = '/home/tim/PycharmProjects/Thesis/src/Experiments/Results/{}/'.format(run)
+    # #root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+    # #    os.getcwd() + '/Results/{}/'.format(run)
+
+    grid = GRID_Layout(root)
+    prelim_configs = grid.grid_exec_SGNHT(steps=1000, batch_size=100)
+
+    n = 1000
+    n_val = 100
+    model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
+                       final_activation=nn.Identity(),
+                       seperated=True)
+
+    for config in prelim_configs:
+        grid.main(n=n, n_val=n_val, seperated=True,
+                  model_class=BNN, model_param=model_param,
+                  sampler_name='SGNHT', sampler_param=config)
+
+    # (SHRINK BNN) -------------------------------------------------------------
+    import torch.nn as nn
+    from src.Models.ShrinkageBNN import ShrinkageBNN
+
+    run = 'Shrinkage_BNN_SGNHT'
+    root = '/home/tim/PycharmProjects/Thesis/src/Experiments/Results/{}/'.format(run)
+    # #root = os.getcwd() + '/Results/{}/'.format(run) if os.path.isdir(os.getcwd()) else \
+    # #    os.getcwd() + '/Results/{}/'.format(run)
+    grid = GRID_Layout(root)
+    prelim_configs = grid.grid_exec_SGNHT(steps=1000, batch_size=100)
+
+    n = 1000
+    n_val = 100
+    model_param = dict(hunits=[2, 10, 5, 1], activation=nn.ReLU(),
+                       final_activation=nn.Identity(), shrinkage='ghorse',
+                       seperated=True, bijected=True)
+
+    for config in prelim_configs:
+        grid.main(n=n, n_val=n_val, seperated=True,
+                  model_class=ShrinkageBNN, model_param=model_param,
+                  sampler_name='SGNHT', sampler_param=config)
