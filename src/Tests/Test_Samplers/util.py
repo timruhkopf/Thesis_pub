@@ -22,27 +22,6 @@ def odict_pmean(chain):
     return OrderedDict(zip(chain[0].keys(), [t / len(chain) for t in summed]))
 
 
-#
-#
-#
-# chain = [OrderedDict([('tau', torch.tensor([-0.2119])), ('W', torch.tensor([[-2.5274],
-#                                                                             [-4.6053],
-#                                                                             [-5.4617],
-#                                                                             [-5.9389],
-#                                                                             [-5.0649]]))]),
-#          OrderedDict([('tau', torch.tensor([-0.2050])), ('W', torch.tensor([[-2.5426],
-#                                                                             [-4.6029],
-#                                                                             [-5.4949],
-#                                                                             [-6.0102],
-#                                                                             [-5.1187]]))]),
-#          OrderedDict([('tau', torch.tensor([-0.1607])), ('W', torch.tensor([[-2.5786],
-#                                                                             [-4.5983],
-#                                                                             [-5.5538],
-#                                                                             [-6.0246],
-#                                                                             [-5.0838]]))])]
-#
-# odict_pmean(chain)
-
 def plot_sampler_path(sampler, model, steps, loss=None, skip=10, error_margin=0.09):
     """
     debugtool: plot the trajectory taken of a sampler in a 2d parameter case
