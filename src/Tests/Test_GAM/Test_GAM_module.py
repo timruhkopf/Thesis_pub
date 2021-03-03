@@ -17,6 +17,8 @@ class Test_(unittest.TestCase):
                          torch.tensor(self.model.cov.shape[0]))
 
     def test_resetparameters_fix_tau(self):
+        """tests resetting parameters with a fix value
+        and implicitly update_distributions."""
         prev_tau = self.model.tau.clone().detach()
         prev_tau_bij = self.model.tau_bij.clone().detach()
         prev_W = self.model.W.clone().detach()
