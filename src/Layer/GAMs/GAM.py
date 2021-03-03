@@ -37,6 +37,13 @@ class GAM(Hidden):
         #  and change the .loc attribute rather than instantiating a new td instance!
         # self.like = td.Normal(self.forward(torch.zeros(1000, 20)), scale=torch.tensor(1.))  # n, no_basis
 
+        # if bijected:
+        #     # Consider useful for unbijection of the model
+        #     self.bij_parameters = {'tau': self.tau}
+        #
+        #     # for p in self.bij_parameters.values():
+        #     #     p.dist.transforms[0]._inverse(p)
+
     # TODO : check if cov (without variance factor) can be made a lazy property.
     #   compare with  MultivariateNormal(Distribution).covariance_matrix
     #   @lazy_property # from torch.distributions.utils import lazy_property
