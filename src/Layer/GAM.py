@@ -200,3 +200,15 @@ class GAM(Hidden):
     #     return self.prior_log_prob() + \
     #            self.like.log_prob(y).sum()
 
+    def centerNdiagonalize(self, Z):
+        """Benji & Lea proposed centering & diagonalising in this way"""
+        q, _ = torch.qr(Z.sum(axis=0).view(-1, 1))  # px1 vector (transpose)
+        centeredZ = q[:, 1:]
+        _, U = torch.eig(centeredZ.t() @ self.penK @ centeredZ)
+        return Z @ centeredZ @ U
+
+
+if __name__ == '__main__':
+    gam = GAM(no_basis=5, order=1, activation=nn.Identity(), bijected=False)
+    X, Z, y = gam.sample_model(n=100)
+    gam.centerNdiagonalize(Z)
