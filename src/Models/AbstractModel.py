@@ -4,6 +4,7 @@ import torch.nn as nn
 
 
 class Model(nn.Module):
+    """optional (but useful) methods are in comments"""
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
@@ -20,18 +21,33 @@ class Model(nn.Module):
         pass
 
     @abc.abstractmethod
-    def forward(self, *args, **kwargs):
+    def forward(self, X, *args, **kwargs):
         pass
 
     @abc.abstractmethod
     def reset_parameters(self, *args, **kwargs):
+        self.init_model = deepcopy(self.state_dict())
         pass
+
+    # @abc.abstractmethod
+    # def prior_log_prob(self):
+    #     pass
+
+    # @abc.abstractmethod
+    # def likelihood(self, X, *args, **kwargs):
+    #     pass
 
     @abc.abstractmethod
     def log_prob(self):
+        # while not strictly required, a prior_log_prob & likelihood method
+        # may help to formulate the model
         pass
 
     @abc.abstractmethod
     @staticmethod
     def check_chain(chain):
         pass
+
+    # @abc.abstractmethod
+    # def sample_model(self):
+    #     pass
