@@ -67,7 +67,7 @@ TEXT: Model
 CONCLUSION:
 (*) outlook: Spike & slab
 
-
+# after git crash commit
 
 
 
