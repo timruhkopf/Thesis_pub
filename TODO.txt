@@ -1,1 +1,3 @@
 Make a new Sampler interface (FACADE PATTERN?), that facilitates all the sampling & set up
+
+# after git crash commit
