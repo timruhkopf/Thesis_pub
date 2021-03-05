@@ -7,3 +7,5 @@
 
 
 * Make Convergence tests "non-random" or reduce randomness: set a seed in torch!
+
+# after git crash commit
