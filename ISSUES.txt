@@ -4,3 +4,5 @@
   out to ensure this condition.
 
 * TEST_UTIL check_chain_seq does not raise, when first and last entry are same.
+
+# after git crash commit
