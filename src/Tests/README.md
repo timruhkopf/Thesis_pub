@@ -26,3 +26,9 @@ From there on out, check the modules (such as GAM):
 2. in a very simple (!!!) but meaningful example try out a sampling procedure, that is almost guaranteed to succeed.
    Make use of Test_Samplers' Convergence_teardown. The latter checks if the sampler progressed away from init and in
    terms of avg_MSE, if the model was improved significantly towards the true model.
+   
+BE AWARE, that complex models such as ShrinkageBNN are likely to fail due to extreme initialisations from 
+the prior. Make sure, to look at the general trend of the models (and repeated runs if necessary) to figure out 
+if the models manage to learn sth. meaningful.
+To make meaningful tests in these scenarios use explicit functions to generate data from them
+and estimate using the ShrinkageBNN model.

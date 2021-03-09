@@ -13,11 +13,20 @@ from src.Tests.Test_Samplers.util import odict_pmean
 class Test_BNN_samplable(Convergence_teardown, unittest.TestCase):
 
     def setUp(self) -> None:
-        self.model = BNN(hunits=(1, 3, 1), activation=nn.ReLU(), final_activation=nn.Identity())
+        self.model = BNN(hunits=(1, 3, 2, 1), activation=nn.ReLU(), final_activation=nn.Identity())
 
     def tearDown(self) -> None:
         try:
             Convergence_teardown.tearDown(self)
+            l_chain = len(self.sampler.chain)
+
+            self.model.plot(self.X, self.y, self.sampler.chain[:: l_chain // 30],
+                            title='subsampled chain (every 30th state, sorted)')
+
+            pmean = odict_pmean(self.sampler.chain[int(l_chain * 3 / 4)::5])
+            self.model.plot(self.X, self.y, chain=[pmean],
+                            title='posterior mean on last quarter of the chain; interleave: every 5th')
+
         except Exception as e:
             # Debugging: allows to plot failed model
             l_chain = len(self.sampler.chain)
