@@ -1,0 +1,11 @@
+* TEST_UTIL RANDOM test fails.
+  Util_bspline.get_design does not necessarily have a rowsum of 1 - for corners
+  (it is close fairly though) - perhaps the knots must be placed a little further
+  out to ensure this condition.
+
+* TEST_UTIL check_chain_seq does not raise, when first and last entry are same.
+
+
+* Make Convergence tests "non-random" or reduce randomness: set a seed in torch!
+
+# after git crash commit

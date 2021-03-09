@@ -138,13 +138,7 @@ def diff_mat2D(dim):
 
 
 if __name__ == '__main__':
-
-    D1, D2, K = diff_mat2D(dim=9, order=1)
-
-    # ( ) Check the diff_mat for different values -----------------------------
-    for order in [1, 2, 3, 4, 5]:
-        d, K = diff_mat1D(dim=5, order=order)
-        print('order {order}\n, D{order}: \n {d}, \n K{order} \n{K}, \n'.format(order=order, d=d, K=K))
+    pass
 
     # analoge version
     # dim = 5
@@ -154,57 +148,3 @@ if __name__ == '__main__':
     # d2 = d1[:-1,:-1].dot(d1)
     # d3 = d1[:-2,:-2].dot(d2)
     # d4 = d1[:-3, :-3].dot(d3)
-
-    # (0) Check eval_basis ----------------------------------------------------
-    # carefull to get the boundary regions right! Through in extra kappas, such that the
-    lower, upper = 0, 10  # support of x
-    degree = 2
-    l_knots = lower - degree - 1
-    u_knots = upper + degree + 2
-
-    X = np.random.uniform(lower, upper, 5)
-
-    z = eval_basis(x=upper, knots=np.arange(l_knots, u_knots, 1), degree=degree)
-
-    print(z)
-    print('rowsum: ', z.sum())
-
-    z = eval_basis(x=lower, knots=np.arange(l_knots, u_knots, 1), degree=degree)
-
-    print(z)
-    print('rowsum: ', z.sum())
-
-    # (1) get_design matrix ----------------------------------------------------
-    Z = get_design(X, degree=2)
-    print(Z, '\n',
-          'rowsum: ', Z.sum(axis=1), '\n',
-          'number of basis: ', get_design.num_basis)
-
-    print(eval_basis(X[0], knots=get_design.knots, degree=2))
-
-    # (1.1) Least squares example: ---------------------------------------------
-    # Effects generation
-    n = 100
-    X = np.stack([np.ones(n), np.random.uniform(0, 10, n)], axis=1)
-    beta = np.array([4, -2])
-    mu = X.dot(beta)
-    y = mu + np.random.normal(loc=0, scale=1, size=n)
-
-    # basis extention & OLS fit
-    Z = get_design(X[:, 1], degree=2)
-    OLS = lambda Z, y: np.linalg.inv(Z.T.dot(Z)).dot(Z.T).dot(y)
-    beta_hat = OLS(Z, y)
-    y_hat = Z.dot(beta_hat)
-
-    # Metrics
-    resid = y - y_hat
-    bias = (mu - y_hat) ** 2
-    print('residual sum: ', sum(resid))
-    print('bias sum: ', sum(bias))
-
-    import matplotlib.pyplot as plt
-
-    plt.scatter(X[:, 1], y)
-    plt.scatter(X[:, 1], y_hat)
-    plt.scatter(X[:, 1], mu)
-    plt.show()

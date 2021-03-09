@@ -1,10 +1,10 @@
-import torch
+from copy import deepcopy
+
+import matplotlib.tri as mtri  # for trisurface with irregular grid
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
-import matplotlib.tri as mtri  # for trisurface with irregular grid
-from copy import deepcopy
+import torch
 
 
 class Util_plots:
@@ -30,6 +30,8 @@ class Util_plots:
         df['current'] = self.forward(*args).view(X.shape[0], ).numpy()
         current = deepcopy(self.state_dict())
 
+        # TODO move true, init, current to seperate df! - This way they can be plotted
+        #  with specific configuration e.g. dashed line
         # predict true model
         self.load_state_dict(self.true_model)
         df['true'] = self.forward(*args).view(X.shape[0], ).numpy()
@@ -74,8 +76,6 @@ class Util_plots:
 
         else:
             print('Could not plot function, as input dim is >2')
-
-
 
         if path is None:
             plt.show()
@@ -212,7 +212,7 @@ if __name__ == '__main__':
     X = X_dist.sample(torch.Size([100]))
     y = reg.likelihood(X).sample()
 
-    from src.Samplers.LudwigWinkler import SGNHT, SGLD, MALA
+    from src.Samplers.LudwigWinkler import SGNHT
 
     step_size = 0.01
     num_steps = 500  # <-------------- important
