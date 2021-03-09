@@ -2,17 +2,15 @@ from copy import deepcopy
 
 import matplotlib.pyplot as plt
 import torch
-import torch.distributions as td
 import torch.nn as nn
+import torch.distributions as td
+from torch.distributions.utils import lazy_property
+
 
 from src.Layer.Hidden import Hidden
 from src.Util.Util_Distribution import LogTransform
 from src.Util.Util_bspline import get_design, diff_mat1D
 
-
-# TODO refactor GAM to state pattern bijected - this way before and after sampling
-#  can be unbijected (ease of analysis) -- and sampling can be bijected.
-#  notice, that this entails convergence of the chain (the tau's value)
 
 
 class GAM(Hidden):
@@ -33,21 +31,9 @@ class GAM(Hidden):
         self.no_basis = no_basis
 
         Hidden.__init__(self, no_basis, no_out, bias=False, activation=activation)
-        # FIXME: Experimental feature: to increase speed of sampling, always use the like instance
-        #  and change the .loc attribute rather than instantiating a new td instance!
-        # self.like = td.Normal(self.forward(torch.zeros(1000, 20)), scale=torch.tensor(1.))  # n, no_basis
 
-        # if bijected:
-        #     # Consider useful for unbijection of the model
-        #     self.bij_parameters = {'tau': self.tau}
-        #
-        #     # for p in self.bij_parameters.values():
-        #     #     p.dist.transforms[0]._inverse(p)
-
-    # TODO : check if cov (without variance factor) can be made a lazy property.
-    #   compare with  MultivariateNormal(Distribution).covariance_matrix
-    #   @lazy_property # from torch.distributions.utils import lazy_property
-    def define_proper_cov(self):
+    @lazy_property
+    def cov(self):
         """replace the numerical zero eigenvalue by fraction*(smallest non-zero eigenval)
         to ensure a propper distribution (see Marra Wood or Wood JAGS)"""
         threshold = 1e-3
@@ -57,12 +43,10 @@ class GAM(Hidden):
         eig_val_2nd = torch.sort(val, axis=0).values[1, :]
         val[val[:, 0] < threshold, :] = eig_val_2nd * fraction
         self.penK = vec @ torch.diag(val[:, 0]) @ vec.t()
-        self.cov = torch.inverse(self.penK).detach()
+        return torch.inverse(self.penK).detach()
 
     def define_model(self):
         # setting up a proper covariance for W's random walk prior
-        self.define_proper_cov()
-
         self.tau = nn.Parameter(torch.Tensor(1))
         self.tau.dist = td.Gamma(torch.tensor([2.]), torch.tensor([2.]))
         self.W = nn.Parameter(torch.Tensor(self.no_in, self.no_out))
@@ -110,13 +94,11 @@ class GAM(Hidden):
         int((xgrid[1] - xgrid[0]) // 0.5) == self.no_basis is required!
         :param tau: if not None, it is the inverse variance (smoothness) of
         randomwalkprior. If None, the self.dist_tau is used for sampling tau
-        # FIXME: carefull with sigma/tau=lambda relation
         :return: None. Inplace self.W, self.tau
         """
 
         # update tau
         if tau is None:
-            # FIXME: carefull with transformed distributions! (need to transform tau back)
             self.tau.data = self.tau.dist.sample()
         else:
             self.tau.data = tau
@@ -136,10 +118,6 @@ class GAM(Hidden):
         returns: log_probability sum of gamma & tau and is calculating the
          RandomWalkPrior
         """
-        # FIXME: CHECK IF IDENTIFIABILITY CAN BE HELPED IF SELF.K were penalized
-
-        # fixme: check if tau is correct here! (and not 1/tau)
-        #  BE VERY CAREFULL IF TAU IS BIJECTED!
         # p321 fahrmeir kneib lang:
         # const = - 0.5 * (self.K.shape[0] - 1) * torch.log(self.tau_bij)
         # kernel = -(2 * self.tau_bij) ** -1 * self.W.t() @ self.K @ self.W
@@ -192,11 +170,4 @@ class GAM(Hidden):
         y = self.likelihood(Z).sample()
         return X, Z, y
 
-    # def log_prob(self, Z, y, vec=None):
-    #     # FIXME: Experimental feature: to increase speed of sampling, always use the like instance
-    #     #  and change the .loc attribute rather than instantiating a new td instance!
-    #     self.update_distributions()
-    #     self.like.loc = self.forward(Z)
-    #     return self.prior_log_prob() + \
-    #            self.like.log_prob(y).sum()
 

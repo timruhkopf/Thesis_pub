@@ -190,7 +190,7 @@ class GroupLasso(Hidden):
 
 
 if __name__ == '__main__':
-    glasso = Group_lasso(2, 1, bias=True, no_shrink=2)
+    glasso = GroupLasso(2, 1, bias=True, no_shrink=2)
     glasso.prior_log_prob()
 
     glasso.reset_parameters(separated=True)
@@ -204,4 +204,4 @@ if __name__ == '__main__':
     dist = td.Normal(
         loc=torch.zeros((2, 3)),
         scale=p)
-    torch.tensor([[1.], [2.]]).expand(self.W.dist_shrinked.batch_shape)
+    torch.tensor([[1.], [2.]]).expand(glasso.W.dist_shrinked.batch_shape)
