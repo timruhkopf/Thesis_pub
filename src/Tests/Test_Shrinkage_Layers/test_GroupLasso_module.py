@@ -27,7 +27,7 @@ class Test_GroupLasso_module(unittest.TestCase):
     def test_reset_parameters_seperateT(self):
         self.model = GroupLasso(5, 3, bias=True, no_shrink=2)
         self.model.reset_parameters(separated=True)  # all shrinked have variance 0.05
-        self.assertTrue(torch.eq(self.model.tau.inv(self.model.tau).detach(), torch.tensor([0.05, 0.05])))
+        self.assertTrue(torch.allclose(self.model.tau.inv(self.model.tau).detach(), torch.tensor([0.05, 0.05])))
 
         # TODO continue testing
 
