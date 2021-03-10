@@ -11,16 +11,22 @@ from src.Samplers.mygeoopt import myRSGLD
 
 class Test_ShrinkageBNN_samplable(Convergence_teardown, unittest.TestCase):
 
+    def setUp(self) -> None:
+        torch.manual_seed(10)
+
     # (true model is shrunken, deeper models) ------------------------------
-    def test_glasso_single_shrink_separated(self):
+    def test_glasso_single_shrink_separated_deep(self):
         """true model has a shrunk variable!"""
+        torch.manual_seed(10)
         self.model = ShrinkageBNN(hunits=(2, 2, 2, 1), shrinkage='glasso', no_shrink=1)
+        torch.manual_seed(0)
         self.model.reset_parameters(separated=True)
         self.model.true_model = deepcopy(self.model.state_dict())
 
-    def test_ghorse_single_shrink_separated(self):
+    def test_ghorse_single_shrink_separated_deep(self):
         """true model has a shrunk variable!"""
         self.model = ShrinkageBNN(hunits=(2, 2, 2, 1), shrinkage='ghorse', no_shrink=1)
+        torch.manual_seed(10)
         self.model.reset_parameters(separated=True)
         self.model.true_model = deepcopy(self.model.state_dict())
 
@@ -28,12 +34,14 @@ class Test_ShrinkageBNN_samplable(Convergence_teardown, unittest.TestCase):
     def test_glasso_single_shrink_separated(self):
         """true model has a shrunk variable!"""
         self.model = ShrinkageBNN(hunits=(2, 2, 1), shrinkage='glasso', no_shrink=1)
+        torch.manual_seed(10)
         self.model.reset_parameters(separated=True)
         self.model.true_model = deepcopy(self.model.state_dict())
 
     def test_ghorse_single_shrink_separated(self):
         """true model has a shrunk variable!"""
         self.model = ShrinkageBNN(hunits=(2, 2, 1), shrinkage='ghorse', no_shrink=1)
+        torch.manual_seed(10)
         self.model.reset_parameters(separated=True)
         self.model.true_model = deepcopy(self.model.state_dict())
 
@@ -58,11 +66,10 @@ class Test_ShrinkageBNN_samplable(Convergence_teardown, unittest.TestCase):
         self.model = ShrinkageBNN(hunits=(3, 2, 1), shrinkage='ghorse', no_shrink=2)
 
     def tearDown(self) -> None:
-
         self.X, self.y = self.model.sample_model(1000)
         self.to_device(self.X, self.y)
 
-        eps = 0.0001
+        eps = 0.001
         sampler_param = dict(epsilon=eps)
 
         burn_in, n_samples = 100, 3000
@@ -73,11 +80,18 @@ class Test_ShrinkageBNN_samplable(Convergence_teardown, unittest.TestCase):
         trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
 
         # init sampler & sample
+        torch.manual_seed(0)
         self.model.reset_parameters(separated=False)
+        if self.X.shape[1] == 2:
+            # look at the entire chain subsampled
+            self.model.plot(self.X, self.y)
+
         Sampler = myRSGLD
         self.sampler = Sampler(self.model, **sampler_param)
         self.sampler.sample(trainloader, burn_in, n_samples)
         self.sampler.loss = self.sampler.log_probs.detach().numpy()
+
+        # del self.model.init_model
 
         if self.X.shape[1] == 2:
             # look at the entire chain subsampled
@@ -87,6 +101,7 @@ class Test_ShrinkageBNN_samplable(Convergence_teardown, unittest.TestCase):
             # look at the latest 300 steps, but subsampled
             self.model.plot(self.X, self.y, self.sampler.chain[-300::n_samples // 30],
                             title='subsampled chain (every 30th state, sorted)')
+        Convergence_teardown.tearDown(self)
 
     def to_device(self, X, y):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
