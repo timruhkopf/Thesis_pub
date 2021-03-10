@@ -38,6 +38,38 @@ class Optimizer:
 
                 self.chain.append(deepcopy(self.model.state_dict()))
 
+
+class ADAM_MSE_pretrain:
+    def __init__(self, model, lr=0.05):
+        self.loss_fn = torch.nn.MSELoss(reduction='mean')
+        self.model = model
+        self.optmizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+
+    def run(self, X, y, steps=1000):
+
+        self.optmizer.chain = []
+        self.optmizer.loss = []
+        for j in tqdm(range(steps)):
+            # run the model forward on the data
+            y_pred = self.model.forward(X)  # .squeeze(-1)
+            # calculate the mse loss
+            loss = self.loss_fn(y_pred, y)
+            # initialize gradients to zero
+            self.optmizer.zero_grad()
+            # backpropagate
+            loss.backward()
+            # take a gradient step
+            self.optmizer.step()
+
+            self.optmizer.chain.append(deepcopy(self.model.state_dict()))
+            self.optmizer.loss.append(loss)
+
+            if (j + 1) < 10 or (j + 1) % 500 == 0:
+                print("\n[iteration %04d] loss: %.4f\n" % (j + 1, loss.item()))
+                # print("gradients:",
+                #       torch.cat([p.grad.reshape((p.grad.shape[0], 1)) for p in self.model.parameters()], 0), '\n')
+                #
+
 # chain = []
 # losses = []
 # print('Pz_ortho', h.Pz_orth @ X)

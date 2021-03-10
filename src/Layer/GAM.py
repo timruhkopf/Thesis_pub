@@ -1,16 +1,13 @@
 from copy import deepcopy
 
-import matplotlib.pyplot as plt
 import torch
-import torch.nn as nn
 import torch.distributions as td
+import torch.nn as nn
 from torch.distributions.utils import lazy_property
-
 
 from src.Layer.Hidden import Hidden
 from src.Util.Util_Distribution import LogTransform
 from src.Util.Util_bspline import get_design, diff_mat1D
-
 
 
 class GAM(Hidden):
@@ -118,7 +115,7 @@ class GAM(Hidden):
         returns: log_probability sum of gamma & tau and is calculating the
          RandomWalkPrior
         """
-        # p321 fahrmeir kneib lang:
+        # p321 fahrmeir kneib lang: asdf
         # const = - 0.5 * (self.K.shape[0] - 1) * torch.log(self.tau_bij)
         # kernel = -(2 * self.tau_bij) ** -1 * self.W.t() @ self.K @ self.W
         # return sum(const + kernel + self.tau.dist.log_prob(self.tau))  # notice that tau can be on R if
